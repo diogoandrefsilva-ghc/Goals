@@ -86,22 +86,22 @@ tbody tr:hover{background:#fafaf8}
 /* JOGOS LIST */
 .jcard{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:12px 15px;display:flex;align-items:center;gap:11px;margin-bottom:9px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .jcard:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);border-color:#c8c8c0}
-.jdt{text-align:center;min-width:44px;flex-shrink:0}
+.jdt{text-align:center;width:44px;flex-shrink:0}
 .jdt strong{display:block;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1}
 .jdt span{font-size:10px;color:var(--mu);text-transform:uppercase}
 .jsep{width:1px;height:34px;background:var(--bo);flex-shrink:0}
 .jinfo{flex:1;min-width:0}
 .jadv{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jcomp{font-size:11px;color:var(--mu);margin-top:1px}
-.jres{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);min-width:48px;text-align:center;flex-shrink:0}
-.jgol{text-align:center;min-width:46px;flex-shrink:0}
+.jres{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);width:48px;text-align:center;flex-shrink:0}
+.jgol{text-align:center;width:46px;flex-shrink:0}
 .jgol .gn{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--ou);line-height:1}
 .jgol .gl{font-size:10px;color:var(--mu);text-transform:uppercase}
-.jpag-bar{display:flex;gap:3px;align-items:center;min-width:100px;flex-shrink:0}
+.jpag-bar{display:flex;gap:3px;align-items:center;width:100px;flex-shrink:0}
 .jpag-dot{width:18px;height:18px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0;title:""}
 .jpag-dot.pago{border-color:var(--vd);background:var(--vd)}
 .jpag-dot.nao{border-color:#ddd;background:transparent}
-.jval{font-weight:700;font-size:13px;color:var(--vd);min-width:56px;text-align:right;flex-shrink:0}
+.jval{font-weight:700;font-size:13px;color:var(--vd);width:56px;text-align:right;flex-shrink:0}
 .jdel{background:none;border:none;color:#ccc;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:6px;transition:all .1s;flex-shrink:0}
 .jdel:hover{color:var(--dg);background:var(--dgp)}
 
@@ -127,7 +127,7 @@ tbody tr:hover{background:#fafaf8}
 .fcard h3{font-size:14px;font-weight:600;margin-bottom:14px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:13px}
 @media(max-width:500px){.frow{grid-template-columns:1fr}}
-.fg{display:flex;flex-direction:column;gap:5px}
+.fg{display:flex;flex-direction:column;gap:5px;min-width:0;}
 label{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
 input[type=text],input[type=date],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%}
 input:focus,select:focus{border-color:var(--vd)}
@@ -178,7 +178,7 @@ input:focus,select:focus{border-color:var(--vd)}
 .modo-card.on .modo-sub{color:#2e7d32}
 
 /* STATUS PILL on jcard */
-.jstatus{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;white-space:nowrap;flex-shrink:0}
+.jstatus{font-size:10px;font-weight:700;padding:2px 0;border-radius:99px;white-space:nowrap;flex-shrink:0;width:65px;text-align:center;display:inline-block}
 .jstatus.ok{background:var(--vdp);color:#1b5e20}
 .jstatus.div{background:var(--dgp);color:var(--dg)}
 .jstatus.fut{background:#f5f5f5;color:#999;border:1px solid #ddd}
