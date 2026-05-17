@@ -691,7 +691,7 @@ function jogoCardHTML(j,mini=false){
   const nPag=pagaram.length,nTotal=db.amigos.length;
   const hoje=new Date().toISOString().split('T')[0];
   const golosJ=gJ(j);
-  const isFuturo=j.data>hoje || (j.golos===null||j.golos===undefined||j.golos==='');
+  const isFuturo=(j.golos===null||j.golos===undefined||j.golos==='');
 
   // status pill
   let statusHTML='';
