@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Golos do Sporting 🦁</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1009,11 +1009,10 @@ function renderDetalhe(jogo){
 
       <!-- CABEÇALHO: jogo + resultado -->
       <div style="background:linear-gradient(135deg,#f0faf2,#fff);border-bottom:1px solid var(--bo);padding:16px 20px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
           <!-- Equipa esquerda -->
           <div style="flex:1;min-width:0;text-align:center">
             <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--vd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nomeEsq}</div>
-            ${!isFora?`<div style="font-size:10px;color:var(--mu);margin-top:1px">${localLabel}</div>`:'<div style="font-size:10px;color:transparent;margin-top:1px">·</div>'}
           </div>
           <!-- Resultado central -->
           <div style="flex-shrink:0;text-align:center">
@@ -1022,20 +1021,19 @@ function renderDetalhe(jogo){
           <!-- Equipa direita -->
           <div style="flex:1;min-width:0;text-align:center">
             <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--vd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nomeDir}</div>
-            ${isFora?`<div style="font-size:10px;color:var(--mu);margin-top:1px">${localLabel}</div>`:'<div style="font-size:10px;color:transparent;margin-top:1px">·</div>'}
           </div>
         </div>
+        <!-- Local centrado por baixo do resultado -->
+        ${localLabel?`<div style="text-align:center;font-size:11px;color:var(--mu)">${localLabel}</div>`:''}
       </div>
 
       <!-- META + EDITAR/APAGAR -->
       <div style="padding:14px 20px;border-bottom:1px solid var(--bo);display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-        <div>
-          <div style="font-size:12px;color:var(--mu);margin-bottom:4px">${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}</div>
-          <div style="font-size:12px;color:var(--mu);margin-bottom:8px">${d}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:12px">
-            <span style="font-size:12px;color:var(--mu)">Pote do jogo: <strong style="color:var(--tx)">${totalJogo}€</strong></span>
-            <span style="font-size:12px;color:var(--mu)">Valor recebido: <strong style="color:var(--vd)">${totalReceb}€</strong></span>
-          </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:12px;color:var(--mu)">${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}</div>
+          <div style="font-size:12px;color:var(--mu)">${d}</div>
+          <div style="font-size:12px;color:var(--mu)">Pote do jogo: <strong style="color:var(--tx)">${totalJogo}€</strong></div>
+          <div style="font-size:12px;color:var(--mu)">Valor recebido: <strong style="color:var(--vd)">${totalReceb}€</strong></div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button class="jdel" style="color:#1565c0;border:1px solid #ddd;border-radius:7px;padding:5px 9px;font-size:13px" onclick="abrirModalEditar(${jogo.id})" title="Editar">✏️ Editar</button>
@@ -1044,16 +1042,12 @@ function renderDetalhe(jogo){
       </div>
 
       <!-- QUEM PAGOU -->
-      <div style="padding:14px 20px 6px">
+      <div style="padding:14px 20px 14px">
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:10px">
           Quem pagou este jogo (${nPag}/${nTotal})
         </div>
         ${amigosGrid}
       </div>
-    </div>
-    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-g" onclick="marcarTodos(${jogo.id})">✓ Marcar todos como pagos</button>
-      <button class="btn btn-n" onclick="desmarcarTodos(${jogo.id})">✕ Desmarcar todos</button>
     </div>
   `;
 }
