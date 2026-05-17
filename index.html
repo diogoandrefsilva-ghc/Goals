@@ -84,24 +84,26 @@ tbody tr:hover{background:#fafaf8}
 .bsm:hover{background:var(--vd2)}
 
 /* JOGOS LIST */
-.jcard{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:12px 15px;display:flex;align-items:center;gap:11px;margin-bottom:9px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.jcard{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:10px 13px;display:flex;align-items:center;gap:9px;margin-bottom:9px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .jcard:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);border-color:#c8c8c0}
-.jdt{text-align:center;width:44px;flex-shrink:0}
+.jdt{text-align:center;width:40px;flex-shrink:0}
 .jdt strong{display:block;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1}
 .jdt span{font-size:10px;color:var(--mu);text-transform:uppercase}
 .jsep{width:1px;height:34px;background:var(--bo);flex-shrink:0}
 .jinfo{flex:1;min-width:0}
 .jadv{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jcomp{font-size:11px;color:var(--mu);margin-top:1px}
-.jres{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);width:48px;text-align:center;flex-shrink:0}
-.jgol{text-align:center;width:46px;flex-shrink:0}
+.jres{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);width:44px;text-align:center;flex-shrink:0}
+.jgol{text-align:center;width:40px;flex-shrink:0}
 .jgol .gn{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--ou);line-height:1}
 .jgol .gl{font-size:10px;color:var(--mu);text-transform:uppercase}
-.jpag-bar{display:flex;gap:3px;align-items:center;width:100px;flex-shrink:0}
-.jpag-dot{width:18px;height:18px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0;title:""}
+.jpag-bar{display:flex;gap:3px;align-items:center;width:90px;flex-shrink:0}
+.jpag-dot{width:16px;height:16px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0;title:""}
 .jpag-dot.pago{border-color:var(--vd);background:var(--vd)}
 .jpag-dot.nao{border-color:#ddd;background:transparent}
-.jval{font-weight:700;font-size:13px;color:var(--vd);width:56px;text-align:right;flex-shrink:0}
+.jval{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;min-width:54px}
+.jval-total{font-weight:700;font-size:13px;color:var(--vd)}
+.jval-div{font-size:11px;font-weight:600;color:var(--dg)}
 .jdel{background:none;border:none;color:#ccc;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:6px;transition:all .1s;flex-shrink:0}
 .jdel:hover{color:var(--dg);background:var(--dgp)}
 
@@ -129,7 +131,8 @@ tbody tr:hover{background:#fafaf8}
 @media(max-width:500px){.frow{grid-template-columns:1fr}}
 .fg{display:flex;flex-direction:column;gap:5px;min-width:0;}
 label{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
-input[type=text],input[type=date],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%}
+input[type=text],input[type=date],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%;height:37px}
+input[type=date]{min-width:130px;max-width:160px}
 input:focus,select:focus{border-color:var(--vd)}
 .btn{border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;transition:all .15s}
 .btn-g{background:var(--vd);color:#fff}.btn-g:hover{background:var(--vd2)}
@@ -271,6 +274,13 @@ input:focus,select:focus{border-color:var(--vd)}
       <h2 class="stit" style="margin:0">Dívidas por amigo</h2>
       <button class="btn btn-g" onclick="exportarDividas()" style="font-size:12px;padding:7px 14px;display:flex;align-items:center;gap:6px">📄 Exportar PDF</button>
     </div>
+    <div class="tw" style="margin-bottom:16px">
+      <table>
+        <thead><tr><th>Amigo</th><th class="r">Saldo</th></tr></thead>
+        <tbody id="tbl-contas"></tbody>
+      </table>
+    </div>
+    <h2 class="stit">Detalhe por jogo</h2>
     <div id="divida-jogos"></div>
   </div>
   <div id="t-previsao" class="tp">
@@ -346,7 +356,7 @@ input:focus,select:focus{border-color:var(--vd)}
         <div style="display:flex;gap:10px;align-items:stretch">
           <div class="fg" style="flex:2;min-width:0">
             <label>Competição</label>
-            <select id="cal-comp" style="height:37px">
+            <select id="cal-comp">
               <option>Liga Portugal</option>
               <option>Liga dos Campeões</option>
               <option>Taça de Portugal</option>
@@ -357,11 +367,11 @@ input:focus,select:focus{border-color:var(--vd)}
           </div>
           <div class="fg" style="flex:1;min-width:0">
             <label>Jornada <em style="font-weight:300;font-style:italic;color:var(--mu);text-transform:none;letter-spacing:0">(opc.)</em></label>
-            <input type="text" id="cal-jorn" placeholder="ex: J32" style="height:37px">
+            <input type="text" id="cal-jorn" placeholder="ex: J32">
           </div>
-          <div class="fg" style="flex:1;min-width:0">
+          <div class="fg" style="flex:0 0 auto">
             <label>Data</label>
-            <input type="date" id="cal-data" style="height:37px">
+            <input type="date" id="cal-data">
           </div>
         </div>
 
@@ -458,6 +468,15 @@ input:focus,select:focus{border-color:var(--vd)}
         <div class="fg">
           <label>Jornada <em style="font-weight:400;font-style:italic;color:var(--mu)">(opcional)</em></label>
           <input type="text" id="ed-jorn" placeholder="ex: LP J32">
+        </div>
+        <div class="fg">
+          <label>Local</label>
+          <div id="ed-local-btns" style="display:flex;gap:4px">
+            <button type="button" class="local-btn" data-val="Casa" onclick="selLocalEd(this)">🏠 Casa</button>
+            <button type="button" class="local-btn" data-val="Fora" onclick="selLocalEd(this)">✈️ Fora</button>
+            <button type="button" class="local-btn" data-val="Neutro" onclick="selLocalEd(this)">⚖️ Neutro</button>
+          </div>
+          <input type="hidden" id="ed-local" value="Casa">
         </div>
         <div class="fg">
           <label>Resultado final <em style="font-weight:400;font-style:italic;color:var(--mu)">(opcional)</em></label>
@@ -831,17 +850,19 @@ function jogoCardHTML(j,mini=false){
   }
 
   const pot=(golosJ*db.config.valorPorGolo*nTotal).toFixed(0);
+  const divVal=!isFuturo&&golosJ>0&&nPag<nTotal?(golosJ*db.config.valorPorGolo*(nTotal-nPag)).toFixed(0):null;
   const delBtn=mini?'': `<button class="jdel" onclick="event.stopPropagation();remJogo(${j.id})" title="Remover">✕</button>`;
   const editBtn=mini?'': `<button class="jdel" style="color:#1565c0" onclick="event.stopPropagation();abrirModalEditar(${j.id})" title="Editar">✏️</button>`;
+  const valHTML=!isFuturo&&golosJ>0?`<div class="jval"><span class="jval-total">+${pot}€</span>${divVal?`<span class="jval-div">−${divVal}€</span>`:''}</div>`:'';
   return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
     <div class="jinfo"><div class="jadv">${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?'<br><span style="opacity:.8">'+j.jornada+'</span>':''}</div></div>
     <div class="jres">${j.resultado||'—'}</div>
-    <div class="jgol"><div class="gn">${isFuturo?'—':golosJ}</div><div class="gl">${isFuturo?'':('golo'+(golosJ!==1?'s':''))}</div></div>
     <div class="jpag-bar">${dotsHTML}</div>
     ${statusHTML}
-    ${!isFuturo&&golosJ>0?`<div class="jval">+${pot}€</div>`:''}
+    <div class="jgol"><div class="gn">${isFuturo?'—':golosJ}</div><div class="gl">${isFuturo?'':('golo'+(golosJ!==1?'s':''))}</div></div>
+    ${valHTML}
     ${editBtn}
     ${delBtn}
   </div>`;
@@ -890,7 +911,7 @@ function renderDetalhe(jogo){
       <div class="jd-header">
         <div>
           <div class="jd-title">Sporting vs ${jogo.adversario}</div>
-          <div class="jd-meta">${d} · ${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}</div>
+          <div class="jd-meta">${d} · ${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}${jogo.local?' · '+({'Casa':'🏠 Casa','Fora':'✈️ Fora','Neutro':'⚖️ Neutro'}[jogo.local]||jogo.local):''}</div>
           <div style="margin-top:10px;display:flex;gap:14px">
             <span style="font-size:12px;color:var(--mu)">Resultado: <strong>${jogo.resultado||'—'}</strong></span>
             <span style="font-size:12px;color:var(--mu)">Pote do jogo: <strong>${totalJogo}€</strong></span>
@@ -947,7 +968,8 @@ function rJogos(){
   document.getElementById('cal-data').value=hoje;
   limparGolos();
   const a=document.querySelector('#s-jogos .tp.on');
-  if(a?.id==='t-jlista')renderJogosList();
+  // sempre renderiza a lista (mesmo que não esteja activa, para ter dados quando voltar)
+  renderJogosList();
 }
 
 /* ── GOLOS COUNTER (add form) ── */
@@ -999,6 +1021,12 @@ function addJogoCal(){
 let _editId=null;
 let _golosEd=null;
 
+function selLocalEd(btn){
+  document.querySelectorAll('#ed-local-btns .local-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('ed-local').value=btn.dataset.val;
+}
+
 function abrirModalEditar(jogoId){
   const j=db.jogos.find(x=>x.id===jogoId);if(!j)return;
   _editId=jogoId;
@@ -1006,6 +1034,10 @@ function abrirModalEditar(jogoId){
   document.getElementById('ed-data').value=j.data||'';
   document.getElementById('ed-jorn').value=j.jornada||'';
   document.getElementById('ed-res').value=j.resultado||'';
+  // Local
+  const localVal=j.local||'Casa';
+  document.getElementById('ed-local').value=localVal;
+  document.querySelectorAll('#ed-local-btns .local-btn').forEach(b=>{b.classList.toggle('on',b.dataset.val===localVal);});
   // Competição
   const selComp=document.getElementById('ed-comp');
   [...selComp.options].forEach(o=>o.selected=o.value===j.competicao);
@@ -1051,6 +1083,7 @@ function guardarEdicao(){
   j.competicao=document.getElementById('ed-comp').value;
   j.jornada=document.getElementById('ed-jorn').value.trim();
   j.resultado=document.getElementById('ed-res').value.trim();
+  j.local=document.getElementById('ed-local').value||'Casa';
   const gv=document.getElementById('ed-golos').value;
   j.golos=gv===''?null:parseInt(gv);
   salvar();
