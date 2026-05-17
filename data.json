@@ -1,0 +1,1137 @@
+{
+  "config": {
+    "valorPorGolo": 1,
+    "golosPrevistosEpoca": 132,
+    "jogosPrevistosEpoca": 55,
+    "epoca": "2025/26"
+  },
+  "amigos": [
+    {
+      "id": 1,
+      "nome": "Barrona",
+      "cor": "#1b5e20"
+    },
+    {
+      "id": 2,
+      "nome": "Diogo",
+      "cor": "#1a237e"
+    },
+    {
+      "id": 3,
+      "nome": "Filipe",
+      "cor": "#4a148c"
+    },
+    {
+      "id": 4,
+      "nome": "João Hélder",
+      "cor": "#b71c1c"
+    },
+    {
+      "id": 5,
+      "nome": "João Matias",
+      "cor": "#e65100"
+    },
+    {
+      "id": 6,
+      "nome": "João Mestre",
+      "cor": "#006064"
+    },
+    {
+      "id": 7,
+      "nome": "João Paulo",
+      "cor": "#33691e"
+    },
+    {
+      "id": 8,
+      "nome": "Luís Pedro",
+      "cor": "#880e4f"
+    },
+    {
+      "id": 9,
+      "nome": "Rogélio",
+      "cor": "#1565c0"
+    },
+    {
+      "id": 10,
+      "nome": "Samuel",
+      "cor": "#37474f"
+    }
+  ],
+  "jogos": [
+    {
+      "id": 1,
+      "data": "2025-08-09",
+      "adversario": "Casa Pia",
+      "competicao": "Liga Portugal",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "LP J1"
+    },
+    {
+      "id": 2,
+      "data": "2025-08-17",
+      "adversario": "Arouca",
+      "competicao": "Liga Portugal",
+      "golos": 6,
+      "resultado": "",
+      "jornada": "LP J2"
+    },
+    {
+      "id": 3,
+      "data": "2025-08-24",
+      "adversario": "Nacional",
+      "competicao": "Liga Portugal",
+      "golos": 4,
+      "resultado": "",
+      "jornada": "LP J3"
+    },
+    {
+      "id": 4,
+      "data": "2025-08-31",
+      "adversario": "Porto",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J4"
+    },
+    {
+      "id": 5,
+      "data": "2025-09-14",
+      "adversario": "Famal.",
+      "competicao": "Liga Portugal",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "LP J5"
+    },
+    {
+      "id": 6,
+      "data": "2025-09-17",
+      "adversario": "Kairat",
+      "competicao": "Liga dos Campeões",
+      "golos": 4,
+      "resultado": "",
+      "jornada": "CL J1"
+    },
+    {
+      "id": 7,
+      "data": "2025-09-21",
+      "adversario": "Moreir.",
+      "competicao": "Liga Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "LP J6"
+    },
+    {
+      "id": 8,
+      "data": "2025-09-28",
+      "adversario": "Estoril",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J7"
+    },
+    {
+      "id": 9,
+      "data": "2025-10-01",
+      "adversario": "Napoli",
+      "competicao": "Liga dos Campeões",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "CL J2"
+    },
+    {
+      "id": 10,
+      "data": "2025-10-05",
+      "adversario": "Braga",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J8"
+    },
+    {
+      "id": 11,
+      "data": "2025-10-19",
+      "adversario": "Paços",
+      "competicao": "Taça de Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "TP 32A"
+    },
+    {
+      "id": 12,
+      "data": "2025-10-22",
+      "adversario": "Marselha",
+      "competicao": "Liga dos Campeões",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "CL J3"
+    },
+    {
+      "id": 13,
+      "data": "2025-10-26",
+      "adversario": "Tondela",
+      "competicao": "Liga Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "LP J9"
+    },
+    {
+      "id": 14,
+      "data": "2025-10-29",
+      "adversario": "Alverca",
+      "competicao": "Taça da Liga",
+      "golos": 5,
+      "resultado": "",
+      "jornada": "TL QF"
+    },
+    {
+      "id": 15,
+      "data": "2025-11-02",
+      "adversario": "Alverca",
+      "competicao": "Liga Portugal",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "LP J10"
+    },
+    {
+      "id": 16,
+      "data": "2025-11-05",
+      "adversario": "Juventus",
+      "competicao": "Liga dos Campeões",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "CL J4"
+    },
+    {
+      "id": 17,
+      "data": "2025-11-09",
+      "adversario": "Sta Clara",
+      "competicao": "Liga Portugal",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "LP J11"
+    },
+    {
+      "id": 18,
+      "data": "2025-11-27",
+      "adversario": "Marinh.",
+      "competicao": "Taça de Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "TP 16A"
+    },
+    {
+      "id": 19,
+      "data": "2025-12-10",
+      "adversario": "Brugge",
+      "competicao": "Liga dos Campeões",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "CL J5"
+    },
+    {
+      "id": 20,
+      "data": "2025-12-14",
+      "adversario": "Amadora",
+      "competicao": "Liga Portugal",
+      "golos": 4,
+      "resultado": "",
+      "jornada": "LP J12"
+    },
+    {
+      "id": 21,
+      "data": "2025-12-21",
+      "adversario": "Benfica",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J13"
+    },
+    {
+      "id": 22,
+      "data": "2025-12-22",
+      "adversario": "Bayern",
+      "competicao": "Liga dos Campeões",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "CL J6"
+    },
+    {
+      "id": 23,
+      "data": "2026-01-04",
+      "adversario": "AFS",
+      "competicao": "Liga Portugal",
+      "golos": 6,
+      "resultado": "",
+      "jornada": "LP J14"
+    },
+    {
+      "id": 24,
+      "data": "2026-01-08",
+      "adversario": "Sta Clara",
+      "competicao": "Taça de Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "TP 8A"
+    },
+    {
+      "id": 25,
+      "data": "2026-01-11",
+      "adversario": "Vitória",
+      "competicao": "Liga Portugal",
+      "golos": 4,
+      "resultado": "",
+      "jornada": "LP J15"
+    },
+    {
+      "id": 26,
+      "data": "2026-01-18",
+      "adversario": "Rio Ave",
+      "competicao": "Liga Portugal",
+      "golos": 4,
+      "resultado": "",
+      "jornada": "LP J16"
+    },
+    {
+      "id": 27,
+      "data": "2026-01-25",
+      "adversario": "Gil V.",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J17"
+    },
+    {
+      "id": 28,
+      "data": "2026-01-29",
+      "adversario": "Vitória",
+      "competicao": "Taça da Liga",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "TL MF"
+    },
+    {
+      "id": 29,
+      "data": "2026-02-01",
+      "adversario": "Casa Pia",
+      "competicao": "Liga Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "LP J18"
+    },
+    {
+      "id": 30,
+      "data": "2026-02-04",
+      "adversario": "PSG",
+      "competicao": "Liga dos Campeões",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "CL J7"
+    },
+    {
+      "id": 31,
+      "data": "2026-02-08",
+      "adversario": "Arouca",
+      "competicao": "Liga Portugal",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "LP J19"
+    },
+    {
+      "id": 32,
+      "data": "2026-02-11",
+      "adversario": "Bilbao",
+      "competicao": "Liga dos Campeões",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "CL J8"
+    },
+    {
+      "id": 33,
+      "data": "2026-02-22",
+      "adversario": "Nacional",
+      "competicao": "Liga Portugal",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "LP J20"
+    },
+    {
+      "id": 34,
+      "data": "2026-02-25",
+      "adversario": "AFS",
+      "competicao": "Taça de Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "TP QF"
+    },
+    {
+      "id": 35,
+      "data": "2026-03-01",
+      "adversario": "Porto",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J21"
+    },
+    {
+      "id": 36,
+      "data": "2026-03-08",
+      "adversario": "Famal.",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J22"
+    },
+    {
+      "id": 37,
+      "data": "2026-03-15",
+      "adversario": "Moreir.",
+      "competicao": "Liga Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "LP J23"
+    },
+    {
+      "id": 38,
+      "data": "2026-03-22",
+      "adversario": "Estoril",
+      "competicao": "Liga Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "LP J24"
+    },
+    {
+      "id": 39,
+      "data": "2026-03-26",
+      "adversario": "Porto",
+      "competicao": "Taça de Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "TP MF"
+    },
+    {
+      "id": 40,
+      "data": "2026-04-05",
+      "adversario": "Braga",
+      "competicao": "Liga Portugal",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "LP J25"
+    },
+    {
+      "id": 41,
+      "data": "2026-04-09",
+      "adversario": "Bodo",
+      "competicao": "Liga dos Campeões",
+      "golos": 0,
+      "resultado": "",
+      "jornada": "CL 8A"
+    },
+    {
+      "id": 42,
+      "data": "2026-04-16",
+      "adversario": "Bodo",
+      "competicao": "Liga dos Campeões",
+      "golos": 5,
+      "resultado": "",
+      "jornada": "CL 8A"
+    },
+    {
+      "id": 43,
+      "data": "2026-04-19",
+      "adversario": "Alverca",
+      "competicao": "Liga Portugal",
+      "golos": 4,
+      "resultado": "",
+      "jornada": "LP J27"
+    },
+    {
+      "id": 44,
+      "data": "2026-04-26",
+      "adversario": "Sta Clara",
+      "competicao": "Liga Portugal",
+      "golos": 4,
+      "resultado": "",
+      "jornada": "LP J28"
+    },
+    {
+      "id": 45,
+      "data": "2026-04-30",
+      "adversario": "Arsenal",
+      "competicao": "Liga dos Campeões",
+      "golos": 0,
+      "resultado": "",
+      "jornada": "CL QF"
+    },
+    {
+      "id": 46,
+      "data": "2026-05-03",
+      "adversario": "Amadora",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J29"
+    },
+    {
+      "id": 47,
+      "data": "2026-05-07",
+      "adversario": "Arsenal",
+      "competicao": "Liga dos Campeões",
+      "golos": 0,
+      "resultado": "",
+      "jornada": "CL QF"
+    },
+    {
+      "id": 48,
+      "data": "2026-05-10",
+      "adversario": "Benfica",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J30"
+    },
+    {
+      "id": 49,
+      "data": "2026-05-13",
+      "adversario": "Porto",
+      "competicao": "Taça de Portugal",
+      "golos": 0,
+      "resultado": "",
+      "jornada": "TP MF"
+    },
+    {
+      "id": 50,
+      "data": "2026-05-15",
+      "adversario": "AFS",
+      "competicao": "Liga Portugal",
+      "golos": 1,
+      "resultado": "",
+      "jornada": "LP J31"
+    },
+    {
+      "id": 51,
+      "data": "2026-05-13",
+      "adversario": "Tondela",
+      "competicao": "Liga Portugal",
+      "golos": 2,
+      "resultado": "",
+      "jornada": "LP J26"
+    },
+    {
+      "id": 52,
+      "data": "2026-05-17",
+      "adversario": "Vitória",
+      "competicao": "Liga Portugal",
+      "golos": 5,
+      "resultado": "",
+      "jornada": "LP J32"
+    },
+    {
+      "id": 53,
+      "data": "2026-05-20",
+      "adversario": "Rio Ave",
+      "competicao": "Liga Portugal",
+      "golos": 4,
+      "resultado": "",
+      "jornada": "LP J33"
+    },
+    {
+      "id": 54,
+      "data": "2026-05-24",
+      "adversario": "Gil V.",
+      "competicao": "Liga Portugal",
+      "golos": 3,
+      "resultado": "",
+      "jornada": "LP J34"
+    },
+    {
+      "id": 55,
+      "data": "2026-05-27",
+      "adversario": "Torreense",
+      "competicao": "Taça de Portugal",
+      "golos": 0,
+      "resultado": "",
+      "jornada": "TP F"
+    }
+  ],
+  "pagosPorJogo": {
+    "1": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "2": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "3": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "4": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "5": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "6": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "7": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "8": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "10": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "11": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "12": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "13": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "14": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "15": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "16": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "17": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "18": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "19": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "20": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "21": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "22": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "23": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "24": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "25": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "26": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "27": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "28": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "29": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "30": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "31": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "32": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "33": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "34": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "35": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "36": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "37": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "38": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "39": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "40": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "41": [],
+    "42": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "43": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "44": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "45": [],
+    "46": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "47": [],
+    "48": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "49": [],
+    "50": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "51": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "52": [
+      1,
+      2,
+      4,
+      6,
+      7,
+      8,
+      9
+    ],
+    "53": [
+      2,
+      6
+    ],
+    "54": [
+      2,
+      6
+    ],
+    "55": []
+  }
+}
