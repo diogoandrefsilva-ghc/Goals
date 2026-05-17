@@ -842,8 +842,8 @@ function jogoCardHTML(j,mini=false){
 
   const pot=(golosJ*db.config.valorPorGolo*nTotal).toFixed(0);
   const divVal=!isFuturo&&golosJ>0&&nPag<nTotal?(golosJ*db.config.valorPorGolo*(nTotal-nPag)).toFixed(0):null;
-  const delBtn=mini?'': `<button class="jdel" onclick="event.stopPropagation();remJogo(${j.id})" title="Remover">✕</button>`;
-  const editBtn=mini?'': `<button class="jdel" style="color:#1565c0" onclick="event.stopPropagation();abrirModalEditar(${j.id})" title="Editar">✏️</button>`;
+  const delBtn='';
+  const editBtn='';
 
   // valor: +pote verde; se houver dívida, -divida vermelho; se pago, "Pago ✓"; se 0 golos, "N/A"
   let valHTML='';
@@ -885,7 +885,10 @@ function jogoCardHTML(j,mini=false){
       if(gS>gA){bgCor='#1b5e20';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
       else if(gS===gA){bgCor='#e6a700';numCorS='var(--vd)';numCorA='rgba(255,255,255,0.85)';}
       else{bgCor='#c62828';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
-      resDisplayHTML=`<div class="jgol"><div style="background:${bgCor};border-radius:7px;padding:3px 7px;display:inline-flex;align-items:baseline;gap:2px;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1"><span style="color:${numCorS}">${gS}</span><span style="color:rgba(255,255,255,0.5);font-size:14px">-</span><span style="color:${numCorA}">${gA}</span></div></div>`;
+      // Fora: adversário-Sporting; Casa/Neutro: Sporting-adversário
+      const leftNum=j.local==='Fora'?`<span style="color:${numCorA}">${gA}</span>`:`<span style="color:${numCorS}">${gS}</span>`;
+      const rightNum=j.local==='Fora'?`<span style="color:${numCorS}">${gS}</span>`:`<span style="color:${numCorA}">${gA}</span>`;
+      resDisplayHTML=`<div class="jgol"><div style="background:${bgCor};border-radius:7px;padding:3px 7px;display:inline-flex;align-items:baseline;gap:2px;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1">${leftNum}<span style="color:rgba(255,255,255,0.5);font-size:14px">-</span>${rightNum}</div></div>`;
     } else {
       resDisplayHTML=`<div class="jgol"><div class="gn">${golosJ}</div><div class="gl">golo${golosJ!==1?'s':''}</div></div>`;
     }
@@ -955,7 +958,7 @@ function renderDetalhe(jogo){
   document.getElementById('jd-content').innerHTML=`
     <div class="jogo-detalhe">
       <div class="jd-header">
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="jd-title">Sporting vs ${jogo.adversario}</div>
           <div class="jd-meta">${d} · ${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}${jogo.local?' · '+({'Casa':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z" fill="#c8a415"/></svg> Casa','Fora':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg> Fora','Neutro':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/></svg> Neutro'}[jogo.local]||jogo.local):''}</div>
           <div style="margin-top:10px;display:flex;gap:14px">
@@ -964,7 +967,13 @@ function renderDetalhe(jogo){
             <span style="font-size:12px;color:var(--vd)">Recebido: <strong>${totalReceb}€</strong></span>
           </div>
         </div>
-        <div><div class="jd-golos">${golosJogo}<span>golo${golosJogo!==1?'s':''}</span></div><div style="font-size:11px;color:var(--mu);text-align:right;margin-top:4px">${valorPorPessoa}€/pessoa</div></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0">
+          <div style="display:flex;gap:6px">
+            <button class="jdel" style="color:#1565c0;border:1px solid #ddd;border-radius:7px;padding:5px 9px;font-size:13px" onclick="abrirModalEditar(${jogo.id})" title="Editar">✏️ Editar</button>
+            <button class="jdel" style="color:var(--dg);border:1px solid #ddd;border-radius:7px;padding:5px 9px;font-size:13px" onclick="if(confirm('Remover este jogo?'))remJogo(${jogo.id})" title="Remover">✕ Apagar</button>
+          </div>
+          <div><div class="jd-golos">${golosJogo}<span>golo${golosJogo!==1?'s':''}</span></div><div style="font-size:11px;color:var(--mu);text-align:right;margin-top:4px">${valorPorPessoa}€/pessoa</div></div>
+        </div>
       </div>
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:10px">
         Quem pagou este jogo (${nPag}/${nTotal})
@@ -986,7 +995,6 @@ function renderDetalhe(jogo){
     <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-g" onclick="marcarTodos(${jogo.id})">✓ Marcar todos como pagos</button>
       <button class="btn btn-n" onclick="desmarcarTodos(${jogo.id})">✕ Desmarcar todos</button>
-      <button class="btn" style="background:var(--in);color:#fff;margin-left:auto" onclick="abrirModalEditar(${jogo.id})">✏️ Editar jogo</button>
     </div>
   `;
 }
