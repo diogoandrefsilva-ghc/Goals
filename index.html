@@ -4,476 +4,576 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Golos do Sporting 🦁</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --verde:#1a5e2e;--verde2:#2e7d32;--verde-pale:#e8f5e9;
-  --ouro:#f9a825;--ouro-pale:#fffde7;
-  --bg:#f4f4f0;--card:#fff;--text:#1a1a1a;--muted:#666;
-  --border:#e0deda;--danger:#c62828;--danger-pale:#ffebee;
-  --info:#1565c0;--info-pale:#e3f2fd;--r:12px;
+  --vd:#1a5e2e;--vd2:#2e7d32;--vdp:#e8f5e9;
+  --ou:#f9a825;--oup:#fffde7;
+  --bg:#f4f4f0;--card:#fff;--tx:#1a1a1a;--mu:#666;
+  --bo:#e0deda;--dg:#c62828;--dgp:#ffebee;
+  --in:#1565c0;--inp:#e3f2fd;--r:12px;
 }
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-header{background:var(--verde);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.2)}
-.hdr{max-width:1020px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.hdr-brand{display:flex;align-items:center;gap:11px}
-.escudo{width:42px;height:42px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.hdr-brand h1{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.5px;line-height:1}
-.hdr-brand p{font-size:11px;opacity:.7;font-weight:300;margin-top:1px}
-.hdr-nav{display:flex;gap:4px;flex-wrap:wrap}
-.hn{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 13px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+
+/* HEADER */
+header{background:var(--vd);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.2)}
+.hdr{max-width:1040px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:11px}
+.escudo{width:40px;height:40px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.brand h1{font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:.5px;line-height:1}
+.brand p{font-size:11px;opacity:.7;font-weight:300;margin-top:1px}
+.hnav{display:flex;gap:4px;flex-wrap:wrap}
+.hn{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap}
 .hn:hover{background:rgba(255,255,255,.12)}
-.hn.on{background:#fff;color:var(--verde);font-weight:600;border-color:#fff}
-.wrap{max-width:1020px;margin:0 auto;padding:22px 18px}
+.hn.on{background:#fff;color:var(--vd);font-weight:600;border-color:#fff}
+
+/* LAYOUT */
+.wrap{max-width:1040px;margin:0 auto;padding:20px 18px}
 .sec{display:none}.sec.on{display:block}
-.inner-tabs{display:flex;gap:0;margin-bottom:22px;border-bottom:1.5px solid var(--border)}
-.it{background:none;border:none;padding:8px 16px 10px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--muted);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .15s;font-weight:500}
-.it:hover{color:var(--text)}
-.it.on{color:var(--verde);border-bottom-color:var(--verde);font-weight:600}
-.tab-panel{display:none}.tab-panel.on{display:block}
-.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px}
-.sc{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
-.sc-lbl{font-size:11px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.sc-val{font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;color:var(--verde)}
-.sc-sub{font-size:11px;color:var(--muted);margin-top:3px}
-.sc.c-g{border-left:3px solid var(--verde)}
-.sc.c-o{border-left:3px solid var(--ouro)}
-.sc.c-r{border-left:3px solid var(--danger)}
-.sc.c-b{border-left:3px solid var(--info)}
-.prog-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 22px;margin-bottom:18px}
-.prog-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
-.prog-hdr h3{font-size:13px;font-weight:600}
-.prog-pct{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--verde)}
-.bar-wrap{height:10px;background:var(--bg);border-radius:99px;overflow:hidden;margin-bottom:7px}
-.bar-fill{height:100%;background:linear-gradient(90deg,var(--verde2),var(--ouro));border-radius:99px;transition:width .7s ease}
-.prog-lbls{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
-.prev-card{background:var(--ouro-pale);border:1px solid #ffe082;border-radius:var(--r);padding:18px 22px;margin-bottom:22px}
-.prev-card h3{font-size:11px;font-weight:600;color:#7b5e00;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-.prev-big{font-family:'Bebas Neue',sans-serif;font-size:44px;color:#4e3600;line-height:1}
-.prev-sub{font-size:12px;color:#7b5e00;margin-top:4px}
-.sec-title{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--verde);letter-spacing:.3px;margin-bottom:12px}
-.tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:auto;margin-bottom:22px}
-table{width:100%;border-collapse:collapse;min-width:520px}
-thead th{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:11px 14px;text-align:left;background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
+.itabs{display:flex;margin-bottom:20px;border-bottom:1.5px solid var(--bo)}
+.it{background:none;border:none;padding:8px 15px 10px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--mu);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .15s;font-weight:500;white-space:nowrap}
+.it:hover{color:var(--tx)}
+.it.on{color:var(--vd);border-bottom-color:var(--vd);font-weight:600}
+.tp{display:none}.tp.on{display:block}
+
+/* STAT CARDS */
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:11px;margin-bottom:20px}
+.sc{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:15px 17px}
+.sc-l{font-size:11px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--mu);margin-bottom:7px}
+.sc-v{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;color:var(--vd)}
+.sc-s{font-size:11px;color:var(--mu);margin-top:3px}
+.sc.cg{border-left:3px solid var(--vd)}
+.sc.co{border-left:3px solid var(--ou)}
+.sc.cr{border-left:3px solid var(--dg)}
+.sc.cb{border-left:3px solid var(--in)}
+
+/* PROGRESS */
+.prog{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:16px 20px;margin-bottom:16px}
+.prog-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.prog-h h3{font-size:13px;font-weight:600}
+.ppct{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd)}
+.bw{height:9px;background:var(--bg);border-radius:99px;overflow:hidden;margin-bottom:6px}
+.bf{height:100%;background:linear-gradient(90deg,var(--vd2),var(--ou));border-radius:99px;transition:width .7s}
+.pl{display:flex;justify-content:space-between;font-size:11px;color:var(--mu)}
+
+/* PREVISÃO */
+.prev{background:var(--oup);border:1px solid #ffe082;border-radius:var(--r);padding:16px 20px;margin-bottom:20px}
+.prev h3{font-size:11px;font-weight:600;color:#7b5e00;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.prev-v{font-family:'Bebas Neue',sans-serif;font-size:42px;color:#4e3600;line-height:1}
+.prev-s{font-size:12px;color:#7b5e00;margin-top:3px}
+
+/* SECTION TITLE */
+.stit{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);letter-spacing:.3px;margin-bottom:11px}
+
+/* TABLE */
+.tw{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);overflow:auto;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;min-width:480px}
+thead th{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);padding:10px 13px;text-align:left;background:var(--bg);border-bottom:1px solid var(--bo);white-space:nowrap}
 th.r,td.r{text-align:right}
-tbody td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody td{padding:11px 13px;font-size:13px;border-bottom:1px solid var(--bo);vertical-align:middle}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:#fafaf8}
-.nc{display:flex;align-items:center;gap:9px}
-.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
-.badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;white-space:nowrap}
-.b-ok{background:var(--verde-pale);color:#1b5e20}
-.b-div{background:var(--danger-pale);color:var(--danger)}
-.b-par{background:var(--info-pale);color:var(--info)}
-.btn-sm{background:var(--verde);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
-.btn-sm:hover{background:var(--verde2)}
-.jogo-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.jc-data{text-align:center;min-width:48px}
-.jc-data strong{display:block;font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1}
-.jc-data span{font-size:10px;color:var(--muted);text-transform:uppercase}
-.jc-sep{width:1px;height:36px;background:var(--border);flex-shrink:0}
-.jc-info{flex:1;min-width:0}
-.jc-adv{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.jc-comp{font-size:11px;color:var(--muted);margin-top:2px}
-.jc-res{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--verde);min-width:52px;text-align:center}
-.jc-golos{text-align:center;min-width:50px}
-.jc-golos .gn{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--ouro);line-height:1}
-.jc-golos .gl{font-size:10px;color:var(--muted);text-transform:uppercase}
-.jc-val{font-weight:700;font-size:13px;color:var(--verde);min-width:60px;text-align:right}
-.del-btn{background:none;border:none;color:#ccc;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:6px;transition:all .1s;line-height:1}
-.del-btn:hover{color:var(--danger);background:var(--danger-pale)}
-.form-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;margin-bottom:18px}
-.form-card h3{font-size:15px;font-weight:600;margin-bottom:16px}
-.frow{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:14px}
+.nc{display:flex;align-items:center;gap:8px}
+.av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.bok{background:var(--vdp);color:#1b5e20}
+.bdiv{background:var(--dgp);color:var(--dg)}
+.bpar{background:var(--inp);color:var(--in)}
+.bsm{background:var(--vd);color:#fff;border:none;border-radius:6px;padding:4px 11px;font-size:11px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.bsm:hover{background:var(--vd2)}
+
+/* JOGOS LIST */
+.jcard{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:12px 15px;display:flex;align-items:center;gap:11px;margin-bottom:9px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.jcard:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);border-color:#c8c8c0}
+.jdt{text-align:center;min-width:44px;flex-shrink:0}
+.jdt strong{display:block;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1}
+.jdt span{font-size:10px;color:var(--mu);text-transform:uppercase}
+.jsep{width:1px;height:34px;background:var(--bo);flex-shrink:0}
+.jinfo{flex:1;min-width:0}
+.jadv{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jcomp{font-size:11px;color:var(--mu);margin-top:1px}
+.jres{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);min-width:48px;text-align:center;flex-shrink:0}
+.jgol{text-align:center;min-width:46px;flex-shrink:0}
+.jgol .gn{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--ou);line-height:1}
+.jgol .gl{font-size:10px;color:var(--mu);text-transform:uppercase}
+.jpag-bar{display:flex;gap:3px;align-items:center;min-width:100px;flex-shrink:0}
+.jpag-dot{width:18px;height:18px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0;title:""}
+.jpag-dot.pago{border-color:var(--vd);background:var(--vd)}
+.jpag-dot.nao{border-color:#ddd;background:transparent}
+.jval{font-weight:700;font-size:13px;color:var(--vd);min-width:56px;text-align:right;flex-shrink:0}
+.jdel{background:none;border:none;color:#ccc;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:6px;transition:all .1s;flex-shrink:0}
+.jdel:hover{color:var(--dg);background:var(--dgp)}
+
+/* DETALHE JOGO */
+.jogo-detalhe{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:20px 22px;margin-bottom:16px}
+.jd-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px}
+.jd-title{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--vd)}
+.jd-meta{font-size:12px;color:var(--mu);margin-top:2px}
+.jd-golos{font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--ou);line-height:1;text-align:right}
+.jd-golos span{display:block;font-family:'Inter',sans-serif;font-size:11px;color:var(--mu);font-weight:400;text-align:right;margin-top:2px}
+.amigo-pag-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bo)}
+.amigo-pag-row:last-child{border-bottom:none}
+.toggle-pago{display:flex;align-items:center;gap:8px;cursor:pointer;flex:1}
+.toggle-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--bo);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;font-size:12px}
+.toggle-check.on{background:var(--vd);border-color:var(--vd);color:#fff}
+.amigo-deve{font-size:12px;color:var(--mu);margin-left:auto;white-space:nowrap}
+.amigo-deve.pago{color:var(--vd);font-weight:600}
+.btn-back{background:none;border:1px solid var(--bo);border-radius:8px;padding:6px 13px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--mu);margin-bottom:14px;transition:all .15s}
+.btn-back:hover{background:var(--bg)}
+
+/* FORM */
+.fcard{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:19px 21px;margin-bottom:16px}
+.fcard h3{font-size:14px;font-weight:600;margin-bottom:14px}
+.frow{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:11px;margin-bottom:13px}
 .fg{display:flex;flex-direction:column;gap:5px}
-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-input[type=text],input[type=date],input[type=number],select{border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:#fff;outline:none;transition:border-color .15s;width:100%}
-input:focus,select:focus{border-color:var(--verde)}
-.btn{border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;transition:all .15s}
-.btn-g{background:var(--verde);color:#fff}.btn-g:hover{background:var(--verde2)}
-.btn-d{background:var(--danger);color:#fff}
-.btn-n{background:var(--bg);color:var(--text);border:1px solid var(--border)}.btn-n:hover{background:#e8e8e4}
-.amigo-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
-.amigo-row:last-child{border-bottom:none}
-.color-dot{width:28px;height:28px;border-radius:50%;flex-shrink:0;position:relative;cursor:pointer}
-.color-dot input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:none;padding:0}
-.amigo-row .nome-input{flex:1;border:none;background:transparent;font-size:14px;padding:4px 0;border-bottom:1px solid transparent;border-radius:0;outline:none;font-family:'Inter',sans-serif;color:var(--text)}
-.amigo-row .nome-input:focus{border-bottom-color:var(--verde)}
-.btn-add-row{display:flex;align-items:center;gap:8px;background:none;border:1.5px dashed var(--border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;width:100%;margin-top:14px;transition:all .15s}
-.btn-add-row:hover{border-color:var(--verde);color:var(--verde)}
-.pag-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
-.pag-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
-.pag-info{flex:1}
-.pag-nome{font-weight:600;font-size:13px}
-.pag-meta{font-size:11px;color:var(--muted);margin-top:2px}
-.pag-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--verde)}
-.pag-del{background:none;border:none;color:#ccc;cursor:pointer;font-size:14px;padding:5px;border-radius:6px}
-.pag-del:hover{color:var(--danger);background:var(--danger-pale)}
-.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 22px;margin-bottom:18px}
-.chart-wrap h3{font-size:11px;font-weight:600;margin-bottom:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.bc-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.bc-lbl{font-size:12px;font-weight:500;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
-.bc-bar-wrap{flex:1;height:20px;background:var(--bg);border-radius:99px;overflow:hidden}
-.bc-bar{height:100%;border-radius:99px;transition:width .6s ease}
-.bc-val{font-size:12px;font-weight:600;min-width:56px}
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:16px}
-.overlay.on{display:flex}
-.modal{background:#fff;border-radius:var(--r);padding:26px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.18)}
-.modal h2{font-size:17px;font-weight:700;margin-bottom:18px}
-.modal .fg{margin-bottom:12px}
-.modal-btns{display:flex;gap:10px;margin-top:18px}
-.toast{position:fixed;bottom:22px;right:22px;background:var(--verde);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.15);transform:translateY(70px);opacity:0;transition:all .3s;z-index:400}
+label{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
+input[type=text],input[type=date],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%}
+input:focus,select:focus{border-color:var(--vd)}
+.btn{border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-g{background:var(--vd);color:#fff}.btn-g:hover{background:var(--vd2)}
+.btn-d{background:var(--dg);color:#fff}
+.btn-n{background:var(--bg);color:var(--tx);border:1px solid var(--bo)}.btn-n:hover{background:#e8e8e4}
+
+/* AMIGOS CONFIG */
+.arow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bo)}
+.arow:last-child{border-bottom:none}
+.cdot{width:26px;height:26px;border-radius:50%;flex-shrink:0;position:relative;cursor:pointer}
+.cdot input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:none;padding:0}
+.arow .ni{flex:1;border:none;background:transparent;font-size:14px;padding:4px 0;border-bottom:1px solid transparent;border-radius:0;outline:none;font-family:'Inter',sans-serif;color:var(--tx)}
+.arow .ni:focus{border-bottom-color:var(--vd)}
+.btn-add{display:flex;align-items:center;gap:8px;background:none;border:1.5px dashed var(--bo);border-radius:9px;padding:9px 13px;font-size:13px;color:var(--mu);cursor:pointer;font-family:'Inter',sans-serif;width:100%;margin-top:12px;transition:all .15s}
+.btn-add:hover{border-color:var(--vd);color:var(--vd)}
+
+/* HIST PAG */
+.pi{background:var(--card);border:1px solid var(--bo);border-radius:9px;padding:11px 15px;display:flex;align-items:center;gap:11px;margin-bottom:7px}
+.pi-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.pi-info{flex:1}
+.pi-nome{font-weight:600;font-size:13px}
+.pi-meta{font-size:11px;color:var(--mu);margin-top:1px}
+.pi-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--vd);white-space:nowrap}
+
+/* CHART */
+.cw{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:16px 20px;margin-bottom:16px}
+.cw h3{font-size:11px;font-weight:600;margin-bottom:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
+.bcrow{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.bclbl{font-size:12px;font-weight:500;min-width:95px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.bcbw{flex:1;height:18px;background:var(--bg);border-radius:99px;overflow:hidden}
+.bcb{height:100%;border-radius:99px;transition:width .6s}
+.bcv{font-size:12px;font-weight:600;min-width:50px}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--vd);color:#fff;padding:10px 17px;border-radius:9px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.15);transform:translateY(70px);opacity:0;transition:all .3s;z-index:400}
 .toast.on{transform:translateY(0);opacity:1}
-.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
-.empty em{display:block;font-size:36px;margin-bottom:10px;font-style:normal}
-.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.empty{text-align:center;padding:36px 20px;color:var(--mu);font-size:13px}
+.empty em{display:block;font-size:34px;margin-bottom:9px;font-style:normal}
+.divi{border:none;border-top:1px solid var(--bo);margin:14px 0}
+
 @media(max-width:600px){
-  .hn{padding:6px 8px;font-size:11px}
-  .hdr-brand h1{font-size:18px}
-  .jc-res,.jc-sep{display:none}
-  .grid4{grid-template-columns:1fr 1fr}
+  .hn{padding:5px 8px;font-size:11px}
+  .brand h1{font-size:18px}
+  .jres,.jsep,.jpag-bar{display:none}
+  .g4{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
 <body>
-
 <header>
   <div class="hdr">
-    <div class="hdr-brand">
+    <div class="brand">
       <div class="escudo">🦁</div>
-      <div>
-        <h1>Golos do Sporting</h1>
-        <p id="hdr-sub">Época 2025/26 · 1€ por golo por pessoa</p>
-      </div>
+      <div><h1>Golos do Sporting</h1><p id="hdr-sub">Época 2025/26 · 1€ por golo</p></div>
     </div>
-    <nav class="hdr-nav">
-      <button class="hn on" onclick="nav('dashboard',this)">Dashboard</button>
+    <nav class="hnav">
+      <button class="hn on" onclick="nav('dash',this)">Dashboard</button>
       <button class="hn" onclick="nav('jogos',this)">Jogos</button>
       <button class="hn" onclick="nav('amigos',this)">Amigos</button>
-      <button class="hn" onclick="nav('config',this)">Config</button>
+      <button class="hn" onclick="nav('cfg',this)">Config</button>
     </nav>
   </div>
 </header>
 
 <div class="wrap">
 
-  <!-- ═══ DASHBOARD ═══ -->
-  <section id="s-dashboard" class="sec on">
-    <div class="inner-tabs">
-      <button class="it on" onclick="itab('resumo',this,'dashboard')">Resumo</button>
-      <button class="it" onclick="itab('contas',this,'dashboard')">Contas</button>
-      <button class="it" onclick="itab('previsao',this,'dashboard')">Previsão</button>
-    </div>
-    <div id="t-resumo" class="tab-panel on">
-      <div class="grid4" id="stat-cards"></div>
-      <div class="prog-box">
-        <div class="prog-hdr"><h3>Progresso da época</h3><span class="prog-pct" id="pct-lbl">0%</span></div>
-        <div class="bar-wrap"><div class="bar-fill" id="prog-bar" style="width:0%"></div></div>
-        <div class="prog-lbls"><span id="prog-a"></span><span id="prog-b"></span></div>
-      </div>
-      <h2 class="sec-title">Últimos jogos</h2>
-      <div id="ultimos-jogos"></div>
-    </div>
-    <div id="t-contas" class="tab-panel">
-      <div class="chart-wrap">
-        <h3>Dívida por pessoa</h3>
-        <div id="chart-dividas"></div>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr>
-            <th>Amigo</th><th class="r">Deve total</th><th class="r">Pagou</th>
-            <th class="r">Em dívida</th><th class="r">Estado</th><th></th>
-          </tr></thead>
-          <tbody id="tbl-contas"></tbody>
-        </table>
-      </div>
-    </div>
-    <div id="t-previsao" class="tab-panel">
-      <div class="prev-card">
-        <h3>💰 Previsão de pote para o jantar</h3>
-        <div class="prev-big" id="prev-total">—</div>
-        <div class="prev-sub" id="prev-sub">Adiciona jogos para calcular</div>
-      </div>
-      <div class="grid4" id="prev-cards"></div>
-      <div class="chart-wrap" id="evo-wrap">
-        <h3>Acumulado ao longo da época</h3>
-        <canvas id="canvas-evo"></canvas>
-      </div>
-    </div>
-  </section>
+<!-- ═══ DASHBOARD ═══ -->
+<section id="s-dash" class="sec on">
+  <div class="itabs">
+    <button class="it on" onclick="itab('resumo',this,'dash')">Resumo</button>
+    <button class="it" onclick="itab('contas',this,'dash')">Contas</button>
+    <button class="it" onclick="itab('previsao',this,'dash')">Previsão</button>
+  </div>
+  <div id="t-resumo" class="tp on">
+    <div class="g4" id="stat-cards"></div>
+    <div class="prog"><div class="prog-h"><h3>Progresso da época</h3><span class="ppct" id="pct-l">0%</span></div><div class="bw"><div class="bf" id="prog-b" style="width:0%"></div></div><div class="pl"><span id="pl-a"></span><span id="pl-b"></span></div></div>
+    <h2 class="stit">Últimos jogos</h2>
+    <div id="ult-jogos"></div>
+  </div>
+  <div id="t-contas" class="tp">
+    <div class="cw"><h3>Dívida por pessoa</h3><div id="ch-div"></div></div>
+    <div class="tw"><table><thead><tr><th>Amigo</th><th class="r">Deve total</th><th class="r">Pagou</th><th class="r">Em dívida</th><th class="r">Estado</th></tr></thead><tbody id="tbl-contas"></tbody></table></div>
+  </div>
+  <div id="t-previsao" class="tp">
+    <div class="prev"><h3>💰 Previsão de pote para o jantar</h3><div class="prev-v" id="prev-v">—</div><div class="prev-s" id="prev-s">Adiciona jogos para calcular</div></div>
+    <div class="g4" id="prev-cards"></div>
+    <div class="cw" id="evo-w"><h3>Acumulado ao longo da época</h3><canvas id="c-evo"></canvas></div>
+  </div>
+</section>
 
-  <!-- ═══ JOGOS ═══ -->
-  <section id="s-jogos" class="sec">
-    <div class="inner-tabs">
-      <button class="it on" onclick="itab('add-jogo',this,'jogos')">Registar jogo</button>
-      <button class="it" onclick="itab('lista-jogos',this,'jogos')">Todos os jogos</button>
+<!-- ═══ JOGOS ═══ -->
+<section id="s-jogos" class="sec">
+  <div class="itabs">
+    <button class="it on" onclick="itab('jlista',this,'jogos')">Todos os jogos</button>
+    <button class="it" onclick="itab('jadd',this,'jogos')">Registar jogo</button>
+  </div>
+  <!-- lista -->
+  <div id="t-jlista" class="tp on">
+    <div style="display:flex;gap:10px;margin-bottom:13px;flex-wrap:wrap">
+      <select id="f-comp" onchange="renderJogosList()" style="max-width:220px"><option value="">Todas as competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Outro</option></select>
     </div>
-    <div id="t-add-jogo" class="tab-panel on">
-      <div class="form-card">
-        <h3>Registar jogo</h3>
-        <div class="frow">
-          <div class="fg"><label>Data</label><input type="date" id="j-data"></div>
-          <div class="fg"><label>Adversário</label><input type="text" id="j-adv" placeholder="ex: Porto"></div>
-          <div class="fg"><label>Golos do Sporting</label><input type="number" id="j-golos" min="0" max="25" placeholder="0"></div>
-          <div class="fg"><label>Resultado final</label><input type="text" id="j-res" placeholder="ex: 3-1"></div>
-          <div class="fg"><label>Competição</label>
-            <select id="j-comp">
-              <option>Liga Portugal</option><option>Taça de Portugal</option>
-              <option>Liga dos Campeões</option><option>Liga Europa</option>
-              <option>Liga Conferência</option><option>Supertaça</option>
-              <option>Taça da Liga</option><option>Particular</option>
-            </select>
-          </div>
-        </div>
-        <button class="btn btn-g" onclick="addJogo()">⚽ Registar jogo</button>
-      </div>
-    </div>
-    <div id="t-lista-jogos" class="tab-panel">
-      <div style="margin-bottom:14px">
-        <select id="filtro-comp" onchange="renderJogosList()" style="max-width:240px">
-          <option value="">Todas as competições</option>
-          <option>Liga Portugal</option><option>Taça de Portugal</option>
-          <option>Liga dos Campeões</option><option>Liga Europa</option>
-          <option>Liga Conferência</option><option>Supertaça</option>
-          <option>Taça da Liga</option><option>Particular</option>
-        </select>
-      </div>
-      <div id="jogos-list"></div>
-    </div>
-  </section>
-
-  <!-- ═══ AMIGOS ═══ -->
-  <section id="s-amigos" class="sec">
-    <div class="inner-tabs">
-      <button class="it on" onclick="itab('gest-amigos',this,'amigos')">Gestão</button>
-      <button class="it" onclick="itab('hist-pag',this,'amigos')">Histórico de pagamentos</button>
-    </div>
-    <div id="t-gest-amigos" class="tab-panel on">
-      <div class="form-card">
-        <h3>Amigos participantes</h3>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Clica na bolinha colorida para mudar a cor. Podes ter quantos amigos quiseres.</p>
-        <div id="amigos-list-cfg"></div>
-        <button class="btn-add-row" onclick="addAmigo()">＋ Adicionar amigo</button>
-        <div style="margin-top:16px"><button class="btn btn-g" onclick="guardarAmigos()">Guardar amigos</button></div>
-      </div>
-    </div>
-    <div id="t-hist-pag" class="tab-panel">
-      <div id="hist-pag-list"></div>
-    </div>
-  </section>
-
-  <!-- ═══ CONFIG ═══ -->
-  <section id="s-config" class="sec">
-    <div class="form-card">
-      <h3>Configurações gerais</h3>
+    <div id="j-list"></div>
+  </div>
+  <!-- detalhe jogo (oculto por defeito) -->
+  <div id="t-jdetalhe" class="tp">
+    <button class="btn-back" onclick="voltarLista()">← Voltar à lista</button>
+    <div id="jd-content"></div>
+  </div>
+  <!-- add -->
+  <div id="t-jadd" class="tp">
+    <div class="fcard">
+      <h3>Registar jogo</h3>
       <div class="frow">
-        <div class="fg"><label>Época</label><input type="text" id="cfg-epoca"></div>
-        <div class="fg"><label>Valor por golo (€)</label><input type="number" id="cfg-val" min="0.5" step="0.5"></div>
-        <div class="fg"><label>Golos previstos na época</label><input type="number" id="cfg-prev" min="1"></div>
-        <div class="fg"><label>Jogos previstos na época</label><input type="number" id="cfg-jogos" min="1"></div>
+        <div class="fg"><label>Data</label><input type="date" id="j-data"></div>
+        <div class="fg"><label>Adversário</label><input type="text" id="j-adv" placeholder="ex: Porto"></div>
+        <div class="fg"><label>Golos do Sporting</label><input type="number" id="j-golos" min="0" max="25" placeholder="0"></div>
+        <div class="fg"><label>Resultado final</label><input type="text" id="j-res" placeholder="ex: 3-1"></div>
+        <div class="fg"><label>Competição</label>
+          <select id="j-comp"><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Outro</option></select>
+        </div>
       </div>
-      <button class="btn btn-g" onclick="guardarConfig()">Guardar configurações</button>
-    </div>
-    <div class="form-card">
-      <h3>Dados</h3>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Os dados ficam guardados no <strong>localStorage</strong> do teu browser. Para o GitHub Pages, descarrega o <code>data.json</code> e faz commit junto ao HTML — ao abrir a página os dados do ficheiro são importados automaticamente se o localStorage estiver vazio.</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-g" onclick="exportJSON()">⬇ Descarregar data.json</button>
-        <button class="btn" style="background:var(--info);color:#fff" onclick="importJSON()">⬆ Importar data.json</button>
-        <button class="btn btn-n" onclick="copiarJSON()">Copiar JSON</button>
-      </div>
-      <input type="file" id="file-import" accept=".json" style="display:none" onchange="lerFicheiro(this)">
-      <div class="divider"></div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Zona perigosa</p>
-      <button class="btn btn-d" onclick="resetDB()">🗑 Apagar todos os dados</button>
-    </div>
-  </section>
-</div>
-
-<!-- MODAL PAGAMENTO -->
-<div class="overlay" id="modal-pag">
-  <div class="modal">
-    <h2>Registar pagamento</h2>
-    <div class="fg"><label>Amigo</label><select id="m-amigo"></select></div>
-    <div class="fg"><label>Valor pago (€)</label><input type="number" id="m-val" min="0" step="0.5" placeholder="0.00"></div>
-    <div class="fg"><label>Data</label><input type="date" id="m-data"></div>
-    <div class="fg"><label>Nota (opcional)</label><input type="text" id="m-nota" placeholder="ex: MB Way"></div>
-    <div class="modal-btns">
-      <button class="btn btn-g" onclick="confirmPag()">Registar</button>
-      <button class="btn btn-n" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-g" onclick="addJogo()">⚽ Registar jogo</button>
     </div>
   </div>
-</div>
+</section>
 
+<!-- ═══ AMIGOS ═══ -->
+<section id="s-amigos" class="sec">
+  <div class="itabs">
+    <button class="it on" onclick="itab('gest',this,'amigos')">Gestão</button>
+    <button class="it" onclick="itab('hpag',this,'amigos')">Histórico por jogo</button>
+  </div>
+  <div id="t-gest" class="tp on">
+    <div class="fcard">
+      <h3>Amigos participantes</h3>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:13px">Clica na bolinha para mudar a cor.</p>
+      <div id="a-cfg"></div>
+      <button class="btn-add" onclick="addAmigo()">＋ Adicionar amigo</button>
+      <div style="margin-top:14px"><button class="btn btn-g" onclick="guardarAmigos()">Guardar</button></div>
+    </div>
+  </div>
+  <div id="t-hpag" class="tp">
+    <div id="h-pag"></div>
+  </div>
+</section>
+
+<!-- ═══ CONFIG ═══ -->
+<section id="s-cfg" class="sec">
+  <div class="fcard">
+    <h3>Configurações gerais</h3>
+    <div class="frow">
+      <div class="fg"><label>Época</label><input type="text" id="c-ep"></div>
+      <div class="fg"><label>Valor por golo (€)</label><input type="number" id="c-vg" min="0.5" step="0.5"></div>
+      <div class="fg"><label>Golos previstos</label><input type="number" id="c-gp" min="1"></div>
+      <div class="fg"><label>Jogos previstos</label><input type="number" id="c-jp" min="1"></div>
+    </div>
+    <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
+  </div>
+  <div class="fcard">
+    <h3>Dados</h3>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:13px">Os dados ficam no <strong>localStorage</strong>. Para fazer backup ou importar noutro dispositivo, usa os botões abaixo.</p>
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <button class="btn btn-g" onclick="expJSON()">⬇ Descarregar data.json</button>
+      <button class="btn" style="background:var(--in);color:#fff" onclick="impJSON()">⬆ Importar data.json</button>
+      <button class="btn btn-n" onclick="copJSON()">Copiar JSON</button>
+    </div>
+    <input type="file" id="f-imp" accept=".json" style="display:none" onchange="lerFich(this)">
+    <div class="divi"></div>
+    <p style="font-size:12px;color:var(--mu);margin-bottom:9px">Zona perigosa</p>
+    <button class="btn btn-d" onclick="resetDB()">🗑 Apagar todos os dados</button>
+  </div>
+</section>
+
+</div><!-- /wrap -->
 <div class="toast" id="toast"></div>
 
 <script>
 const CORES=['#1b5e20','#1a237e','#4a148c','#b71c1c','#e65100','#006064','#33691e','#880e4f','#1565c0','#37474f','#f57f17','#3e2723','#004d40','#311b92','#bf360c'];
-let db={config:{valorPorGolo:1,golosPrevistosEpoca:120,jogosPrevistosEpoca:38,epoca:'2025/26'},amigos:[],jogos:[],pagamentos:[]};
 
-function salvar(){localStorage.setItem('sg_db_v3',JSON.stringify(db));}
+/* ── DB ─────────────────────────────────────── */
+let db={config:{valorPorGolo:1,golosPrevistosEpoca:132,jogosPrevistosEpoca:55,epoca:'2025/26'},amigos:[],jogos:[],pagosPorJogo:{}};
+
+function salvar(){localStorage.setItem('sg_v4',JSON.stringify(db));}
 function carregar(){
-  const s=localStorage.getItem('sg_db_v3');
-  if(s){try{db=JSON.parse(s);}catch(e){}}
-  if(!db.config.jogosPrevistosEpoca)db.config.jogosPrevistosEpoca=38;
+  const s=localStorage.getItem('sg_v4');
+  if(s){try{const d=JSON.parse(s);if(d.amigos&&d.jogos){db=d;}}catch(e){}}
+  if(!db.pagosPorJogo)db.pagosPorJogo={};
+  if(!db.config.jogosPrevistosEpoca)db.config.jogosPrevistosEpoca=55;
 }
 
+/* ── CÁLCULOS ────────────────────────────────── */
+function totalGolos(){return db.jogos.reduce((a,j)=>a+(j.golos||0),0);}
+function ini(n){return(n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';}
+
+// Quanto cada amigo deve NO TOTAL (todos os jogos com golos > 0)
+function deveTotal(){return totalGolos()*db.config.valorPorGolo;}
+
+// Quanto um amigo pagou (soma dos golos dos jogos onde está marcado como pago)
+function pagouAmigo(amigoId){
+  return db.jogos.reduce((acc,j)=>{
+    const pag=db.pagosPorJogo[String(j.id)]||[];
+    return acc+(pag.includes(amigoId)?(j.golos||0)*db.config.valorPorGolo:0);
+  },0);
+}
+
+function dividaAmigo(amigoId){return deveTotal()-pagouAmigo(amigoId);}
+function totalDividas(){return db.amigos.reduce((a,am)=>a+Math.max(0,dividaAmigo(am.id)),0);}
+function totalPago(){return db.amigos.reduce((a,am)=>a+pagouAmigo(am.id),0);}
+
+// Quanto está em dívida num jogo específico para um amigo (em €)
+function valorJogoPorAmigo(jogo,amigoId){
+  return (jogo.golos||0)*db.config.valorPorGolo;
+}
+function jogoAmigoPago(jogoId,amigoId){
+  return (db.pagosPorJogo[String(jogoId)]||[]).includes(amigoId);
+}
+function togglePagamento(jogoId,amigoId){
+  const k=String(jogoId);
+  if(!db.pagosPorJogo[k])db.pagosPorJogo[k]=[];
+  const idx=db.pagosPorJogo[k].indexOf(amigoId);
+  if(idx>=0)db.pagosPorJogo[k].splice(idx,1);
+  else db.pagosPorJogo[k].push(amigoId);
+  salvar();
+}
+
+function calcPrevisao(){
+  const jf=db.jogos.length;if(!jf)return null;
+  const gpp=totalGolos()/jf;
+  const pg=Math.round(gpp*db.config.jogosPrevistosEpoca);
+  const pp=pg*db.config.valorPorGolo;
+  return{pg,pp,pt:pp*db.amigos.length,gpp};
+}
+function acumulado(){
+  return[...db.jogos].sort((a,b)=>new Date(a.data)-new Date(b.data))
+    .reduce((acc,j,i)=>{const v=(acc[i-1]?.v||0)+(j.golos||0)*db.config.valorPorGolo*db.amigos.length;acc.push({v});return acc;},[]);
+}
+
+/* ── NAV ─────────────────────────────────────── */
 function nav(id,btn){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.hn').forEach(b=>b.classList.remove('on'));
-  document.getElementById('s-'+id).classList.add('on');
-  btn.classList.add('on');
-  ({dashboard:renderDashboard,jogos:renderJogos,amigos:renderAmigosSection,config:renderConfig})[id]?.();
+  document.getElementById('s-'+id).classList.add('on');btn.classList.add('on');
+  ({dash:rDash,jogos:rJogos,amigos:rAmigos,cfg:rCfg})[id]?.();
 }
-
 function itab(id,btn,parent){
   const sec=document.getElementById('s-'+parent);
-  sec.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('on'));
+  sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
   sec.querySelectorAll('.it').forEach(b=>b.classList.remove('on'));
-  document.getElementById('t-'+id).classList.add('on');
-  btn.classList.add('on');
-  ({resumo:renderResumo,contas:renderContas,previsao:renderPrevisao,'lista-jogos':renderJogosList,'gest-amigos':renderAmigosConfig,'hist-pag':renderHistPag})[id]?.();
+  document.getElementById('t-'+id).classList.add('on');btn.classList.add('on');
+  ({resumo:rResumo,contas:rContas,previsao:rPrevisao,jlista:renderJogosList,gest:rAmCfg,hpag:rHistPag})[id]?.();
 }
 
-/* ── CÁLCULOS ── */
-function totalGolos(){return db.jogos.reduce((a,j)=>a+(j.golos||0),0);}
-function valorTotal(){return totalGolos()*db.config.valorPorGolo;}
-function pagoPorAmigo(id){return db.pagamentos.filter(p=>p.amigoId===id).reduce((a,p)=>a+p.valor,0);}
-function deveAmigo(){return valorTotal();}
-function dividaAmigo(id){return deveAmigo()-pagoPorAmigo(id);}
-function totalDividas(){return db.amigos.reduce((a,am)=>a+Math.max(0,dividaAmigo(am.id)),0);}
-function ini(nome){return nome.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';}
-
-function calcPrevisao(){
-  const jf=db.jogos.length;
-  if(!jf)return null;
-  const gpp=totalGolos()/jf;
-  const prevGolos=Math.round(gpp*db.config.jogosPrevistosEpoca);
-  const prevPessoa=prevGolos*db.config.valorPorGolo;
-  return{prevGolos,prevPessoa,prevTotal:prevPessoa*db.amigos.length,gpp};
-}
-
-function acumulado(){
-  return [...db.jogos].sort((a,b)=>new Date(a.data)-new Date(b.data))
-    .reduce((acc,j,i)=>{
-      const prev=acc[i-1]?.val||0;
-      acc.push({data:j.data,adv:j.adversario,val:prev+(j.golos||0)*db.config.valorPorGolo*db.amigos.length});
-      return acc;
-    },[]);
-}
-
-/* ── DASHBOARD ── */
-function renderDashboard(){
-  const p=document.getElementById('s-dashboard').querySelector('.tab-panel.on');
+/* ── DASHBOARD ───────────────────────────────── */
+function rDash(){
+  const p=document.querySelector('#s-dash .tp.on');
   const id=p?.id?.replace('t-','');
-  if(id==='contas')renderContas();
-  else if(id==='previsao')renderPrevisao();
-  else renderResumo();
+  if(id==='contas')rContas();else if(id==='previsao')rPrevisao();else rResumo();
 }
-
-function renderResumo(){
-  const g=totalGolos(),vt=valorTotal(),n=db.amigos.length;
+function rResumo(){
+  const g=totalGolos(),n=db.amigos.length,vt=deveTotal();
+  const tp=totalPago()*db.amigos.length; // não — totalPago() já é por pessoa
+  const potePago=db.amigos.reduce((a,am)=>a+pagouAmigo(am.id),0);
   const pct=db.config.golosPrevistosEpoca>0?Math.min(100,Math.round(g/db.config.golosPrevistosEpoca*100)):0;
   document.getElementById('hdr-sub').textContent=`Época ${db.config.epoca} · ${db.config.valorPorGolo}€ por golo por pessoa`;
   document.getElementById('stat-cards').innerHTML=`
-    <div class="sc c-g"><div class="sc-lbl">Golos marcados</div><div class="sc-val">${g}</div><div class="sc-sub">${db.jogos.length} jogo${db.jogos.length!==1?'s':''}</div></div>
-    <div class="sc c-o"><div class="sc-lbl">Pote acumulado</div><div class="sc-val">${(vt*n).toFixed(0)}€</div><div class="sc-sub">${n} pessoas × ${vt.toFixed(0)}€</div></div>
-    <div class="sc c-b"><div class="sc-lbl">Cada um deve</div><div class="sc-val">${vt.toFixed(0)}€</div><div class="sc-sub">${db.config.valorPorGolo}€ × ${g} golos</div></div>
-    <div class="sc c-r"><div class="sc-lbl">Por cobrar</div><div class="sc-val">${totalDividas().toFixed(0)}€</div><div class="sc-sub">dívida total em aberto</div></div>
+    <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${db.jogos.length} jogo${db.jogos.length!==1?'s':''}</div></div>
+    <div class="sc co"><div class="sc-l">Pote acumulado</div><div class="sc-v">${(g*n*db.config.valorPorGolo).toFixed(0)}€</div><div class="sc-s">${n} pessoas × ${vt.toFixed(0)}€</div></div>
+    <div class="sc cb"><div class="sc-l">Já recebido</div><div class="sc-v">${potePago.toFixed(0)}€</div><div class="sc-s">de ${(g*n*db.config.valorPorGolo).toFixed(0)}€ total</div></div>
+    <div class="sc cr"><div class="sc-l">Por cobrar</div><div class="sc-v">${totalDividas().toFixed(0)}€</div><div class="sc-s">dívida total em aberto</div></div>
   `;
-  document.getElementById('pct-lbl').textContent=pct+'%';
-  document.getElementById('prog-bar').style.width=pct+'%';
-  document.getElementById('prog-a').textContent=`${g} golos marcados`;
-  document.getElementById('prog-b').textContent=`Meta: ${db.config.golosPrevistosEpoca} golos`;
-  const rec=[...db.jogos].sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0,5);
-  const ul=document.getElementById('ultimos-jogos');
-  ul.innerHTML=rec.length?rec.map(j=>jogoHTML(j)).join(''):'<div class="empty"><em>⚽</em>Ainda sem jogos. Vai ao separador Jogos para registar.</div>';
+  document.getElementById('pct-l').textContent=pct+'%';
+  document.getElementById('prog-b').style.width=pct+'%';
+  document.getElementById('pl-a').textContent=`${g} golos marcados`;
+  document.getElementById('pl-b').textContent=`Meta: ${db.config.golosPrevistosEpoca} golos`;
+  const rec=[...db.jogos].sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0,6);
+  document.getElementById('ult-jogos').innerHTML=rec.length?rec.map(j=>jogoCardHTML(j,true)).join(''):'<div class="empty"><em>⚽</em>Sem jogos. Vai ao separador Jogos.</div>';
 }
-
-function renderContas(){
-  const maxDiv=Math.max(...db.amigos.map(a=>Math.abs(dividaAmigo(a.id))),1);
-  document.getElementById('chart-dividas').innerHTML=db.amigos.length?db.amigos.map(am=>{
-    const div=Math.max(0,dividaAmigo(am.id));
-    const pct=Math.round(div/maxDiv*100);
-    return`<div class="bc-row"><div class="bc-lbl">${am.nome}</div><div class="bc-bar-wrap"><div class="bc-bar" style="width:${pct}%;background:${div>0?'var(--danger)':am.cor}"></div></div><div class="bc-val" style="color:${div>0?'var(--danger)':'var(--verde)'}">${div.toFixed(2)}€</div></div>`;
+function rContas(){
+  const maxD=Math.max(...db.amigos.map(a=>Math.abs(dividaAmigo(a.id))),1);
+  document.getElementById('ch-div').innerHTML=db.amigos.length?db.amigos.map(am=>{
+    const d=Math.max(0,dividaAmigo(am.id));const pct=Math.round(d/maxD*100);
+    return`<div class="bcrow"><div class="bclbl">${am.nome}</div><div class="bcbw"><div class="bcb" style="width:${pct}%;background:${d>0?'var(--dg)':am.cor}"></div></div><div class="bcv" style="color:${d>0?'var(--dg)':'var(--vd)'}">${d.toFixed(2)}€</div></div>`;
   }).join(''):'<div class="empty"><em>👥</em>Sem amigos</div>';
   document.getElementById('tbl-contas').innerHTML=db.amigos.length?db.amigos.map(am=>{
-    const deve=deveAmigo(),pagou=pagoPorAmigo(am.id),div=deve-pagou;
-    const badge=div<=0?'<span class="badge b-ok">✓ Quitado</span>':pagou>0?'<span class="badge b-par">Parcial</span>':'<span class="badge b-div">Por pagar</span>';
-    return`<tr><td><div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div><strong>${am.nome}</strong></div></td><td class="r">${deve.toFixed(2)}€</td><td class="r" style="color:var(--verde);font-weight:600">${pagou.toFixed(2)}€</td><td class="r" style="color:${div>0?'var(--danger)':'var(--verde)'};font-weight:700">${Math.max(0,div).toFixed(2)}€</td><td class="r">${badge}</td><td>${div>0?`<button class="btn-sm" onclick="abrirModal(${am.id})">Pagar</button>`:''}</td></tr>`;
-  }).join(''):'<tr><td colspan="6" class="empty"><em>👥</em>Sem amigos configurados</td></tr>';
+    const deve=deveTotal(),pagou=pagouAmigo(am.id),div=deve-pagou;
+    const badge=div<=0?'<span class="badge bok">✓ Quitado</span>':pagou>0?'<span class="badge bpar">Parcial</span>':'<span class="badge bdiv">Por pagar</span>';
+    return`<tr><td><div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div><strong>${am.nome}</strong></div></td><td class="r">${deve.toFixed(2)}€</td><td class="r" style="color:var(--vd);font-weight:600">${pagou.toFixed(2)}€</td><td class="r" style="color:${div>0?'var(--dg)':'var(--vd)'};font-weight:700">${Math.max(0,div).toFixed(2)}€</td><td class="r">${badge}</td></tr>`;
+  }).join(''):'<tr><td colspan="5" class="empty"><em>👥</em>Sem amigos</td></tr>';
 }
-
-function renderPrevisao(){
+function rPrevisao(){
   const p=calcPrevisao(),n=db.amigos.length||1;
-  if(!p){
-    document.getElementById('prev-total').textContent='—';
-    document.getElementById('prev-sub').textContent='Adiciona jogos para calcular a previsão';
-    document.getElementById('prev-cards').innerHTML='';
-  }else{
-    document.getElementById('prev-total').textContent=p.prevTotal.toFixed(0)+'€';
-    document.getElementById('prev-sub').textContent=`Previsão de ${p.prevGolos} golos · ${p.prevPessoa.toFixed(0)}€/pessoa · ${n} pessoas · média ${p.gpp.toFixed(1)} golos/jogo`;
+  if(!p){document.getElementById('prev-v').textContent='—';document.getElementById('prev-s').textContent='Adiciona jogos para calcular';document.getElementById('prev-cards').innerHTML='';}
+  else{
+    document.getElementById('prev-v').textContent=p.pt.toFixed(0)+'€';
+    document.getElementById('prev-s').textContent=`Previsão de ${p.pg} golos · ${p.pp.toFixed(0)}€/pessoa · ${n} pessoas · média ${p.gpp.toFixed(1)} golos/jogo`;
     document.getElementById('prev-cards').innerHTML=`
-      <div class="sc c-o"><div class="sc-lbl">Golos previstos</div><div class="sc-val">${p.prevGolos}</div><div class="sc-sub">até ao fim da época</div></div>
-      <div class="sc c-g"><div class="sc-lbl">Por pessoa</div><div class="sc-val">${p.prevPessoa.toFixed(0)}€</div><div class="sc-sub">total a pagar</div></div>
-      <div class="sc c-b"><div class="sc-lbl">Pote total</div><div class="sc-val">${p.prevTotal.toFixed(0)}€</div><div class="sc-sub">jantar de fim de época</div></div>
+      <div class="sc co"><div class="sc-l">Golos previstos</div><div class="sc-v">${p.pg}</div><div class="sc-s">até ao fim da época</div></div>
+      <div class="sc cg"><div class="sc-l">Por pessoa</div><div class="sc-v">${p.pp.toFixed(0)}€</div><div class="sc-s">total a pagar</div></div>
+      <div class="sc cb"><div class="sc-l">Pote total</div><div class="sc-v">${p.pt.toFixed(0)}€</div><div class="sc-s">jantar de fim de época</div></div>
     `;
   }
   const dados=acumulado();
-  const wrap=document.getElementById('evo-wrap');
-  if(!dados.length){wrap.style.display='none';return;}
-  wrap.style.display='block';
-  const canvas=document.getElementById('canvas-evo');
-  const W=wrap.clientWidth-44||600,H=160;
-  canvas.width=W;canvas.height=H;canvas.style.display='block';
-  const ctx=canvas.getContext('2d');
-  const maxV=dados[dados.length-1].val||1;
+  const ew=document.getElementById('evo-w');
+  if(!dados.length){ew.style.display='none';return;}
+  ew.style.display='block';
+  const cv=document.getElementById('c-evo');
+  const W=ew.clientWidth-44||600,H=150;
+  cv.width=W;cv.height=H;cv.style.display='block';
+  const ctx=cv.getContext('2d');
+  const mx=dados[dados.length-1].v||1;
   ctx.clearRect(0,0,W,H);
-  ctx.strokeStyle='#1a5e2e';ctx.lineWidth=2.5;
-  ctx.beginPath();
-  dados.forEach((d,i)=>{
-    const x=10+(i/(dados.length-1||1))*(W-20);
-    const y=H-10-(d.val/maxV)*(H-20);
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  });
+  ctx.strokeStyle='#1a5e2e';ctx.lineWidth=2.5;ctx.beginPath();
+  dados.forEach((d,i)=>{const x=10+(i/(dados.length-1||1))*(W-20),y=H-10-(d.v/mx)*(H-20);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
   ctx.stroke();
-  // fill
   ctx.fillStyle='rgba(26,94,46,.07)';
-  const last=dados.length-1;
-  ctx.lineTo(10+(last/(last||1))*(W-20),H-10);ctx.lineTo(10,H-10);ctx.closePath();ctx.fill();
-  // dots
-  dados.forEach((d,i)=>{
-    const x=10+(i/(dados.length-1||1))*(W-20);
-    const y=H-10-(d.val/maxV)*(H-20);
-    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle='#1a5e2e';ctx.fill();
-  });
-  ctx.fillStyle='#999';ctx.font='10px Inter';ctx.textAlign='left';
-  ctx.fillText('0€',2,H-10);ctx.fillText(maxV.toFixed(0)+'€',2,14);
+  const li=dados.length-1;ctx.lineTo(10+(li/(li||1))*(W-20),H-10);ctx.lineTo(10,H-10);ctx.closePath();ctx.fill();
+  dados.forEach((d,i)=>{const x=10+(i/(dados.length-1||1))*(W-20),y=H-10-(d.v/mx)*(H-20);ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fillStyle='#1a5e2e';ctx.fill();});
+  ctx.fillStyle='#999';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('0€',2,H-10);ctx.fillText(mx.toFixed(0)+'€',2,14);
 }
 
-/* ── JOGOS ── */
-function renderJogos(){
+/* ── JOGOS ───────────────────────────────────── */
+function rJogos(){
   document.getElementById('j-data').value=new Date().toISOString().split('T')[0];
-  const a=document.querySelector('#s-jogos .tab-panel.on');
-  if(a?.id==='t-lista-jogos')renderJogosList();
+  const a=document.querySelector('#s-jogos .tp.on');
+  if(a?.id==='t-jlista')renderJogosList();
 }
 
-function jogoHTML(j){
+function jogoCardHTML(j,mini=false){
   const d=new Date(j.data+'T12:00:00');
   const dia=d.getDate().toString().padStart(2,'0');
   const mes=d.toLocaleString('pt-PT',{month:'short'}).replace('.','').toUpperCase();
-  const pot=((j.golos||0)*db.config.valorPorGolo*db.amigos.length).toFixed(0);
-  return`<div class="jogo-card"><div class="jc-data"><strong>${dia}</strong><span>${mes}</span></div><div class="jc-sep"></div><div class="jc-info"><div class="jc-adv">${j.adversario}</div><div class="jc-comp">${j.competicao}</div></div><div class="jc-res">${j.resultado||'—'}</div><div class="jc-golos"><div class="gn">${j.golos||0}</div><div class="gl">golo${(j.golos||0)!==1?'s':''}</div></div><div class="jc-val">+${pot}€</div><button class="del-btn" onclick="remJogo(${j.id})">✕</button></div>`;
+  const pagaram=db.pagosPorJogo[String(j.id)]||[];
+  const nPag=pagaram.length,nTotal=db.amigos.length;
+  // dots (até 10, depois mostra número)
+  let dotsHTML='';
+  if(nTotal<=12){
+    dotsHTML=db.amigos.map(am=>{
+      const p=pagaram.includes(am.id);
+      return`<div class="jpag-dot ${p?'pago':'nao'}" style="${p?'background:'+am.cor+';border-color:'+am.cor:''}" title="${am.nome}${p?' ✓':' ✗'}"></div>`;
+    }).join('');
+  } else {
+    dotsHTML=`<span style="font-size:12px;font-weight:600;color:${nPag===nTotal?'var(--vd)':'var(--dg)'}">${nPag}/${nTotal}</span>`;
+  }
+  const pot=((j.golos||0)*db.config.valorPorGolo*nTotal).toFixed(0);
+  const delBtn=mini?'': `<button class="jdel" onclick="event.stopPropagation();remJogo(${j.id})" title="Remover">✕</button>`;
+  return`<div class="jcard" onclick="abrirDetalhe(${j.id})">
+    <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
+    <div class="jsep"></div>
+    <div class="jinfo"><div class="jadv">${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}</div></div>
+    <div class="jres">${j.resultado||'—'}</div>
+    <div class="jgol"><div class="gn">${j.golos||0}</div><div class="gl">golo${(j.golos||0)!==1?'s':''}</div></div>
+    <div class="jpag-bar" title="${nPag} de ${nTotal} pagaram">${dotsHTML}</div>
+    <div class="jval">+${pot}€</div>
+    ${delBtn}
+  </div>`;
 }
 
 function renderJogosList(){
-  const filtro=document.getElementById('filtro-comp').value;
+  const filtro=document.getElementById('f-comp').value;
   let jogos=[...db.jogos].sort((a,b)=>new Date(b.data)-new Date(a.data));
   if(filtro)jogos=jogos.filter(j=>j.competicao===filtro);
-  document.getElementById('jogos-list').innerHTML=jogos.length?jogos.map(j=>jogoHTML(j)).join(''):'<div class="empty"><em>⚽</em>Sem jogos registados</div>';
+  document.getElementById('j-list').innerHTML=jogos.length?jogos.map(j=>jogoCardHTML(j)).join(''):'<div class="empty"><em>⚽</em>Sem jogos</div>';
+}
+
+function abrirDetalhe(jogoId){
+  const jogo=db.jogos.find(j=>j.id===jogoId);if(!jogo)return;
+  // mostrar painel detalhe na secção jogos
+  const sec=document.getElementById('s-jogos');
+  sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+  sec.querySelectorAll('.it').forEach(b=>b.classList.remove('on'));
+  document.getElementById('t-jdetalhe').classList.add('on');
+  renderDetalhe(jogo);
+}
+
+function voltarLista(){
+  const sec=document.getElementById('s-jogos');
+  sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+  sec.querySelectorAll('.it').forEach(b=>b.classList.remove('on'));
+  document.getElementById('t-jlista').classList.add('on');
+  document.querySelector('#s-jogos .it').classList.add('on');
+  renderJogosList();
+}
+
+function renderDetalhe(jogo){
+  const pagaram=db.pagosPorJogo[String(jogo.id)]||[];
+  const d=new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
+  const valorPorPessoa=((jogo.golos||0)*db.config.valorPorGolo).toFixed(2);
+  const nPag=pagaram.length,nTotal=db.amigos.length;
+  const totalJogo=((jogo.golos||0)*db.config.valorPorGolo*nTotal).toFixed(0);
+  const totalReceb=((jogo.golos||0)*db.config.valorPorGolo*nPag).toFixed(0);
+
+  document.getElementById('jd-content').innerHTML=`
+    <div class="jogo-detalhe">
+      <div class="jd-header">
+        <div>
+          <div class="jd-title">Sporting vs ${jogo.adversario}</div>
+          <div class="jd-meta">${d} · ${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}</div>
+          <div style="margin-top:10px;display:flex;gap:14px">
+            <span style="font-size:12px;color:var(--mu)">Resultado: <strong>${jogo.resultado||'—'}</strong></span>
+            <span style="font-size:12px;color:var(--mu)">Pote do jogo: <strong>${totalJogo}€</strong></span>
+            <span style="font-size:12px;color:var(--vd)">Recebido: <strong>${totalReceb}€</strong></span>
+          </div>
+        </div>
+        <div><div class="jd-golos">${jogo.golos||0}<span>golo${(jogo.golos||0)!==1?'s':''}</span></div><div style="font-size:11px;color:var(--mu);text-align:right;margin-top:4px">${valorPorPessoa}€/pessoa</div></div>
+      </div>
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:10px">
+        Quem pagou este jogo (${nPag}/${nTotal})
+      </div>
+      ${db.amigos.length?db.amigos.map(am=>{
+        const pago=pagaram.includes(am.id);
+        return`<div class="amigo-pag-row">
+          <div class="av" style="background:${am.cor}">${ini(am.nome)}</div>
+          <label class="toggle-pago" style="cursor:pointer" onclick="togglePagJogo(${jogo.id},${am.id},this)">
+            <div class="toggle-check ${pago?'on':''}"><span>${pago?'✓':''}</span></div>
+            <span style="font-size:13px;font-weight:500">${am.nome}</span>
+          </label>
+          <div class="amigo-deve ${pago?'pago':''}">
+            ${pago?'Pago '+valorPorPessoa+'€':'Deve '+valorPorPessoa+'€'}
+          </div>
+        </div>`;
+      }).join(''):'<div class="empty"><em>👥</em>Sem amigos configurados</div>'}
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px">
+      <button class="btn btn-g" onclick="marcarTodos(${jogo.id})">✓ Marcar todos como pagos</button>
+      <button class="btn btn-n" onclick="desmarcarTodos(${jogo.id})">✕ Desmarcar todos</button>
+    </div>
+  `;
+}
+
+function togglePagJogo(jogoId,amigoId,labelEl){
+  togglePagamento(jogoId,amigoId);
+  const jogo=db.jogos.find(j=>j.id===jogoId);
+  renderDetalhe(jogo); // re-render para actualizar tudo
+}
+function marcarTodos(jogoId){
+  db.pagosPorJogo[String(jogoId)]=db.amigos.map(a=>a.id);
+  salvar();
+  const jogo=db.jogos.find(j=>j.id===jogoId);renderDetalhe(jogo);
+  toast('Todos marcados como pagos ✓');
+}
+function desmarcarTodos(jogoId){
+  db.pagosPorJogo[String(jogoId)]=[];
+  salvar();
+  const jogo=db.jogos.find(j=>j.id===jogoId);renderDetalhe(jogo);
+  toast('Todos desmarcados');
 }
 
 function addJogo(){
@@ -483,145 +583,107 @@ function addJogo(){
   const res=document.getElementById('j-res').value.trim();
   const comp=document.getElementById('j-comp').value;
   if(!data||!adv)return toast('Preenche data e adversário!',1);
-  db.jogos.push({id:Date.now(),data,adversario:adv,golos,resultado:res,competicao:comp});
+  const id=Date.now();
+  db.jogos.push({id,data,adversario:adv,golos,resultado:res,competicao:comp,jornada:''});
+  db.pagosPorJogo[String(id)]=[];
   salvar();
-  document.getElementById('j-adv').value='';
-  document.getElementById('j-golos').value='';
-  document.getElementById('j-res').value='';
+  document.getElementById('j-adv').value='';document.getElementById('j-golos').value='';document.getElementById('j-res').value='';
   toast(`Jogo vs ${adv} registado! ${golos} golo${golos!==1?'s':''} ⚽`);
 }
-
 function remJogo(id){
   if(!confirm('Remover este jogo?'))return;
   db.jogos=db.jogos.filter(j=>j.id!==id);
+  delete db.pagosPorJogo[String(id)];
   salvar();renderJogosList();toast('Jogo removido');
 }
 
-/* ── AMIGOS ── */
-function renderAmigosSection(){
-  const a=document.querySelector('#s-amigos .tab-panel.on');
-  if(a?.id==='t-hist-pag')renderHistPag();else renderAmigosConfig();
+/* ── AMIGOS ─────────────────────────────────── */
+function rAmigos(){
+  const a=document.querySelector('#s-amigos .tp.on');
+  if(a?.id==='t-hpag')rHistPag();else rAmCfg();
 }
-
-function renderAmigosConfig(){
-  document.getElementById('amigos-list-cfg').innerHTML=db.amigos.map((am,i)=>`
-    <div class="amigo-row">
-      <div class="color-dot" style="background:${am.cor}" title="Mudar cor">
-        <input type="color" value="${am.cor}" oninput="db.amigos[${i}].cor=this.value;this.parentElement.style.background=this.value">
-      </div>
-      <input class="nome-input" type="text" value="${am.nome}" oninput="db.amigos[${i}].nome=this.value" placeholder="Nome do amigo">
-      <button class="del-btn" onclick="remAmigo(${am.id})">✕</button>
-    </div>`).join('');
+function rAmCfg(){
+  document.getElementById('a-cfg').innerHTML=db.amigos.map((am,i)=>`
+    <div class="arow"><div class="cdot" style="background:${am.cor}"><input type="color" value="${am.cor}" oninput="db.amigos[${i}].cor=this.value;this.parentElement.style.background=this.value"></div>
+    <input class="ni" type="text" value="${am.nome}" oninput="db.amigos[${i}].nome=this.value" placeholder="Nome">
+    <button class="jdel" onclick="remAmigo(${am.id})">✕</button></div>`).join('');
 }
-
 function addAmigo(){
   db.amigos.push({id:Date.now(),nome:'Novo amigo',cor:CORES[db.amigos.length%CORES.length]});
-  renderAmigosConfig();
-  setTimeout(()=>{const ins=document.querySelectorAll('.nome-input');ins[ins.length-1]?.select();},50);
+  rAmCfg();setTimeout(()=>{const ins=document.querySelectorAll('.ni');ins[ins.length-1]?.select();},50);
 }
-
 function remAmigo(id){
-  if(db.amigos.length<=1)return toast('Tem de ficar pelo menos um amigo!',1);
-  if(!confirm('Remover este amigo?'))return;
-  db.amigos=db.amigos.filter(a=>a.id!==id);renderAmigosConfig();
+  if(db.amigos.length<=1)return toast('Tem de ficar pelo menos um!',1);
+  if(!confirm('Remover?'))return;
+  db.amigos=db.amigos.filter(a=>a.id!==id);rAmCfg();
 }
-
 function guardarAmigos(){salvar();toast('Amigos guardados ✓');}
 
-function renderHistPag(){
-  const el=document.getElementById('hist-pag-list');
-  if(!db.pagamentos.length){el.innerHTML='<div class="empty"><em>💸</em>Sem pagamentos registados</div>';return;}
-  const sorted=[...db.pagamentos].sort((a,b)=>new Date(b.data)-new Date(a.data));
-  el.innerHTML=sorted.map(p=>{
-    const am=db.amigos.find(a=>a.id===p.amigoId);
-    const d=new Date(p.data+'T12:00:00').toLocaleDateString('pt-PT');
-    return`<div class="pag-item"><div class="pag-av" style="background:${am?.cor||'#888'}">${ini(am?.nome||'?')}</div><div class="pag-info"><div class="pag-nome">${am?.nome||'Desconhecido'}</div><div class="pag-meta">${d}${p.nota?' · '+p.nota:''}</div></div><div class="pag-val">${p.valor.toFixed(2)}€</div><button class="pag-del" onclick="remPag(${p.id})">✕</button></div>`;
+// Histórico: lista todos os jogos com quem pagou/não pagou
+function rHistPag(){
+  const el=document.getElementById('h-pag');
+  const jogos=[...db.jogos].sort((a,b)=>new Date(b.data)-new Date(a.data));
+  if(!jogos.length){el.innerHTML='<div class="empty"><em>⚽</em>Sem jogos</div>';return;}
+  el.innerHTML=jogos.map(j=>{
+    const pag=db.pagosPorJogo[String(j.id)]||[];
+    const nd=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
+    return`<div class="pi" style="flex-wrap:wrap;gap:8px;cursor:pointer" onclick="abrirDetalhe(${j.id})">
+      <div class="pi-info" style="min-width:160px"><div class="pi-nome">${j.adversario}</div><div class="pi-meta">${nd} · ${j.jornada||j.competicao} · ${j.golos||0} golos</div></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">
+        ${db.amigos.map(am=>{const p=pag.includes(am.id);return`<span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${p?am.cor:'#eee'};color:${p?'#fff':'var(--mu)'};font-weight:600">${ini(am.nome)}</span>`;}).join('')}
+      </div>
+      <div class="pi-val">${pag.length}/${db.amigos.length}</div>
+    </div>`;
   }).join('');
 }
 
-function remPag(id){
-  if(!confirm('Remover este pagamento?'))return;
-  db.pagamentos=db.pagamentos.filter(p=>p.id!==id);
-  salvar();renderHistPag();toast('Pagamento removido');
+/* ── CONFIG ─────────────────────────────────── */
+function rCfg(){
+  document.getElementById('c-ep').value=db.config.epoca;
+  document.getElementById('c-vg').value=db.config.valorPorGolo;
+  document.getElementById('c-gp').value=db.config.golosPrevistosEpoca;
+  document.getElementById('c-jp').value=db.config.jogosPrevistosEpoca;
 }
-
-/* ── CONFIG ── */
-function renderConfig(){
-  document.getElementById('cfg-epoca').value=db.config.epoca;
-  document.getElementById('cfg-val').value=db.config.valorPorGolo;
-  document.getElementById('cfg-prev').value=db.config.golosPrevistosEpoca;
-  document.getElementById('cfg-jogos').value=db.config.jogosPrevistosEpoca;
-}
-function guardarConfig(){
-  db.config.epoca=document.getElementById('cfg-epoca').value;
-  db.config.valorPorGolo=parseFloat(document.getElementById('cfg-val').value)||1;
-  db.config.golosPrevistosEpoca=parseInt(document.getElementById('cfg-prev').value)||120;
-  db.config.jogosPrevistosEpoca=parseInt(document.getElementById('cfg-jogos').value)||38;
+function guardarCfg(){
+  db.config.epoca=document.getElementById('c-ep').value;
+  db.config.valorPorGolo=parseFloat(document.getElementById('c-vg').value)||1;
+  db.config.golosPrevistosEpoca=parseInt(document.getElementById('c-gp').value)||132;
+  db.config.jogosPrevistosEpoca=parseInt(document.getElementById('c-jp').value)||55;
   salvar();toast('Configurações guardadas ✓');
 }
-
-/* ── MODAL PAGAMENTO ── */
-function abrirModal(amigoId){
-  document.getElementById('m-amigo').innerHTML=db.amigos.map(a=>`<option value="${a.id}" ${a.id===amigoId?'selected':''}>${a.nome}</option>`).join('');
-  document.getElementById('m-val').value=Math.max(0,dividaAmigo(amigoId)).toFixed(2);
-  document.getElementById('m-data').value=new Date().toISOString().split('T')[0];
-  document.getElementById('m-nota').value='';
-  document.getElementById('modal-pag').classList.add('on');
-}
-function closeModal(){document.getElementById('modal-pag').classList.remove('on');}
-function confirmPag(){
-  const amigoId=parseInt(document.getElementById('m-amigo').value);
-  const valor=parseFloat(document.getElementById('m-val').value);
-  const data=document.getElementById('m-data').value;
-  const nota=document.getElementById('m-nota').value.trim();
-  if(!valor||valor<=0)return toast('Valor inválido!',1);
-  db.pagamentos.push({id:Date.now(),amigoId,valor,data,nota});
-  salvar();closeModal();renderContas();
-  const am=db.amigos.find(a=>a.id===amigoId);
-  toast(`${am?.nome} pagou ${valor.toFixed(2)}€ 💸`);
-}
-
-/* ── JSON ── */
-function exportJSON(){
+function expJSON(){
   const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='data.json';a.click();
   toast('data.json descarregado ✓');
 }
-function importJSON(){document.getElementById('file-import').click();}
-function lerFicheiro(input){
-  const f=input.files[0];if(!f)return;
+function impJSON(){document.getElementById('f-imp').click();}
+function lerFich(inp){
+  const f=inp.files[0];if(!f)return;
   const r=new FileReader();
   r.onload=e=>{
-    try{const d=JSON.parse(e.target.result);if(!d.amigos||!d.jogos)throw 0;db=d;salvar();renderConfig();renderDashboard();toast('Dados importados ✓');}
-    catch{toast('Ficheiro JSON inválido!',1);}
-    input.value='';
+    try{const d=JSON.parse(e.target.result);if(!d.amigos||!d.jogos)throw 0;db=d;if(!db.pagosPorJogo)db.pagosPorJogo={};salvar();rCfg();rDash();toast('Dados importados ✓');}
+    catch{toast('Ficheiro JSON inválido!',1);}inp.value='';
   };r.readAsText(f);
 }
-function copiarJSON(){navigator.clipboard.writeText(JSON.stringify(db,null,2)).then(()=>toast('JSON copiado ✓'));}
-function resetDB(){
-  if(!confirm('Apagar TODOS os dados?'))return;
-  if(!confirm('Tens a certeza absoluta?'))return;
-  localStorage.removeItem('sg_db_v3');location.reload();
-}
+function copJSON(){navigator.clipboard.writeText(JSON.stringify(db,null,2)).then(()=>toast('JSON copiado ✓'));}
+function resetDB(){if(!confirm('Apagar TODOS os dados?'))return;if(!confirm('Tens a certeza?'))return;localStorage.removeItem('sg_v4');location.reload();}
 
-/* ── TOAST ── */
+/* ── TOAST ─────────────────────────────────── */
 let ttm;
 function toast(msg,err){
-  clearTimeout(ttm);
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.style.background=err?'var(--danger)':'var(--verde)';
+  clearTimeout(ttm);const t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=err?'var(--dg)':'var(--vd)';
   t.classList.add('on');ttm=setTimeout(()=>t.classList.remove('on'),3000);
 }
 
-/* ── INIT ── */
+/* ── INIT ──────────────────────────────────── */
 carregar();
 if(!db.amigos.length){
   ['Tu','Amigo 2','Amigo 3','Amigo 4','Amigo 5','Amigo 6','Amigo 7','Amigo 8','Amigo 9','Amigo 10']
     .forEach((n,i)=>db.amigos.push({id:i+1,nome:n,cor:CORES[i]}));
   salvar();
 }
-renderDashboard();
-renderConfig();
+rDash();rCfg();
 </script>
 </body>
 </html>
