@@ -1418,6 +1418,21 @@ const GH_KEY='sg_github_cfg';
 
 const GH_DEFAULTS={owner:'diogoandrefsilva-ghc',repo:'Goals',path:'data.json',branch:'main'};
 
+/* ── SEGURANÇA: TOKEN GITHUB ───────────────────────────────────────────────
+   O token de autenticação do GitHub é guardado APENAS em localStorage,
+   na chave 'sg_github_cfg', separada do objeto `db`.
+
+   NUNCA adicionar o token (nem qualquer campo de autenticação) ao objeto `db`,
+   pois `db` é serializado e enviado para o GitHub como data.json — ficheiro
+   PÚBLICO. Qualquer dado dentro de `db` é potencialmente visível por qualquer
+   pessoa com acesso ao repositório.
+
+   Resumo:
+     ✅ localStorage['sg_github_cfg'] → token, owner, repo, path, branch
+     ✅ localStorage['sg_v4'] / db    → amigos, jogos, config, pagosPorJogo
+     ❌ NUNCA misturar os dois
+─────────────────────────────────────────────────────────────────────────── */
+
 function ghLoadCfg(){
   document.getElementById('gh-owner').value=GH_DEFAULTS.owner;
   document.getElementById('gh-repo').value=GH_DEFAULTS.repo;
@@ -1491,6 +1506,7 @@ async function ghPush(){
       body:JSON.stringify(body)
     });
     if(!res.ok){const e=await res.json();throw new Error(e.message||res.status);}
+    ghSaveCfg();
     ghStatus(`✓ Guardado com sucesso em ${owner}/${repo}/${path} (branch: ${branch})`);
     toast('Dados guardados no GitHub ✓');
   }catch(e){
