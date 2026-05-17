@@ -91,11 +91,9 @@ tbody tr:hover{background:#fafaf8}
 .jdt span{font-size:10px;color:var(--mu);text-transform:uppercase}
 .jsep{width:1px;height:34px;background:var(--bo);flex-shrink:0}
 .jinfo{flex:1;min-width:0}
-.jadv{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.jadv{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jcomp{font-size:11px;color:var(--mu);margin-top:1px}
-.jcomp-inline{font-size:11px;color:var(--mu);font-weight:400;margin-left:auto;flex-shrink:0;white-space:nowrap}
-.jres-local-row{display:flex;align-items:center;gap:5px;margin-top:2px}
-.jres-inline{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--vd);line-height:1}
+.jres-local{display:flex;align-items:center;justify-content:center;margin-top:2px}
 .jres{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);width:44px;text-align:center;flex-shrink:0}
 .jgol{text-align:center;width:40px;flex-shrink:0}
 .jgol .gn{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--ou);line-height:1}
@@ -887,8 +885,8 @@ function jogoCardHTML(j,mini=false){
   return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
-    <div class="jinfo"><div class="jadv">${resBadge}${j.adversario}<span class="jcomp-inline">${j.competicao}${j.jornada?' · '+j.jornada:''}</span></div><div class="jres-local-row"><span class="jres-inline">${j.resultado||'—'}</span>${localBadge}</div></div>
-    <div class="jres">${j.resultado||'—'}</div>
+    <div class="jinfo"><div class="jadv">${resBadge}${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}</div></div>
+    <div class="jres">${j.resultado||'—'}<div class="jres-local">${localBadge}</div></div>
     <div class="jpag-bar">${dotsHTML}</div>
     <div class="jgol"><div class="gn">${isFuturo?'—':golosJ}</div><div class="gl">${isFuturo?'':(golosJ===0?'golos':'golo'+(golosJ!==1?'s':''))}</div></div>
     ${valHTML}
@@ -913,6 +911,11 @@ function renderJogosList(){
 
 function abrirDetalhe(jogoId){
   const jogo=db.jogos.find(j=>j.id===jogoId);if(!jogo)return;
+  // navigate to jogos section first
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.getElementById('s-jogos').classList.add('on');
+  document.querySelectorAll('.hn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.hn').forEach(b=>{if(b.textContent.trim()==='Jogos')b.classList.add('on');});
   // mostrar painel detalhe na secção jogos
   const sec=document.getElementById('s-jogos');
   sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
