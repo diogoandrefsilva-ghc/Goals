@@ -131,8 +131,7 @@ tbody tr:hover{background:#fafaf8}
 @media(max-width:500px){.frow{grid-template-columns:1fr}}
 .fg{display:flex;flex-direction:column;gap:5px;min-width:0;}
 label{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
-input[type=text],input[type=date],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%;height:37px}
-input[type=date]{min-width:130px;max-width:160px}
+input[type=text],input[type=date],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%;height:37px;box-sizing:border-box}
 input:focus,select:focus{border-color:var(--vd)}
 .btn{border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;transition:all .15s}
 .btn-g{background:var(--vd);color:#fff}.btn-g:hover{background:var(--vd2)}
@@ -274,13 +273,6 @@ input:focus,select:focus{border-color:var(--vd)}
       <h2 class="stit" style="margin:0">Dívidas por amigo</h2>
       <button class="btn btn-g" onclick="exportarDividas()" style="font-size:12px;padding:7px 14px;display:flex;align-items:center;gap:6px">📄 Exportar PDF</button>
     </div>
-    <div class="tw" style="margin-bottom:16px">
-      <table>
-        <thead><tr><th>Amigo</th><th class="r">Saldo</th></tr></thead>
-        <tbody id="tbl-contas"></tbody>
-      </table>
-    </div>
-    <h2 class="stit">Detalhe por jogo</h2>
     <div id="divida-jogos"></div>
   </div>
   <div id="t-previsao" class="tp">
@@ -371,7 +363,7 @@ input:focus,select:focus{border-color:var(--vd)}
           </div>
           <div class="fg" style="flex:0 0 auto">
             <label>Data</label>
-            <input type="date" id="cal-data">
+            <input type="date" id="cal-data" style="width:140px">
           </div>
         </div>
 
@@ -445,14 +437,20 @@ input:focus,select:focus{border-color:var(--vd)}
       <button class="modal-close" onclick="fecharModalEditar()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="fadd-grid" style="padding:0;margin-bottom:12px">
-        <div class="fg fadd-full">
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div class="fg">
           <label>Adversário</label>
           <input type="text" id="ed-adv" placeholder="ex: Porto">
         </div>
-        <div class="fg">
-          <label>Data</label>
-          <input type="date" id="ed-data">
+        <div style="display:flex;gap:10px">
+          <div class="fg" style="flex:0 0 auto">
+            <label>Data</label>
+            <input type="date" id="ed-data" style="width:auto;min-width:130px">
+          </div>
+          <div class="fg" style="flex:1;min-width:0">
+            <label>Jornada <em style="font-weight:400;font-style:italic;color:var(--mu)">(opcional)</em></label>
+            <input type="text" id="ed-jorn" placeholder="ex: LP J32">
+          </div>
         </div>
         <div class="fg">
           <label>Competição</label>
@@ -464,10 +462,6 @@ input:focus,select:focus{border-color:var(--vd)}
             <option>Supertaça</option>
             <option>Outro</option>
           </select>
-        </div>
-        <div class="fg">
-          <label>Jornada <em style="font-weight:400;font-style:italic;color:var(--mu)">(opcional)</em></label>
-          <input type="text" id="ed-jorn" placeholder="ex: LP J32">
         </div>
         <div class="fg">
           <label>Local</label>
@@ -850,10 +844,10 @@ function jogoCardHTML(j,mini=false){
   }
 
   const pot=(golosJ*db.config.valorPorGolo*nTotal).toFixed(0);
-  const divVal=!isFuturo&&golosJ>0&&nPag<nTotal?(golosJ*db.config.valorPorGolo*(nTotal-nPag)).toFixed(0):null;
   const delBtn=mini?'': `<button class="jdel" onclick="event.stopPropagation();remJogo(${j.id})" title="Remover">✕</button>`;
   const editBtn=mini?'': `<button class="jdel" style="color:#1565c0" onclick="event.stopPropagation();abrirModalEditar(${j.id})" title="Editar">✏️</button>`;
-  const valHTML=!isFuturo&&golosJ>0?`<div class="jval"><span class="jval-total">+${pot}€</span>${divVal?`<span class="jval-div">−${divVal}€</span>`:''}</div>`:'';
+  // só mostrar o valor se houver golos (0 golos = sem pote, sem dívida)
+  const valHTML=!isFuturo&&golosJ>0?`<div class="jval"><span class="jval-total">+${pot}€</span></div>`:'';
   return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
@@ -967,8 +961,16 @@ function rJogos(){
   const hoje=new Date().toISOString().split('T')[0];
   document.getElementById('cal-data').value=hoje;
   limparGolos();
-  const a=document.querySelector('#s-jogos .tp.on');
-  // sempre renderiza a lista (mesmo que não esteja activa, para ter dados quando voltar)
+  // garantir que o tab lista está visível antes de renderizar
+  const sec=document.getElementById('s-jogos');
+  const tAtivo=sec.querySelector('.tp.on');
+  if(!tAtivo||tAtivo.id==='t-jlista'){
+    // activar tab lista se não houver nenhum ou já for esse
+    sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+    sec.querySelectorAll('.it').forEach(b=>b.classList.remove('on'));
+    document.getElementById('t-jlista').classList.add('on');
+    document.querySelector('#s-jogos .it').classList.add('on');
+  }
   renderJogosList();
 }
 
