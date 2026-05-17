@@ -859,37 +859,49 @@ function jogoCardHTML(j,mini=false){
 
   // Local badge — SVG single-color icons
   const localSVG={
-    'Casa':`<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z" fill="#c8a415"/></svg>`,
+    'Casa':`<svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <polygon points="12,3 2,11 4,11 4,21 10,21 10,15 14,15 14,21 20,21 20,11 22,11" fill="#c8a415" opacity=".85"/>
+      <rect x="10" y="15" width="4" height="6" rx="1" fill="#a07800"/>
+      <polygon points="12,3 2,11 22,11" fill="#c8a415"/>
+    </svg>`,
     'Fora':`<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg>`,
     'Neutro':`<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/><path d="M5 6V4h2v2H5zm12 0V4h2v2h-2zm-5-3V1h2v2h-2z" fill="#1565c0"/></svg>`
   };
   const localIcon=localSVG[j.local]||'';
   const localBadge=localIcon?`<span class="jlocal-badge">${localIcon}</span>`:'';
 
-  // Resultado badge (canto inferior direito) — verde vitória, amarelo empate, vermelho derrota
-  let resBadge='';
-  if(!isFuturo && j.resultado){
+  // Resultado no lugar do jgol — número do Sporting colorido
+  let resDisplayHTML='';
+  if(isFuturo){
+    resDisplayHTML=`<div class="jgol"><div class="gn" style="color:#ccc">—</div><div class="gl"></div></div>`;
+  } else if(!j.resultado){
+    resDisplayHTML=`<div class="jgol"><div class="gn">${golosJ}</div><div class="gl">golo${golosJ!==1?'s':''}</div></div>`;
+  } else {
     const parts=j.resultado.split('-').map(s=>parseInt(s.trim()));
+    let numCor='var(--ou)'; // dourado por defeito
+    let numSporting=golosJ, numAdv='?';
     if(parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1])){
-      let gS,gA;
-      if(j.local==='Fora'){gS=parts[1];gA=parts[0];}
-      else{gS=parts[0];gA=parts[1];}
-      let resCor,resLbl;
-      if(gS>gA){resCor='#1b5e20';resLbl='V';}
-      else if(gS===gA){resCor='#e6a700';resLbl='E';}
-      else{resCor='#c62828';resLbl='D';}
-      resBadge=`<span class="jres-badge" style="background:${resCor}">${j.resultado}</span>`;
+      const gS=j.local==='Fora'?parts[1]:parts[0];
+      const gA=j.local==='Fora'?parts[0]:parts[1];
+      numAdv=gA;
+      if(gS===gA) numCor='var(--vd)'; // empate → verde
+      else numCor='var(--ou)'; // vitória ou derrota → dourado
+      resDisplayHTML=`<div class="jgol"><div class="gn" style="color:${numCor};font-size:22px;line-height:1">${gS}<span style="color:#ccc;font-size:16px;margin:0 1px">-</span>${gA}</div><div class="gl">${gS>gA?'vitória':gS===gA?'empate':'derrota'}</div></div>`;
+    } else {
+      resDisplayHTML=`<div class="jgol"><div class="gn">${golosJ}</div><div class="gl">golo${golosJ!==1?'s':''}</div></div>`;
     }
   }
+
+  // resBadge já não é necessário no jadv
+  const resBadge='';
 
   return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     ${localBadge}
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
-    <div class="jinfo"><div class="jadv">${resBadge}${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}</div></div>
-    <div class="jres">${j.resultado||'—'}</div>
+    <div class="jinfo"><div class="jadv">${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}</div></div>
     <div class="jpag-bar">${dotsHTML}</div>
-    <div class="jgol"><div class="gn">${isFuturo?'—':golosJ}</div><div class="gl">${isFuturo?'':(golosJ===0?'golos':'golo'+(golosJ!==1?'s':''))}</div></div>
+    ${resDisplayHTML}
     ${valHTML}
     ${editBtn}
     ${delBtn}
