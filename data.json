@@ -1,8 +1,6 @@
 {
   "config": {
     "valorPorGolo": 1,
-    "golosPrevistosEpoca": 132,
-    "jogosPrevistosEpoca": 55,
     "epoca": "2025/26"
   },
   "amigos": [
