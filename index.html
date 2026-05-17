@@ -184,6 +184,12 @@ input:focus,select:focus{border-color:var(--vd)}
 .jstatus.ok{background:var(--vdp);color:#1b5e20}
 .jstatus.div{background:var(--dgp);color:var(--dg)}
 .jstatus.fut{background:#f5f5f5;color:#999;border:1px solid #ddd}
+
+/* LOCAL BADGE (top-right corner) */
+.jlocal-badge{position:absolute;top:5px;right:5px;font-size:11px;line-height:1;opacity:.6}
+
+/* RESULT BADGE (bottom-right corner) */
+.jres-badge{position:absolute;bottom:5px;right:5px;font-size:10px;font-weight:700;color:#fff;padding:1px 7px;border-radius:4px;line-height:1.4}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--vd);color:#fff;padding:10px 17px;border-radius:9px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.15);transform:translateY(70px);opacity:0;transition:all .3s;z-index:400}
 .toast.on{transform:translateY(0);opacity:1}
 .empty{text-align:center;padding:36px 20px;color:var(--mu);font-size:13px}
@@ -811,19 +817,6 @@ function jogoCardHTML(j,mini=false){
   const golosJ=gJ(j);
   const isFuturo=(j.golos===null||j.golos===undefined||j.golos==='');
 
-  // status pill
-  let statusHTML='';
-  if(j.golos===null||j.golos===undefined||j.golos===''){
-    statusHTML='<span class="jstatus fut">Agendado</span>';
-  } else if(golosJ===0){
-    statusHTML='<span class="jstatus ok" style="background:#f0f0f0;color:#999">0 golos</span>';
-  } else if(nPag>=nTotal){
-    statusHTML='<span class="jstatus ok">✓ Pago</span>';
-  } else {
-    const divVal=(golosJ*db.config.valorPorGolo*(nTotal-nPag)).toFixed(0);
-    statusHTML=`<span class="jstatus div">−${divVal}€</span>`;
-  }
-
   let dotsHTML='';
   if(!isFuturo && golosJ>0){
     if(nTotal<=12){
@@ -840,7 +833,8 @@ function jogoCardHTML(j,mini=false){
   const divVal=!isFuturo&&golosJ>0&&nPag<nTotal?(golosJ*db.config.valorPorGolo*(nTotal-nPag)).toFixed(0):null;
   const delBtn=mini?'': `<button class="jdel" onclick="event.stopPropagation();remJogo(${j.id})" title="Remover">✕</button>`;
   const editBtn=mini?'': `<button class="jdel" style="color:#1565c0" onclick="event.stopPropagation();abrirModalEditar(${j.id})" title="Editar">✏️</button>`;
-  // valor: +pote verde; se houver dívida, -divida vermelho por baixo; se pago, label "Pago"; se 0 golos, "N/A"
+
+  // valor: +pote verde; se houver dívida, -divida vermelho; se pago, "Pago ✓"; se 0 golos, "N/A"
   let valHTML='';
   if(!isFuturo && golosJ===0){
     valHTML='<div class="jval"><span style="font-size:13px;font-weight:600;color:#999">N/A</span></div>';
@@ -851,19 +845,40 @@ function jogoCardHTML(j,mini=false){
       valHTML=`<div class="jval"><span class="jval-total">+${pot}€</span>${divVal?`<span class="jval-div">−${divVal}€</span>`:''}</div>`;
     }
   }
-  // esconder pill de dívida quando já está representado no bloco de valor
-  const pillHTML=divVal?'':statusHTML;
-  return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
+
+  // Local badge (canto superior direito)
+  const localMap={'Casa':'🏠','Fora':'✈️','Neutro':'⚖️'};
+  const localIcon=localMap[j.local]||'';
+  const localBadge=localIcon?`<span class="jlocal-badge">${localIcon}</span>`:'';
+
+  // Resultado badge (canto inferior direito) — verde vitória, amarelo empate, vermelho derrota
+  let resBadge='';
+  if(!isFuturo && j.resultado){
+    const parts=j.resultado.split('-').map(s=>parseInt(s.trim()));
+    if(parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1])){
+      let gS,gA;
+      if(j.local==='Fora'){gS=parts[1];gA=parts[0];}
+      else{gS=parts[0];gA=parts[1];}
+      let resCor,resLbl;
+      if(gS>gA){resCor='#1b5e20';resLbl='V';}
+      else if(gS===gA){resCor='#e6a700';resLbl='E';}
+      else{resCor='#c62828';resLbl='D';}
+      resBadge=`<span class="jres-badge" style="background:${resCor}">${j.resultado}</span>`;
+    }
+  }
+
+  return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}; position:relative">
+    ${localBadge}
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
     <div class="jinfo"><div class="jadv">${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?'<br><span style="opacity:.8">'+j.jornada+'</span>':''}</div></div>
     <div class="jres">${j.resultado||'—'}</div>
     <div class="jpag-bar">${dotsHTML}</div>
-    ${pillHTML}
     <div class="jgol"><div class="gn">${isFuturo?'—':golosJ}</div><div class="gl">${isFuturo?'':(golosJ===0?'golos':'golo'+(golosJ!==1?'s':''))}</div></div>
     ${valHTML}
     ${editBtn}
     ${delBtn}
+    ${resBadge}
   </div>`;
 }
 
