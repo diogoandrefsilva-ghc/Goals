@@ -125,7 +125,8 @@ tbody tr:hover{background:#fafaf8}
 /* FORM */
 .fcard{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:19px 21px;margin-bottom:16px}
 .fcard h3{font-size:14px;font-weight:600;margin-bottom:14px}
-.frow{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:11px;margin-bottom:13px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:13px}
+@media(max-width:500px){.frow{grid-template-columns:1fr}}
 .fg{display:flex;flex-direction:column;gap:5px}
 label{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
 input[type=text],input[type=date],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%}
@@ -255,7 +256,7 @@ input:focus,select:focus{border-color:var(--vd)}
   <!-- lista -->
   <div id="t-jlista" class="tp on">
     <div style="display:flex;gap:8px;margin-bottom:13px;flex-wrap:wrap;align-items:center">
-      <select id="f-comp" onchange="renderJogosList()" style="flex:1;min-width:160px;max-width:220px"><option value="">Todas as competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Outro</option></select>
+      <select id="f-comp" onchange="renderJogosList()" style="flex:1;min-width:160px;max-width:220px"><option value="">Todas as competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
       <div style="display:flex;gap:4px">
         <button id="f-btn-todos" class="fbtn on" onclick="setFiltPag('todos',this)">Todos</button>
         <button id="f-btn-div" class="fbtn" onclick="setFiltPag('divida',this)">Com dívida</button>
@@ -292,7 +293,7 @@ input:focus,select:focus{border-color:var(--vd)}
         <div class="fg"><label>Data</label><input type="date" id="cal-data"></div>
         <div class="fg"><label>Adversário</label><input type="text" id="cal-adv" placeholder="ex: Porto"></div>
         <div class="fg"><label>Competição</label>
-          <select id="cal-comp"><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Outro</option></select>
+          <select id="cal-comp"><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
         </div>
         <div class="fg"><label>Jornada (opcional)</label><input type="text" id="cal-jorn" placeholder="ex: LP J32"></div>
       </div>
@@ -308,7 +309,7 @@ input:focus,select:focus{border-color:var(--vd)}
         <div class="fg"><label>Golos do Sporting</label><input type="number" id="res-golos" min="0" max="25" placeholder="0"></div>
         <div class="fg"><label>Resultado final</label><input type="text" id="res-res" placeholder="ex: 3-1"></div>
         <div class="fg"><label>Competição</label>
-          <select id="res-comp"><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Outro</option></select>
+          <select id="res-comp"><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
         </div>
         <div class="fg"><label>Jornada (opcional)</label><input type="text" id="res-jorn" placeholder="ex: LP J32"></div>
       </div>
@@ -351,7 +352,10 @@ input:focus,select:focus{border-color:var(--vd)}
   </div>
   <div class="fcard">
     <h3>Dados</h3>
-    <p style="font-size:13px;color:var(--mu);margin-bottom:13px">Os dados ficam no <strong>localStorage</strong>. Para fazer backup ou importar noutro dispositivo, usa os botões abaixo.</p>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:13px">Os dados ficam no <strong>localStorage</strong>. Para fazer backup ou sincronizar com outro dispositivo, usa os botões abaixo.</p>
+    <div style="background:var(--oup);border:1px solid #ffe082;border-radius:9px;padding:12px 14px;margin-bottom:13px;font-size:12px;color:#7b5e00">
+      <strong>⚠ Rio Ave / Gil Vicente com dados errados?</strong> O data.json foi actualizado com os golos corretos. Clica em "⬆ Importar data.json" e seleciona o ficheiro mais recente para corrigir.
+    </div>
     <div style="display:flex;gap:9px;flex-wrap:wrap">
       <button class="btn btn-g" onclick="expJSON()">⬇ Descarregar data.json</button>
       <button class="btn" style="background:var(--in);color:#fff" onclick="impJSON()">⬆ Importar data.json</button>
@@ -379,6 +383,9 @@ function carregar(){
   if(s){try{const d=JSON.parse(s);if(d.amigos&&d.jogos){db=d;}}catch(e){}}
   if(!db.pagosPorJogo)db.pagosPorJogo={};
   if(!db.config.jogosPrevistosEpoca)db.config.jogosPrevistosEpoca=55;
+  // Migração: garantir que jogos antigos com golos:null não quebram cálculos
+  // (não alteramos os dados, só garantimos que o campo existe)
+  db.jogos.forEach(j=>{if(j.golos===undefined)j.golos=null;});
 }
 
 /* ── CÁLCULOS ────────────────────────────────── */
@@ -488,7 +495,7 @@ function rContas(){
     return`<tr><td><div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div><strong>${am.nome}</strong></div></td><td class="r">${badge}</td></tr>`;
   }).join(''):'<tr><td colspan="2" class="empty"><em>👥</em>Sem amigos</td></tr>';
 
-  // Jogos por liquidar por amigo — layout compacto sem tabela (evita scroll horizontal)
+  // Jogos por liquidar por amigo
   const jogosOrdenados=[...db.jogos]
     .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
     .sort((a,b)=>new Date(a.data)-new Date(b.data));
@@ -497,27 +504,24 @@ function rContas(){
 
   el.innerHTML=db.amigos.map(am=>{
     const divida=dividaAmigo(am.id);
-    if(divida<=0) return`<div class="fcard" style="margin-bottom:10px;padding:12px 16px">
-      <div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div>
-      <span style="font-weight:600">${am.nome}</span>
-      <span class="badge bok" style="margin-left:8px">✓ Tudo pago</span></div></div>`;
+    if(divida<=0) return`<div class="fcard" style="margin-bottom:10px;padding:12px 16px"><div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div><span style="font-weight:600">${am.nome}</span><span class="badge bok" style="margin-left:8px">✓ Tudo pago</span></div></div>`;
 
     const jogosPorPagar=jogosOrdenados.filter(j=>{
       const pag=db.pagosPorJogo[String(j.id)]||[];
-      return (j.golos||0)>0 && !pag.includes(am.id);
+      return gJ(j)>0 && !pag.includes(am.id);
     });
 
     const linhas=jogosPorPagar.map(j=>{
       const dt=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
-      const val=((j.golos||0)*db.config.valorPorGolo).toFixed(2);
-      const jorn=j.jornada||j.competicao.split(' ')[0];
-      return`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bo)">
-        <span style="font-size:11px;color:var(--mu);min-width:52px;flex-shrink:0">${dt}</span>
-        <span style="font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.adversario}</span>
-        <span style="font-size:10px;color:var(--mu);flex-shrink:0">${jorn}</span>
-        <span style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--ou);flex-shrink:0;min-width:18px;text-align:center">${j.golos}</span>
-        <span style="font-size:12px;font-weight:700;color:var(--dg);flex-shrink:0;min-width:36px;text-align:right">${val}€</span>
-        <button class="bsm" style="flex-shrink:0;font-size:11px;padding:3px 9px" onclick="marcarPagoRapido(${j.id},${am.id})">✓</button>
+      const val=(gJ(j)*db.config.valorPorGolo).toFixed(2);
+      const jorn=j.jornada||(j.competicao||'').split(' ').slice(0,2).join(' ');
+      return`<div style="display:grid;grid-template-columns:54px 1fr 60px 22px 42px 48px;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--bo)">
+        <span style="font-size:11px;color:var(--mu)">${dt}</span>
+        <span style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.adversario}</span>
+        <span style="font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${jorn}</span>
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--ou);text-align:center">${gJ(j)}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--dg);text-align:right">${val}€</span>
+        <button class="bsm" style="font-size:11px;padding:3px 6px;justify-self:end" onclick="marcarPagoRapido(${j.id},${am.id})">✓</button>
       </div>`;
     }).join('');
 
