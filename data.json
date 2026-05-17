@@ -366,192 +366,213 @@
     },
     {
       "id": 35,
-      "data": "2026-03-01",
+      "data": "2026-02-09",
       "adversario": "Porto",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J21"
+      "resultado": "1-1",
+      "jornada": "J21",
+      "local": "Fora"
     },
     {
       "id": 36,
-      "data": "2026-03-08",
+      "data": "2026-02-15",
       "adversario": "Famal.",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J22"
+      "resultado": "1-0",
+      "jornada": "J22",
+      "local": "Casa"
     },
     {
       "id": 37,
-      "data": "2026-03-15",
-      "adversario": "Moreir.",
+      "data": "2026-02-21",
+      "adversario": "Moreirense",
       "competicao": "Liga Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "LP J23"
+      "resultado": "0-3",
+      "jornada": "J23",
+      "local": "Fora"
     },
     {
       "id": 38,
-      "data": "2026-03-22",
+      "data": "2026-02-27",
       "adversario": "Estoril",
       "competicao": "Liga Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "LP J24"
+      "resultado": "3-0",
+      "jornada": "J24",
+      "local": "Casa"
     },
     {
       "id": 39,
-      "data": "2026-03-26",
+      "data": "2026-03-03",
       "adversario": "Porto",
       "competicao": "Taça de Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "TP MF"
+      "resultado": "1-0",
+      "jornada": "MF",
+      "local": "Casa"
     },
     {
       "id": 40,
-      "data": "2026-04-05",
+      "data": "2026-03-07",
       "adversario": "Braga",
       "competicao": "Liga Portugal",
       "golos": 2,
-      "resultado": "",
-      "jornada": "LP J25"
+      "resultado": "2-2",
+      "jornada": "J25",
+      "local": "Fora"
     },
     {
       "id": 41,
-      "data": "2026-04-09",
-      "adversario": "Bodo",
+      "data": "2026-03-11",
+      "adversario": "Bodo Glimt",
       "competicao": "Liga dos Campeões",
       "golos": 0,
-      "resultado": "",
-      "jornada": "CL 8A"
+      "resultado": "3-0",
+      "jornada": "8A",
+      "local": "Fora"
     },
     {
       "id": 42,
-      "data": "2026-04-16",
-      "adversario": "Bodo",
+      "data": "2026-03-17",
+      "adversario": "Bodo Glimt",
       "competicao": "Liga dos Campeões",
       "golos": 5,
-      "resultado": "",
-      "jornada": "CL 8A"
+      "resultado": "5-0",
+      "jornada": "8A",
+      "local": "Casa"
     },
     {
       "id": 43,
-      "data": "2026-04-19",
+      "data": "2026-03-22",
       "adversario": "Alverca",
       "competicao": "Liga Portugal",
       "golos": 4,
-      "resultado": "",
-      "jornada": "LP J27"
+      "resultado": "1-4",
+      "jornada": "J27",
+      "local": "Fora"
     },
     {
       "id": 44,
-      "data": "2026-04-26",
+      "data": "2026-04-03",
       "adversario": "Sta Clara",
       "competicao": "Liga Portugal",
       "golos": 4,
-      "resultado": "",
-      "jornada": "LP J28"
+      "resultado": "4-2",
+      "jornada": "J28",
+      "local": "Casa"
     },
     {
       "id": 45,
-      "data": "2026-04-30",
+      "data": "2026-04-07",
       "adversario": "Arsenal",
       "competicao": "Liga dos Campeões",
       "golos": 0,
-      "resultado": "",
-      "jornada": "CL QF"
+      "resultado": "0-1",
+      "jornada": "QF",
+      "local": "Casa"
     },
     {
       "id": 46,
-      "data": "2026-05-03",
-      "adversario": "Amadora",
+      "data": "2026-04-11",
+      "adversario": "Estrela Amadora",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J29"
+      "resultado": "0-1",
+      "jornada": "J29",
+      "local": "Fora"
     },
     {
       "id": 47,
-      "data": "2026-05-07",
+      "data": "2026-04-15",
       "adversario": "Arsenal",
       "competicao": "Liga dos Campeões",
       "golos": 0,
-      "resultado": "",
-      "jornada": "CL QF"
+      "resultado": "0-0",
+      "jornada": "QF",
+      "local": "Fora"
     },
     {
       "id": 48,
-      "data": "2026-05-10",
+      "data": "2026-04-19",
       "adversario": "Benfica",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J30"
+      "resultado": "1-2",
+      "jornada": "J30",
+      "local": "Casa"
     },
     {
       "id": 49,
-      "data": "2026-05-13",
+      "data": "2026-04-22",
       "adversario": "Porto",
       "competicao": "Taça de Portugal",
       "golos": 0,
-      "resultado": "",
-      "jornada": "TP MF"
+      "resultado": "0-0",
+      "jornada": "MF",
+      "local": "Casa"
     },
     {
       "id": 50,
-      "data": "2026-05-15",
+      "data": "2026-04-26",
       "adversario": "AFS",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J31"
+      "resultado": "1-1",
+      "jornada": "J31",
+      "local": "Fora"
     },
     {
       "id": 51,
-      "data": "2026-05-13",
+      "data": "2026-04-29",
       "adversario": "Tondela",
       "competicao": "Liga Portugal",
       "golos": 2,
-      "resultado": "",
-      "jornada": "LP J26"
+      "resultado": "2-2",
+      "jornada": "J26",
+      "local": "Casa"
     },
     {
       "id": 52,
-      "data": "2026-05-17",
+      "data": "2026-05-04",
       "adversario": "Vitória",
       "competicao": "Liga Portugal",
       "golos": 5,
-      "resultado": "",
-      "jornada": "LP J32"
+      "resultado": "5-1",
+      "jornada": "J32",
+      "local": "Casa"
     },
     {
       "id": 53,
-      "data": "2026-05-20",
+      "data": "2026-05-11",
       "adversario": "Rio Ave",
       "competicao": "Liga Portugal",
       "golos": 4,
-      "resultado": "",
-      "jornada": "LP J33"
+      "resultado": "1-4",
+      "jornada": "J33",
+      "local": "Fora"
     },
     {
       "id": 54,
-      "data": "2026-05-24",
-      "adversario": "Gil V.",
+      "data": "2026-05-16",
+      "adversario": "Gil Vicente",
       "competicao": "Liga Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "LP J34"
+      "resultado": "3-0",
+      "jornada": "J34",
+      "local": "Casa"
     },
     {
       "id": 55,
       "data": "2026-05-27",
       "adversario": "Torreense",
       "competicao": "Taça de Portugal",
-      "golos": 0,
+      "golos": null,
       "resultado": "",
-      "jornada": "TP F"
+      "jornada": "Final",
+      "local": "Neutro"
     }
   ],
   "pagosPorJogo": {
@@ -1122,15 +1143,22 @@
       6,
       7,
       8,
-      9
+      9,
+      5
     ],
     "53": [
       2,
-      6
+      6,
+      1,
+      4,
+      5
     ],
     "54": [
       2,
-      6
+      6,
+      1,
+      4,
+      5
     ],
     "55": []
   }
