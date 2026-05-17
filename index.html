@@ -227,7 +227,7 @@ input:focus,select:focus{border-color:var(--vd)}
     <div id="ult-jogos"></div>
   </div>
   <div id="t-contas" class="tp">
-    <div class="tw"><table><thead><tr><th>Amigo</th><th class="r">Deve total</th><th class="r">Pagou</th><th class="r">Em dívida</th><th class="r">Estado</th></tr></thead><tbody id="tbl-contas"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>Amigo</th><th class="r">Em dívida</th></tr></thead><tbody id="tbl-contas"></tbody></table></div>
     <h2 class="stit" style="margin-top:8px">Jogos por liquidar, por amigo</h2>
     <div id="divida-jogos"></div>
   </div>
@@ -382,7 +382,8 @@ function carregar(){
 }
 
 /* ── CÁLCULOS ────────────────────────────────── */
-function totalGolos(){return db.jogos.reduce((a,j)=>a+(j.golos||0),0);}
+function gJ(j){return j.golos!==null&&j.golos!==undefined&&j.golos!==''?Number(j.golos):0;}
+function totalGolos(){return db.jogos.reduce((a,j)=>a+gJ(j),0);}
 function ini(n){return(n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';}
 
 // Quanto cada amigo deve NO TOTAL (todos os jogos com golos > 0)
@@ -392,7 +393,7 @@ function deveTotal(){return totalGolos()*db.config.valorPorGolo;}
 function pagouAmigo(amigoId){
   return db.jogos.reduce((acc,j)=>{
     const pag=db.pagosPorJogo[String(j.id)]||[];
-    return acc+(pag.includes(amigoId)?(j.golos||0)*db.config.valorPorGolo:0);
+    return acc+(pag.includes(amigoId)?gJ(j)*db.config.valorPorGolo:0);
   },0);
 }
 
@@ -453,18 +454,19 @@ function rResumo(){
   const g=totalGolos(),n=db.amigos.length,vt=deveTotal();
   const tp=totalPago()*db.amigos.length; // não — totalPago() já é por pessoa
   const potePago=db.amigos.reduce((a,am)=>a+pagouAmigo(am.id),0);
-  const pct=db.config.golosPrevistosEpoca>0?Math.min(100,Math.round(g/db.config.golosPrevistosEpoca*100)):0;
+  const nJogosComRes=db.jogos.filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='').length;
+  const pct=db.config.jogosPrevistosEpoca>0?Math.min(100,Math.round(nJogosComRes/db.config.jogosPrevistosEpoca*100)):0;
   document.getElementById('hdr-sub').textContent=`Época ${db.config.epoca} · ${db.config.valorPorGolo}€ por golo por pessoa`;
   document.getElementById('stat-cards').innerHTML=`
-    <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${db.jogos.length} jogo${db.jogos.length!==1?'s':''}</div></div>
+    <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${nJogosComRes} jogos realizados</div></div>
     <div class="sc co"><div class="sc-l">Pote acumulado</div><div class="sc-v">${(g*n*db.config.valorPorGolo).toFixed(0)}€</div><div class="sc-s">${n} pessoas × ${vt.toFixed(0)}€</div></div>
     <div class="sc cb"><div class="sc-l">Já recebido</div><div class="sc-v">${potePago.toFixed(0)}€</div><div class="sc-s">de ${(g*n*db.config.valorPorGolo).toFixed(0)}€ total</div></div>
     <div class="sc cr"><div class="sc-l">Por cobrar</div><div class="sc-v">${totalDividas().toFixed(0)}€</div><div class="sc-s">dívida total em aberto</div></div>
   `;
   document.getElementById('pct-l').textContent=pct+'%';
   document.getElementById('prog-b').style.width=pct+'%';
-  document.getElementById('pl-a').textContent=`${g} golos marcados`;
-  document.getElementById('pl-b').textContent=`Meta: ${db.config.golosPrevistosEpoca} golos`;
+  document.getElementById('pl-a').textContent=`${nJogosComRes} jogos realizados`;
+  document.getElementById('pl-b').textContent=`Total previsto: ${db.config.jogosPrevistosEpoca} jogos`;
   const hoje=new Date().toISOString().split('T')[0];
   // jogos com resultado (golos definido, data passada) que ainda têm dívidas
   const pendentes=[...db.jogos]
@@ -479,64 +481,55 @@ function rResumo(){
     :'<div class="empty"><em>✅</em>Todos os jogos com resultado estão totalmente pagos!</div>';
 }
 function rContas(){
-  // Tabela resumo
+  // Tabela resumo simplificada: só amigo + dívida
   document.getElementById('tbl-contas').innerHTML=db.amigos.length?db.amigos.map(am=>{
-    const deve=deveTotal(),pagou=pagouAmigo(am.id),div=deve-pagou;
-    const badge=div<=0?'<span class="badge bok">✓ Quitado</span>':pagou>0?'<span class="badge bpar">Parcial</span>':'<span class="badge bdiv">Por pagar</span>';
-    return`<tr><td><div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div><strong>${am.nome}</strong></div></td><td class="r">${deve.toFixed(2)}€</td><td class="r" style="color:var(--vd);font-weight:600">${pagou.toFixed(2)}€</td><td class="r" style="color:${div>0?'var(--dg)':'var(--vd)'};font-weight:700">${Math.max(0,div).toFixed(2)}€</td><td class="r">${badge}</td></tr>`;
-  }).join(''):'<tr><td colspan="5" class="empty"><em>👥</em>Sem amigos</td></tr>';
+    const div=dividaAmigo(am.id);
+    const badge=div<=0?'<span class="badge bok">✓ Quitado</span>':'<span class="badge bdiv">'+div.toFixed(2)+'€</span>';
+    return`<tr><td><div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div><strong>${am.nome}</strong></div></td><td class="r">${badge}</td></tr>`;
+  }).join(''):'<tr><td colspan="2" class="empty"><em>👥</em>Sem amigos</td></tr>';
 
-  // Jogos por liquidar por amigo
-  const jogosOrdenados=[...db.jogos].sort((a,b)=>new Date(a.data)-new Date(b.data));
+  // Jogos por liquidar por amigo — layout compacto sem tabela (evita scroll horizontal)
+  const jogosOrdenados=[...db.jogos]
+    .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
+    .sort((a,b)=>new Date(a.data)-new Date(b.data));
   const el=document.getElementById('divida-jogos');
   if(!db.amigos.length){el.innerHTML='<div class="empty"><em>👥</em>Sem amigos</div>';return;}
 
   el.innerHTML=db.amigos.map(am=>{
     const divida=dividaAmigo(am.id);
-    if(divida<=0) return`<div class="fcard" style="margin-bottom:12px;padding:14px 18px">
+    if(divida<=0) return`<div class="fcard" style="margin-bottom:10px;padding:12px 16px">
       <div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div>
       <span style="font-weight:600">${am.nome}</span>
       <span class="badge bok" style="margin-left:8px">✓ Tudo pago</span></div></div>`;
 
-    // jogos em que este amigo não pagou e que têm golos
     const jogosPorPagar=jogosOrdenados.filter(j=>{
       const pag=db.pagosPorJogo[String(j.id)]||[];
       return (j.golos||0)>0 && !pag.includes(am.id);
     });
 
-    const rows=jogosPorPagar.map(j=>{
-      const dt=new Date(j.data+'T12:00:00');
-      const dtStr=dt.toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
+    const linhas=jogosPorPagar.map(j=>{
+      const dt=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
       const val=((j.golos||0)*db.config.valorPorGolo).toFixed(2);
-      return`<tr>
-        <td style="padding:8px 12px;font-size:12px;color:var(--mu);white-space:nowrap">${dtStr}</td>
-        <td style="padding:8px 12px;font-size:13px;font-weight:500">${j.adversario}</td>
-        <td style="padding:8px 12px;font-size:11px;color:var(--mu)">${j.jornada||j.competicao}</td>
-        <td style="padding:8px 12px;text-align:center"><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--ou)">${j.golos}</span></td>
-        <td style="padding:8px 12px;text-align:right;font-weight:700;color:var(--dg);white-space:nowrap">${val}€</td>
-        <td style="padding:8px 12px;text-align:right"><button class="bsm" onclick="marcarPagoRapido(${j.id},${am.id})">✓ Pago</button></td>
-      </tr>`;
+      const jorn=j.jornada||j.competicao.split(' ')[0];
+      return`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bo)">
+        <span style="font-size:11px;color:var(--mu);min-width:52px;flex-shrink:0">${dt}</span>
+        <span style="font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.adversario}</span>
+        <span style="font-size:10px;color:var(--mu);flex-shrink:0">${jorn}</span>
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--ou);flex-shrink:0;min-width:18px;text-align:center">${j.golos}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--dg);flex-shrink:0;min-width:36px;text-align:right">${val}€</span>
+        <button class="bsm" style="flex-shrink:0;font-size:11px;padding:3px 9px" onclick="marcarPagoRapido(${j.id},${am.id})">✓</button>
+      </div>`;
     }).join('');
 
-    return`<div class="fcard" style="margin-bottom:12px;padding:0;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--bo)">
+    return`<div class="fcard" style="margin-bottom:10px;padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--bo)">
         <div class="nc"><div class="av" style="background:${am.cor}">${ini(am.nome)}</div>
           <span style="font-weight:600">${am.nome}</span>
-          <span class="badge bdiv" style="margin-left:8px">${divida.toFixed(2)}€ em dívida</span>
+          <span class="badge bdiv" style="margin-left:8px">${divida.toFixed(2)}€</span>
         </div>
         <span style="font-size:11px;color:var(--mu)">${jogosPorPagar.length} jogo${jogosPorPagar.length!==1?'s':''}</span>
       </div>
-      <div style="overflow-x:auto"><table style="min-width:400px">
-        <thead><tr>
-          <th style="padding:7px 12px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);background:var(--bg);border-bottom:1px solid var(--bo)">Data</th>
-          <th style="padding:7px 12px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);background:var(--bg);border-bottom:1px solid var(--bo)">Adversário</th>
-          <th style="padding:7px 12px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);background:var(--bg);border-bottom:1px solid var(--bo)">Jornada</th>
-          <th style="padding:7px 12px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);background:var(--bg);border-bottom:1px solid var(--bo);text-align:center">Golos</th>
-          <th style="padding:7px 12px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);background:var(--bg);border-bottom:1px solid var(--bo);text-align:right">Valor</th>
-          <th style="padding:7px 12px;background:var(--bg);border-bottom:1px solid var(--bo)"></th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>
+      <div style="padding:0 16px 4px">${linhas}</div>
     </div>`;
   }).join('');
 }
@@ -550,52 +543,56 @@ function marcarPagoRapido(jogoId,amigoId){
   toast(`${am?.nome} marcado como pago ✓`);
 }
 function rPrevisao(){
-  const jogosOrd=[...db.jogos].sort((a,b)=>new Date(a.data)-new Date(b.data));
-  const nJogos=jogosOrd.length;
+  // Só contar jogos com resultado real (golos não nulo)
+  const jogosOrd=[...db.jogos]
+    .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
+    .sort((a,b)=>new Date(a.data)-new Date(b.data));
+  const nJogosFeitos=jogosOrd.length;
   const nTotal=db.config.jogosPrevistosEpoca;
+  const nRestantes=Math.max(0,nTotal-nJogosFeitos);
   const n=db.amigos.length||1;
   const vg=db.config.valorPorGolo;
 
-  if(!nJogos){
+  if(!nJogosFeitos){
     document.getElementById('prev-cards').innerHTML='<div class="empty" style="grid-column:1/-1"><em>⚽</em>Adiciona jogos para calcular</div>';
     document.getElementById('evo-w').style.display='none';
     return;
   }
 
-  // ── Média total
+  // Média total dos jogos realizados
   const totalG=jogosOrd.reduce((a,j)=>a+(j.golos||0),0);
-  const gppTotal=totalG/nJogos;
-  const prevGolTot=Math.round(totalG+(nTotal-nJogos)*gppTotal);
+  const gppTotal=totalG/nJogosFeitos;
+  // golos previstos = já marcados + restantes × média
+  const prevGolTot=totalG+Math.round(nRestantes*gppTotal);
   const prevPoteTot=prevGolTot*vg*n;
   const potAtual=totalG*vg*n;
 
-  // ── Média últimos 10
+  // Média dos últimos 10 jogos realizados
   const ult10=jogosOrd.slice(-10);
   const gUlt10=ult10.reduce((a,j)=>a+(j.golos||0),0);
   const gppUlt10=gUlt10/ult10.length;
-  const prevGolUlt=Math.round(totalG+(nTotal-nJogos)*gppUlt10);
+  const prevGolUlt=totalG+Math.round(nRestantes*gppUlt10);
   const prevPoteUlt=prevGolUlt*vg*n;
 
   document.getElementById('prev-cards').innerHTML=`
     <div class="sc cg">
       <div class="sc-l">Pote actual</div>
       <div class="sc-v">${potAtual.toFixed(0)}€</div>
-      <div class="sc-s">${totalG} golos × ${n} pessoas</div>
+      <div class="sc-s">${totalG} golos · ${nJogosFeitos} jogos realizados</div>
     </div>
     <div class="sc co">
       <div class="sc-l">Previsão — média total</div>
       <div class="sc-v">${prevPoteTot.toFixed(0)}€</div>
-      <div class="sc-s">${prevGolTot} golos · ${gppTotal.toFixed(2)}/jogo · ${nTotal-nJogos} jogos restantes</div>
+      <div class="sc-s">${prevGolTot} golos · ${gppTotal.toFixed(2)}/jogo · ${nRestantes} jogos restantes</div>
     </div>
     <div class="sc cb">
       <div class="sc-l">Previsão — últimos 10 jogos</div>
       <div class="sc-v">${prevPoteUlt.toFixed(0)}€</div>
-      <div class="sc-s">${prevGolUlt} golos · ${gppUlt10.toFixed(2)}/jogo · ${nTotal-nJogos} jogos restantes</div>
+      <div class="sc-s">${prevGolUlt} golos · ${gppUlt10.toFixed(2)}/jogo · ${nRestantes} jogos restantes</div>
     </div>
   `;
 
-  // ── Gráfico: para cada jogo i, qual seria a previsão de pote final
-  // se a partir daí se marcasse a média acumulada até esse jogo
+  // Gráfico: em cada jogo i, se o Sporting continuasse à média daqui até ao fim, qual seria o pote final?
   const ew=document.getElementById('evo-w');
   ew.style.display='block';
   const cv=document.getElementById('c-evo');
@@ -604,86 +601,72 @@ function rPrevisao(){
   const ctx=cv.getContext('2d');
   ctx.clearRect(0,0,W,H);
 
-  // dados ponto a ponto
-  const real=[];       // acumulado real em €
-  const prevTotArr=[]; // previsão pelo acumulado até i
-  const prevUlt10Arr=[];// previsão pela média dos últimos 10 até i
+  const real=[];
+  const prevTotArr=[];
+  const prevUlt10Arr=[];
 
   let accG=0;
   jogosOrd.forEach((j,i)=>{
     accG+=(j.golos||0);
+    const jogosRestAqui=Math.max(0,nTotal-(i+1));
     const gppAqui=accG/(i+1);
-    const jogosRest=nTotal-(i+1);
-    const prevFinal=Math.round(accG+jogosRest*gppAqui)*vg*n;
-    prevTotArr.push(prevFinal);
+    prevTotArr.push((accG+Math.round(jogosRestAqui*gppAqui))*vg*n);
 
-    // média últimos 10 até i
     const slice=jogosOrd.slice(Math.max(0,i-9),i+1);
     const gSlice=slice.reduce((a,s)=>a+(s.golos||0),0);
     const gppSlice=gSlice/slice.length;
-    const prevFinal10=Math.round(accG+jogosRest*gppSlice)*vg*n;
-    prevUlt10Arr.push(prevFinal10);
+    prevUlt10Arr.push((accG+Math.round(jogosRestAqui*gppSlice))*vg*n);
 
     real.push(accG*vg*n);
   });
 
   const allVals=[...real,...prevTotArr,...prevUlt10Arr];
-  const minV=0;
-  const maxV=Math.max(...allVals)*1.08;
+  const maxV=Math.max(...allVals)*1.08||1;
 
   const PAD_L=52,PAD_R=16,PAD_T=14,PAD_B=28;
   const W2=W-PAD_L-PAD_R,H2=H-PAD_T-PAD_B;
+  const nP=jogosOrd.length;
+  function px(i){return PAD_L+i/(nP-1||1)*W2;}
+  function py(v){return PAD_T+H2-(v/(maxV||1))*H2;}
 
-  function px(i){return PAD_L+i/(nJogos-1||1)*W2;}
-  function py(v){return PAD_T+H2-(v-minV)/(maxV-minV||1)*H2;}
-
-  // grid linhas Y
+  // grid Y
   ctx.strokeStyle='#e8e8e4';ctx.lineWidth=1;
-  const nLines=4;
-  for(let k=0;k<=nLines;k++){
-    const v=minV+(maxV-minV)*k/nLines;
-    const y=py(v);
+  for(let k=0;k<=4;k++){
+    const v=maxV*k/4;const y=py(v);
     ctx.beginPath();ctx.moveTo(PAD_L,y);ctx.lineTo(W-PAD_R,y);ctx.stroke();
     ctx.fillStyle='#aaa';ctx.font='10px Inter';ctx.textAlign='right';
     ctx.fillText(v>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0)+'€',PAD_L-4,y+3);
   }
 
-  // linha: previsão média total
+  // linha previsão média total (verde)
   ctx.strokeStyle='#1a5e2e';ctx.lineWidth=2;ctx.setLineDash([]);
-  ctx.beginPath();
-  prevTotArr.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});
-  ctx.stroke();
+  ctx.beginPath();prevTotArr.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
 
-  // linha: previsão últimos 10
+  // linha previsão últimos 10 (amarelo tracejado)
   ctx.strokeStyle='#f9a825';ctx.lineWidth=2;ctx.setLineDash([5,4]);
-  ctx.beginPath();
-  prevUlt10Arr.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});
-  ctx.stroke();
+  ctx.beginPath();prevUlt10Arr.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
   ctx.setLineDash([]);
 
-  // linha: valor real acumulado (cinza, mais fino)
-  ctx.strokeStyle='#aaa';ctx.lineWidth=1.5;
-  ctx.beginPath();
-  real.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});
-  ctx.stroke();
+  // linha valor real (cinza fino)
+  ctx.strokeStyle='#bbb';ctx.lineWidth=1.5;
+  ctx.beginPath();real.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
 
-  // ponto final real destacado
-  const lx=px(nJogos-1),ly=py(real[nJogos-1]);
-  ctx.beginPath();ctx.arc(lx,ly,5,0,Math.PI*2);ctx.fillStyle='#1a5e2e';ctx.fill();
+  // ponto final real
+  ctx.beginPath();ctx.arc(px(nP-1),py(real[nP-1]),5,0,Math.PI*2);ctx.fillStyle='#1a5e2e';ctx.fill();
 
-  // labels eixo X (a cada ~10 jogos)
+  // labels eixo X
   ctx.fillStyle='#aaa';ctx.font='10px Inter';ctx.textAlign='center';
   jogosOrd.forEach((j,i)=>{
-    if(i===0||i===nJogos-1||(i+1)%10===0){
-      ctx.fillText('J'+(i+1),px(i),H-6);
-    }
+    if(i===0||i===nP-1||(i+1)%10===0) ctx.fillText('J'+(i+1),px(i),H-6);
   });
 }
 
 /* ── JOGOS ───────────────────────────────────── */
 
 function jogoTemDivida(j){
-  if((j.golos||0)===0)return false;
+  // jogos sem resultado (null) não têm dívida
+  if(j.golos===null||j.golos===undefined||j.golos==='')return false;
+  if(gJ(j)===0)return false;
   const pag=db.pagosPorJogo[String(j.id)]||[];
   return pag.length<db.amigos.length;
 }
@@ -703,24 +686,24 @@ function jogoCardHTML(j,mini=false){
   const pagaram=db.pagosPorJogo[String(j.id)]||[];
   const nPag=pagaram.length,nTotal=db.amigos.length;
   const hoje=new Date().toISOString().split('T')[0];
-  const isFuturo=j.data>hoje;
-  const semResultado=(j.golos===undefined||j.golos===null||j.golos==='')&&isFuturo;
+  const golosJ=gJ(j);
+  const isFuturo=j.data>hoje || (j.golos===null||j.golos===undefined||j.golos==='');
 
   // status pill
   let statusHTML='';
-  if(isFuturo||semResultado){
+  if(j.golos===null||j.golos===undefined||j.golos===''){
     statusHTML='<span class="jstatus fut">Agendado</span>';
-  } else if((j.golos||0)===0){
+  } else if(golosJ===0){
     statusHTML='<span class="jstatus ok" style="background:#f0f0f0;color:#999">0 golos</span>';
   } else if(nPag>=nTotal){
     statusHTML='<span class="jstatus ok">✓ Pago</span>';
   } else {
-    const divVal=((j.golos||0)*db.config.valorPorGolo*(nTotal-nPag)).toFixed(0);
+    const divVal=(golosJ*db.config.valorPorGolo*(nTotal-nPag)).toFixed(0);
     statusHTML=`<span class="jstatus div">−${divVal}€</span>`;
   }
 
   let dotsHTML='';
-  if(!isFuturo && (j.golos||0)>0){
+  if(!isFuturo && golosJ>0){
     if(nTotal<=12){
       dotsHTML=db.amigos.map(am=>{
         const p=pagaram.includes(am.id);
@@ -731,17 +714,17 @@ function jogoCardHTML(j,mini=false){
     }
   }
 
-  const pot=((j.golos||0)*db.config.valorPorGolo*nTotal).toFixed(0);
+  const pot=(golosJ*db.config.valorPorGolo*nTotal).toFixed(0);
   const delBtn=mini?'': `<button class="jdel" onclick="event.stopPropagation();remJogo(${j.id})" title="Remover">✕</button>`;
-  return`<div class="jcard ${isFuturo?'jcard-fut':''}" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
+  return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
     <div class="jinfo"><div class="jadv">${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}</div></div>
     <div class="jres">${j.resultado||'—'}</div>
-    <div class="jgol"><div class="gn">${isFuturo?'—':j.golos||0}</div><div class="gl">${isFuturo?'':('golo'+(+(j.golos||0)!==1?'s':''))}</div></div>
+    <div class="jgol"><div class="gn">${isFuturo?'—':golosJ}</div><div class="gl">${isFuturo?'':('golo'+(golosJ!==1?'s':''))}</div></div>
     <div class="jpag-bar">${dotsHTML}</div>
     ${statusHTML}
-    ${!isFuturo&&(j.golos||0)>0?`<div class="jval">+${pot}€</div>`:''}
+    ${!isFuturo&&golosJ>0?`<div class="jval">+${pot}€</div>`:''}
     ${delBtn}
   </div>`;
 }
@@ -778,10 +761,11 @@ function voltarLista(){
 function renderDetalhe(jogo){
   const pagaram=db.pagosPorJogo[String(jogo.id)]||[];
   const d=new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
-  const valorPorPessoa=((jogo.golos||0)*db.config.valorPorGolo).toFixed(2);
+  const golosJogo=gJ(jogo);
+  const valorPorPessoa=(golosJogo*db.config.valorPorGolo).toFixed(2);
   const nPag=pagaram.length,nTotal=db.amigos.length;
-  const totalJogo=((jogo.golos||0)*db.config.valorPorGolo*nTotal).toFixed(0);
-  const totalReceb=((jogo.golos||0)*db.config.valorPorGolo*nPag).toFixed(0);
+  const totalJogo=(golosJogo*db.config.valorPorGolo*nTotal).toFixed(0);
+  const totalReceb=(golosJogo*db.config.valorPorGolo*nPag).toFixed(0);
 
   document.getElementById('jd-content').innerHTML=`
     <div class="jogo-detalhe">
@@ -795,7 +779,7 @@ function renderDetalhe(jogo){
             <span style="font-size:12px;color:var(--vd)">Recebido: <strong>${totalReceb}€</strong></span>
           </div>
         </div>
-        <div><div class="jd-golos">${jogo.golos||0}<span>golo${(jogo.golos||0)!==1?'s':''}</span></div><div style="font-size:11px;color:var(--mu);text-align:right;margin-top:4px">${valorPorPessoa}€/pessoa</div></div>
+        <div><div class="jd-golos">${golosJogo}<span>golo${golosJogo!==1?'s':''}</span></div><div style="font-size:11px;color:var(--mu);text-align:right;margin-top:4px">${valorPorPessoa}€/pessoa</div></div>
       </div>
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:10px">
         Quem pagou este jogo (${nPag}/${nTotal})
