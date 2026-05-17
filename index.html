@@ -185,11 +185,11 @@ input:focus,select:focus{border-color:var(--vd)}
 .jstatus.div{background:var(--dgp);color:var(--dg)}
 .jstatus.fut{background:#f5f5f5;color:#999;border:1px solid #ddd}
 
-/* LOCAL BADGE (top-right corner) */
-.jlocal-badge{position:absolute;top:5px;right:5px;font-size:11px;line-height:1;opacity:.6}
+/* LOCAL BADGE (under date) */
+.jlocal-badge{display:block;font-size:9px;line-height:1;margin-top:2px;opacity:.7}
 
-/* RESULT BADGE (bottom-right corner) */
-.jres-badge{position:absolute;bottom:5px;right:5px;font-size:10px;font-weight:700;color:#fff;padding:1px 7px;border-radius:4px;line-height:1.4}
+/* RESULT BADGE (inline before adversary) */
+.jres-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:1px 6px;border-radius:4px;line-height:1.4;margin-right:6px;vertical-align:middle}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--vd);color:#fff;padding:10px 17px;border-radius:9px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.15);transform:translateY(70px);opacity:0;transition:all .3s;z-index:400}
 .toast.on{transform:translateY(0);opacity:1}
 .empty{text-align:center;padding:36px 20px;color:var(--mu);font-size:13px}
@@ -444,46 +444,54 @@ input:focus,select:focus{border-color:var(--vd)}
     </div>
     <div class="modal-body">
       <div style="display:flex;flex-direction:column;gap:11px">
-        <div class="fg">
-          <label>Adversário</label>
-          <input type="text" id="ed-adv" placeholder="ex: Porto">
-        </div>
+        <!-- LINHA 1: Data + Local -->
         <div style="display:flex;gap:10px">
           <div class="fg" style="flex:0 0 auto">
             <label>Data</label>
             <input type="date" id="ed-data" style="width:auto;min-width:130px">
           </div>
           <div class="fg" style="flex:1;min-width:0">
-            <label>Jornada <em style="font-weight:400;font-style:italic;color:var(--mu)">(opcional)</em></label>
+            <label>Local</label>
+            <div id="ed-local-btns" style="display:flex;gap:4px">
+              <button type="button" class="local-btn" data-val="Casa" onclick="selLocalEd(this)">🏠 Casa</button>
+              <button type="button" class="local-btn" data-val="Fora" onclick="selLocalEd(this)">✈️ Fora</button>
+              <button type="button" class="local-btn" data-val="Neutro" onclick="selLocalEd(this)">⚖️ Neutro</button>
+            </div>
+            <input type="hidden" id="ed-local" value="Casa">
+          </div>
+        </div>
+        <!-- LINHA 2: Adversário + Resultado -->
+        <div style="display:flex;gap:10px">
+          <div class="fg" style="flex:1;min-width:0">
+            <label>Adversário</label>
+            <input type="text" id="ed-adv" placeholder="ex: Porto">
+          </div>
+          <div class="fg" style="flex:0 0 110px">
+            <label>Resultado</label>
+            <input type="text" id="ed-res" placeholder="ex: 3-1" oninput="autoCalcGolosEd()">
+          </div>
+        </div>
+        <!-- LINHA 3: Competição + Jornada -->
+        <div style="display:flex;gap:10px">
+          <div class="fg" style="flex:1;min-width:0">
+            <label>Competição</label>
+            <select id="ed-comp">
+              <option>Liga Portugal</option>
+              <option>Liga dos Campeões</option>
+              <option>Taça de Portugal</option>
+              <option>Taça da Liga</option>
+              <option>Supertaça</option>
+              <option>Outro</option>
+            </select>
+          </div>
+          <div class="fg" style="flex:0 0 110px">
+            <label>Jornada <em style="font-weight:400;font-style:italic;color:var(--mu)">(opc.)</em></label>
             <input type="text" id="ed-jorn" placeholder="ex: LP J32">
           </div>
         </div>
+        <!-- Golos -->
         <div class="fg">
-          <label>Competição</label>
-          <select id="ed-comp">
-            <option>Liga Portugal</option>
-            <option>Liga dos Campeões</option>
-            <option>Taça de Portugal</option>
-            <option>Taça da Liga</option>
-            <option>Supertaça</option>
-            <option>Outro</option>
-          </select>
-        </div>
-        <div class="fg">
-          <label>Local</label>
-          <div id="ed-local-btns" style="display:flex;gap:4px">
-            <button type="button" class="local-btn" data-val="Casa" onclick="selLocalEd(this)">🏠 Casa</button>
-            <button type="button" class="local-btn" data-val="Fora" onclick="selLocalEd(this)">✈️ Fora</button>
-            <button type="button" class="local-btn" data-val="Neutro" onclick="selLocalEd(this)">⚖️ Neutro</button>
-          </div>
-          <input type="hidden" id="ed-local" value="Casa">
-        </div>
-        <div class="fg">
-          <label>Resultado final <em style="font-weight:400;font-style:italic;color:var(--mu)">(opcional)</em></label>
-          <input type="text" id="ed-res" placeholder="ex: 3-1">
-        </div>
-        <div class="fg">
-          <label>Golos do Sporting <em style="font-weight:400;font-style:italic;color:var(--mu)">(opcional)</em></label>
+          <label>Golos do Sporting <em style="font-weight:400;font-style:italic;color:var(--mu)">(auto-calculado pelo resultado)</em></label>
           <div class="fadd-counter">
             <button class="fadd-cnt-btn" type="button" onclick="ajustarGolosEd(-1)">−</button>
             <span id="ed-golos-display" class="fadd-cnt-val">—</span>
@@ -867,18 +875,16 @@ function jogoCardHTML(j,mini=false){
     }
   }
 
-  return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}; position:relative">
-    ${localBadge}
-    <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
+  return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
+    <div class="jdt"><strong>${dia}</strong><span>${mes}</span>${localBadge}</div>
     <div class="jsep"></div>
-    <div class="jinfo"><div class="jadv">${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?'<br><span style="opacity:.8">'+j.jornada+'</span>':''}</div></div>
+    <div class="jinfo"><div class="jadv">${resBadge}${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?'<br><span style="opacity:.8">'+j.jornada+'</span>':''}</div></div>
     <div class="jres">${j.resultado||'—'}</div>
     <div class="jpag-bar">${dotsHTML}</div>
     <div class="jgol"><div class="gn">${isFuturo?'—':golosJ}</div><div class="gl">${isFuturo?'':(golosJ===0?'golos':'golo'+(golosJ!==1?'s':''))}</div></div>
     ${valHTML}
     ${editBtn}
     ${delBtn}
-    ${resBadge}
   </div>`;
 }
 
@@ -1040,6 +1046,20 @@ function selLocalEd(btn){
   document.querySelectorAll('#ed-local-btns .local-btn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   document.getElementById('ed-local').value=btn.dataset.val;
+  autoCalcGolosEd();
+}
+
+function autoCalcGolosEd(){
+  const res=document.getElementById('ed-res').value.trim();
+  if(!res)return;
+  const parts=res.split('-').map(s=>parseInt(s.trim()));
+  if(parts.length!==2||isNaN(parts[0])||isNaN(parts[1]))return;
+  const local=document.getElementById('ed-local').value;
+  const golosSporting=(local==='Fora')?parts[1]:parts[0];
+  _golosEd=golosSporting;
+  document.getElementById('ed-golos').value=_golosEd;
+  document.getElementById('ed-golos-display').textContent=_golosEd;
+  document.getElementById('btn-clear-golos-ed').style.display='';
 }
 
 function abrirModalEditar(jogoId){
