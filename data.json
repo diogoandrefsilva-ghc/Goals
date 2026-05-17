@@ -60,12 +60,13 @@
   "jogos": [
     {
       "id": 1,
-      "data": "2025-08-09",
+      "data": "2025-08-08",
       "adversario": "Casa Pia",
       "competicao": "Liga Portugal",
       "golos": 2,
-      "resultado": "",
-      "jornada": "LP J1"
+      "resultado": "0-2",
+      "jornada": "J1",
+      "local": "Fora"
     },
     {
       "id": 2,
@@ -73,62 +74,69 @@
       "adversario": "Arouca",
       "competicao": "Liga Portugal",
       "golos": 6,
-      "resultado": "",
-      "jornada": "LP J2"
+      "resultado": "6-0",
+      "jornada": "J2",
+      "local": "Casa"
     },
     {
       "id": 3,
-      "data": "2025-08-24",
+      "data": "2025-08-23",
       "adversario": "Nacional",
       "competicao": "Liga Portugal",
       "golos": 4,
-      "resultado": "",
-      "jornada": "LP J3"
+      "resultado": "1-4",
+      "jornada": "J3",
+      "local": "Fora"
     },
     {
       "id": 4,
-      "data": "2025-08-31",
+      "data": "2025-08-30",
       "adversario": "Porto",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J4"
+      "resultado": "1-2",
+      "jornada": "J4",
+      "local": "Casa"
     },
     {
       "id": 5,
-      "data": "2025-09-14",
+      "data": "2025-09-13",
       "adversario": "Famal.",
       "competicao": "Liga Portugal",
       "golos": 2,
-      "resultado": "",
-      "jornada": "LP J5"
+      "resultado": "1-2",
+      "jornada": "J5",
+      "local": "Fora"
     },
     {
       "id": 6,
-      "data": "2025-09-17",
+      "data": "2025-09-18",
       "adversario": "Kairat",
       "competicao": "Liga dos Campeões",
       "golos": 4,
-      "resultado": "",
-      "jornada": "CL J1"
+      "resultado": "4-1",
+      "jornada": "J1",
+      "local": "Casa"
     },
     {
       "id": 7,
-      "data": "2025-09-21",
+      "data": "2025-09-22",
       "adversario": "Moreir.",
       "competicao": "Liga Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "LP J6"
+      "resultado": "3-0",
+      "jornada": "J6",
+      "local": "Casa"
     },
     {
       "id": 8,
-      "data": "2025-09-28",
+      "data": "2025-09-27",
       "adversario": "Estoril",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J7"
+      "resultado": "0-1",
+      "jornada": "J7",
+      "local": "Fora"
     },
     {
       "id": 9,
@@ -136,8 +144,9 @@
       "adversario": "Napoli",
       "competicao": "Liga dos Campeões",
       "golos": 1,
-      "resultado": "",
-      "jornada": "CL J2"
+      "resultado": "2-1",
+      "jornada": "J2",
+      "local": "Fora"
     },
     {
       "id": 10,
@@ -145,17 +154,19 @@
       "adversario": "Braga",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J8"
+      "resultado": "1-1",
+      "jornada": "J8",
+      "local": "Casa"
     },
     {
       "id": 11,
-      "data": "2025-10-19",
+      "data": "2025-10-18",
       "adversario": "Paços",
       "competicao": "Taça de Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "TP 32A"
+      "resultado": "2-3",
+      "jornada": "32A",
+      "local": "Fora"
     },
     {
       "id": 12,
@@ -163,8 +174,9 @@
       "adversario": "Marselha",
       "competicao": "Liga dos Campeões",
       "golos": 2,
-      "resultado": "",
-      "jornada": "CL J3"
+      "resultado": "2-1",
+      "jornada": "J3",
+      "local": "Casa"
     },
     {
       "id": 13,
@@ -172,197 +184,219 @@
       "adversario": "Tondela",
       "competicao": "Liga Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "LP J9"
+      "resultado": "0-3",
+      "jornada": "J9",
+      "local": "Fora"
     },
     {
       "id": 14,
-      "data": "2025-10-29",
+      "data": "2025-10-28",
       "adversario": "Alverca",
       "competicao": "Taça da Liga",
       "golos": 5,
-      "resultado": "",
-      "jornada": "TL QF"
+      "resultado": "5-1",
+      "jornada": "QF",
+      "local": "Casa"
     },
     {
       "id": 15,
-      "data": "2025-11-02",
+      "data": "2025-10-31",
       "adversario": "Alverca",
       "competicao": "Liga Portugal",
       "golos": 2,
-      "resultado": "",
-      "jornada": "LP J10"
+      "resultado": "2-0",
+      "jornada": "J10",
+      "local": "Casa"
     },
     {
       "id": 16,
-      "data": "2025-11-05",
+      "data": "2025-11-04",
       "adversario": "Juventus",
       "competicao": "Liga dos Campeões",
       "golos": 1,
-      "resultado": "",
-      "jornada": "CL J4"
+      "resultado": "1-1",
+      "jornada": "J4",
+      "local": "Fora"
     },
     {
       "id": 17,
-      "data": "2025-11-09",
+      "data": "2025-11-08",
       "adversario": "Sta Clara",
       "competicao": "Liga Portugal",
       "golos": 2,
-      "resultado": "",
-      "jornada": "LP J11"
+      "resultado": "1-2",
+      "jornada": "J11",
+      "local": "Fora"
     },
     {
       "id": 18,
-      "data": "2025-11-27",
+      "data": "2025-11-22",
       "adversario": "Marinh.",
       "competicao": "Taça de Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "TP 16A"
+      "resultado": "3-0",
+      "jornada": "16A",
+      "local": "Casa"
     },
     {
       "id": 19,
-      "data": "2025-12-10",
+      "data": "2025-11-26",
       "adversario": "Brugge",
       "competicao": "Liga dos Campeões",
       "golos": 3,
-      "resultado": "",
-      "jornada": "CL J5"
+      "resultado": "3-0",
+      "jornada": "J5",
+      "local": "Casa"
     },
     {
       "id": 20,
-      "data": "2025-12-14",
+      "data": "2025-12-13",
       "adversario": "Amadora",
       "competicao": "Liga Portugal",
       "golos": 4,
-      "resultado": "",
-      "jornada": "LP J12"
+      "resultado": "6-0",
+      "jornada": "J12",
+      "local": "Casa"
     },
     {
       "id": 21,
-      "data": "2025-12-21",
+      "data": "2025-12-05",
       "adversario": "Benfica",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J13"
+      "resultado": "1-1",
+      "jornada": "J13",
+      "local": "Fora"
     },
     {
       "id": 22,
-      "data": "2025-12-22",
+      "data": "2025-12-09",
       "adversario": "Bayern",
       "competicao": "Liga dos Campeões",
       "golos": 1,
-      "resultado": "",
-      "jornada": "CL J6"
+      "resultado": "3-1",
+      "jornada": "J6",
+      "local": "Fora"
     },
     {
       "id": 23,
-      "data": "2026-01-04",
+      "data": "2025-12-13",
       "adversario": "AFS",
       "competicao": "Liga Portugal",
       "golos": 6,
-      "resultado": "",
-      "jornada": "LP J14"
+      "resultado": "6-0",
+      "jornada": "J14",
+      "local": "Casa"
     },
     {
       "id": 24,
-      "data": "2026-01-08",
+      "data": "2025-12-18",
       "adversario": "Sta Clara",
       "competicao": "Taça de Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "TP 8A"
+      "resultado": "2-3",
+      "jornada": "8A",
+      "local": "Fora"
     },
     {
       "id": 25,
-      "data": "2026-01-11",
+      "data": "2025-12-23",
       "adversario": "Vitória",
       "competicao": "Liga Portugal",
       "golos": 4,
-      "resultado": "",
-      "jornada": "LP J15"
+      "resultado": "1-4",
+      "jornada": "J15",
+      "local": "Fora"
     },
     {
       "id": 26,
-      "data": "2026-01-18",
+      "data": "2025-12-28",
       "adversario": "Rio Ave",
       "competicao": "Liga Portugal",
       "golos": 4,
-      "resultado": "",
-      "jornada": "LP J16"
+      "resultado": "4-0",
+      "jornada": "J16",
+      "local": "Casa"
     },
     {
       "id": 27,
-      "data": "2026-01-25",
+      "data": "2026-01-02",
       "adversario": "Gil V.",
       "competicao": "Liga Portugal",
       "golos": 1,
-      "resultado": "",
-      "jornada": "LP J17"
+      "resultado": "1-1",
+      "jornada": "J17",
+      "local": "Fora"
     },
     {
       "id": 28,
-      "data": "2026-01-29",
+      "data": "2026-01-06",
       "adversario": "Vitória",
       "competicao": "Taça da Liga",
       "golos": 1,
-      "resultado": "",
-      "jornada": "TL MF"
+      "resultado": "1-2",
+      "jornada": "MF",
+      "local": "Neutro"
     },
     {
       "id": 29,
-      "data": "2026-02-01",
+      "data": "2026-01-16",
       "adversario": "Casa Pia",
       "competicao": "Liga Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "LP J18"
+      "resultado": "3-0",
+      "jornada": "J18",
+      "local": "Casa"
     },
     {
       "id": 30,
-      "data": "2026-02-04",
+      "data": "2026-01-20",
       "adversario": "PSG",
       "competicao": "Liga dos Campeões",
       "golos": 2,
-      "resultado": "",
-      "jornada": "CL J7"
+      "resultado": "2-1",
+      "jornada": "J7",
+      "local": "Casa"
     },
     {
       "id": 31,
-      "data": "2026-02-08",
+      "data": "2026-01-24",
       "adversario": "Arouca",
       "competicao": "Liga Portugal",
       "golos": 2,
-      "resultado": "",
-      "jornada": "LP J19"
+      "resultado": "1-2",
+      "jornada": "J19",
+      "local": "Fora"
     },
     {
       "id": 32,
-      "data": "2026-02-11",
+      "data": "2026-01-28",
       "adversario": "Bilbao",
       "competicao": "Liga dos Campeões",
       "golos": 3,
-      "resultado": "",
-      "jornada": "CL J8"
+      "resultado": "2-3",
+      "jornada": "J8",
+      "local": "Fora"
     },
     {
       "id": 33,
-      "data": "2026-02-22",
+      "data": "2026-02-01",
       "adversario": "Nacional",
       "competicao": "Liga Portugal",
       "golos": 2,
-      "resultado": "",
-      "jornada": "LP J20"
+      "resultado": "2-1",
+      "jornada": "J20",
+      "local": "Casa"
     },
     {
       "id": 34,
-      "data": "2026-02-25",
+      "data": "2026-02-05",
       "adversario": "AFS",
       "competicao": "Taça de Portugal",
       "golos": 3,
-      "resultado": "",
-      "jornada": "TP QF"
+      "resultado": "3-2",
+      "jornada": "QF",
+      "local": "Casa"
     },
     {
       "id": 35,
