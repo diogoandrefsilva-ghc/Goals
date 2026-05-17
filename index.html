@@ -542,14 +542,13 @@ input:focus,select:focus{border-color:var(--vd)}
 const CORES=['#1b5e20','#1a237e','#4a148c','#b71c1c','#e65100','#006064','#33691e','#880e4f','#1565c0','#37474f','#f57f17','#3e2723','#004d40','#311b92','#bf360c'];
 
 /* ── DB ─────────────────────────────────────── */
-let db={config:{valorPorGolo:1,golosPrevistosEpoca:132,jogosPrevistosEpoca:55,epoca:'2025/26'},amigos:[],jogos:[],pagosPorJogo:{}};
+let db={config:{valorPorGolo:1,epoca:'2025/26'},amigos:[],jogos:[],pagosPorJogo:{}};
 
 function salvar(){localStorage.setItem('sg_v4',JSON.stringify(db));}
 function carregar(){
   const s=localStorage.getItem('sg_v4');
   if(s){try{const d=JSON.parse(s);if(d.amigos&&d.jogos){db=d;}}catch(e){}}
   if(!db.pagosPorJogo)db.pagosPorJogo={};
-  if(!db.config.jogosPrevistosEpoca)db.config.jogosPrevistosEpoca=55;
   // Migração: garantir que jogos antigos com golos:null não quebram cálculos
   // (não alteramos os dados, só garantimos que o campo existe)
   db.jogos.forEach(j=>{if(j.golos===undefined)j.golos=null;});
@@ -594,7 +593,7 @@ function togglePagamento(jogoId,amigoId){
 function calcPrevisao(){
   const jf=db.jogos.length;if(!jf)return null;
   const gpp=totalGolos()/jf;
-  const pg=Math.round(gpp*db.config.jogosPrevistosEpoca);
+  const pg=Math.round(gpp*db.jogos.length);
   const pp=pg*db.config.valorPorGolo;
   return{pg,pp,pt:pp*db.amigos.length,gpp};
 }
@@ -629,7 +628,8 @@ function rResumo(){
   const tp=totalPago()*db.amigos.length; // não — totalPago() já é por pessoa
   const potePago=db.amigos.reduce((a,am)=>a+pagouAmigo(am.id),0);
   const nJogosComRes=db.jogos.filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='').length;
-  const pct=db.config.jogosPrevistosEpoca>0?Math.min(100,Math.round(nJogosComRes/db.config.jogosPrevistosEpoca*100)):0;
+  const nJogosTotal=db.jogos.length;
+  const pct=nJogosTotal>0?Math.min(100,Math.round(nJogosComRes/nJogosTotal*100)):0;
   document.getElementById('hdr-sub').textContent=`Época ${db.config.epoca} · ${db.config.valorPorGolo}€ por golo por pessoa`;
   document.getElementById('stat-cards').innerHTML=`
     <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${nJogosComRes} jogos realizados</div></div>
@@ -640,7 +640,7 @@ function rResumo(){
   document.getElementById('pct-l').textContent=pct+'%';
   document.getElementById('prog-b').style.width=pct+'%';
   document.getElementById('pl-a').textContent=`${nJogosComRes} jogos realizados`;
-  document.getElementById('pl-b').textContent=`Total previsto: ${db.config.jogosPrevistosEpoca} jogos`;
+  document.getElementById('pl-b').textContent=`Total: ${nJogosTotal} jogos`;
   const hoje=new Date().toISOString().split('T')[0];
   // jogos com resultado (golos definido) que ainda têm dívidas — independentemente da data
   const pendentes=[...db.jogos]
@@ -712,7 +712,7 @@ function rPrevisao(){
     .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
     .sort((a,b)=>new Date(a.data)-new Date(b.data));
   const nJogosFeitos=jogosOrd.length;
-  const nTotal=db.config.jogosPrevistosEpoca;
+  const nTotal=db.jogos.length;
   const nRestantes=Math.max(0,nTotal-nJogosFeitos);
   const n=db.amigos.length||1;
   const vg=db.config.valorPorGolo;
