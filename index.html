@@ -254,7 +254,6 @@ input:focus,select:focus{border-color:var(--vd)}
     <nav class="hnav">
       <button class="hn on" onclick="nav('dash',this)">Dashboard</button>
       <button class="hn" onclick="nav('jogos',this)">Jogos</button>
-      <button class="hn" onclick="nav('amigos',this)">Amigos</button>
       <button class="hn" onclick="nav('cfg',this)">Config</button>
     </nav>
   </div>
@@ -368,7 +367,7 @@ input:focus,select:focus{border-color:var(--vd)}
             </select>
           </div>
           <div class="fg" style="flex:1;min-width:0">
-            <label>Jornada <em style="font-weight:300;font-style:italic;color:var(--mu);text-transform:none;letter-spacing:0">(opc.)</em></label>
+            <label>Jornada</label>
             <input type="text" id="cal-jorn" placeholder="ex: J32">
           </div>
           <div class="fg" style="flex:0 0 auto">
@@ -387,26 +386,6 @@ input:focus,select:focus{border-color:var(--vd)}
   </div>
 </section>
 
-<!-- ═══ AMIGOS ═══ -->
-<section id="s-amigos" class="sec">
-  <div class="itabs">
-    <button class="it on" onclick="itab('gest',this,'amigos')">Gestão</button>
-    <button class="it" onclick="itab('hpag',this,'amigos')">Histórico por jogo</button>
-  </div>
-  <div id="t-gest" class="tp on">
-    <div class="fcard">
-      <h3>Amigos participantes</h3>
-      <p style="font-size:12px;color:var(--mu);margin-bottom:13px">Clica na bolinha para mudar a cor.</p>
-      <div id="a-cfg"></div>
-      <button class="btn-add" onclick="addAmigo()">＋ Adicionar amigo</button>
-      <div style="margin-top:14px"><button class="btn btn-g" onclick="guardarAmigos()">Guardar</button></div>
-    </div>
-  </div>
-  <div id="t-hpag" class="tp">
-    <div id="h-pag"></div>
-  </div>
-</section>
-
 <!-- ═══ CONFIG ═══ -->
 <section id="s-cfg" class="sec">
   <div class="fcard">
@@ -414,17 +393,19 @@ input:focus,select:focus{border-color:var(--vd)}
     <div class="frow">
       <div class="fg"><label>Época</label><input type="text" id="c-ep"></div>
       <div class="fg"><label>Valor por golo (€)</label><input type="number" id="c-vg" min="0.5" step="0.5"></div>
-      <div class="fg"><label>Golos previstos</label><input type="number" id="c-gp" min="1"></div>
-      <div class="fg"><label>Jogos previstos</label><input type="number" id="c-jp" min="1"></div>
     </div>
     <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
   </div>
   <div class="fcard">
+    <h3>Amigos participantes</h3>
+    <p style="font-size:12px;color:var(--mu);margin-bottom:13px">Clica na bolinha para mudar a cor.</p>
+    <div id="a-cfg"></div>
+    <button class="btn-add" onclick="addAmigo()">＋ Adicionar amigo</button>
+    <div style="margin-top:14px"><button class="btn btn-g" onclick="guardarAmigos()">Guardar amigos</button></div>
+  </div>
+  <div class="fcard">
     <h3>Dados</h3>
     <p style="font-size:13px;color:var(--mu);margin-bottom:13px">Os dados ficam no <strong>localStorage</strong>. Para fazer backup ou sincronizar com outro dispositivo, usa os botões abaixo.</p>
-    <div style="background:var(--oup);border:1px solid #ffe082;border-radius:9px;padding:12px 14px;margin-bottom:13px;font-size:12px;color:#7b5e00">
-      <strong>⚠ Rio Ave / Gil Vicente com dados errados?</strong> O data.json foi actualizado com os golos corretos. Clica em "⬆ Importar data.json" e seleciona o ficheiro mais recente para corrigir.
-    </div>
     <div style="display:flex;gap:9px;flex-wrap:wrap">
       <button class="btn btn-g" onclick="expJSON()">⬇ Descarregar data.json</button>
       <button class="btn" style="background:var(--in);color:#fff" onclick="impJSON()">⬆ Importar data.json</button>
@@ -584,14 +565,14 @@ function nav(id,btn){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.hn').forEach(b=>b.classList.remove('on'));
   document.getElementById('s-'+id).classList.add('on');btn.classList.add('on');
-  ({dash:rDash,jogos:rJogos,amigos:rAmigos,cfg:rCfg})[id]?.();
+  ({dash:rDash,jogos:rJogos,cfg:rCfg})[id]?.();
 }
 function itab(id,btn,parent){
   const sec=document.getElementById('s-'+parent);
   sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
   sec.querySelectorAll('.it').forEach(b=>b.classList.remove('on'));
   document.getElementById('t-'+id).classList.add('on');btn.classList.add('on');
-  ({resumo:rResumo,contas:rContas,previsao:rPrevisao,jlista:renderJogosList,gest:rAmCfg,hpag:rHistPag})[id]?.();
+  ({resumo:rResumo,contas:rContas,previsao:rPrevisao,jlista:renderJogosList})[id]?.();
 }
 
 /* ── DASHBOARD ───────────────────────────────── */
@@ -1229,10 +1210,7 @@ function remJogo(id){
 }
 
 /* ── AMIGOS ─────────────────────────────────── */
-function rAmigos(){
-  const a=document.querySelector('#s-amigos .tp.on');
-  if(a?.id==='t-hpag')rHistPag();else rAmCfg();
-}
+function rAmigos(){rAmCfg();}
 function rAmCfg(){
   document.getElementById('a-cfg').innerHTML=db.amigos.map((am,i)=>`
     <div class="arow"><div class="cdot" style="background:${am.cor}"><input type="color" value="${am.cor}" oninput="db.amigos[${i}].cor=this.value;this.parentElement.style.background=this.value"></div>
@@ -1272,14 +1250,12 @@ function rHistPag(){
 function rCfg(){
   document.getElementById('c-ep').value=db.config.epoca;
   document.getElementById('c-vg').value=db.config.valorPorGolo;
-  document.getElementById('c-gp').value=db.config.golosPrevistosEpoca;
-  document.getElementById('c-jp').value=db.config.jogosPrevistosEpoca;
+  rAmCfg();
 }
 function guardarCfg(){
   db.config.epoca=document.getElementById('c-ep').value;
   db.config.valorPorGolo=parseFloat(document.getElementById('c-vg').value)||1;
-  db.config.golosPrevistosEpoca=parseInt(document.getElementById('c-gp').value)||132;
-  db.config.jogosPrevistosEpoca=parseInt(document.getElementById('c-jp').value)||55;
+  guardarAmigos();
   salvar();toast('Configurações guardadas ✓');
 }
 function expJSON(){
