@@ -86,7 +86,7 @@ tbody tr:hover{background:#fafaf8}
 /* JOGOS LIST */
 .jcard{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:10px 13px;display:flex;align-items:center;gap:9px;margin-bottom:12px;cursor:pointer;transition:box-shadow .15s,border-color .15s;position:relative}
 .jcard:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);border-color:#c8c8c0}
-.jdt{text-align:center;width:40px;flex-shrink:0}
+.jdt{text-align:center;width:40px;flex-shrink:0;margin-left:10px}
 .jdt strong{display:block;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1}
 .jdt span{font-size:10px;color:var(--mu);text-transform:uppercase;margin-top:-1px;display:block}
 .jsep{width:1px;height:34px;background:var(--bo);flex-shrink:0}
@@ -878,15 +878,14 @@ function jogoCardHTML(j,mini=false){
     resDisplayHTML=`<div class="jgol"><div class="gn">${golosJ}</div><div class="gl">golo${golosJ!==1?'s':''}</div></div>`;
   } else {
     const parts=j.resultado.split('-').map(s=>parseInt(s.trim()));
-    let numCor='var(--ou)'; // dourado por defeito
-    let numSporting=golosJ, numAdv='?';
     if(parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1])){
       const gS=j.local==='Fora'?parts[1]:parts[0];
       const gA=j.local==='Fora'?parts[0]:parts[1];
-      numAdv=gA;
-      if(gS===gA) numCor='var(--vd)'; // empate → verde
-      else numCor='var(--ou)'; // vitória ou derrota → dourado
-      resDisplayHTML=`<div class="jgol"><div class="gn" style="color:${numCor};font-size:22px;line-height:1">${gS}<span style="color:#ccc;font-size:16px;margin:0 1px">-</span>${gA}</div><div class="gl">${gS>gA?'vitória':gS===gA?'empate':'derrota'}</div></div>`;
+      let bgCor,numCorS,numCorA;
+      if(gS>gA){bgCor='#1b5e20';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
+      else if(gS===gA){bgCor='#e6a700';numCorS='var(--vd)';numCorA='rgba(255,255,255,0.85)';}
+      else{bgCor='#c62828';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
+      resDisplayHTML=`<div class="jgol"><div style="background:${bgCor};border-radius:7px;padding:3px 7px;display:inline-flex;align-items:baseline;gap:2px;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1"><span style="color:${numCorS}">${gS}</span><span style="color:rgba(255,255,255,0.5);font-size:14px">-</span><span style="color:${numCorA}">${gA}</span></div></div>`;
     } else {
       resDisplayHTML=`<div class="jgol"><div class="gn">${golosJ}</div><div class="gl">golo${golosJ!==1?'s':''}</div></div>`;
     }
