@@ -294,9 +294,8 @@ input:focus,select:focus{border-color:var(--vd)}
       <h3 style="margin-bottom:4px">Previsão de pote final ao longo da época</h3>
       <p style="font-size:11px;color:var(--mu);margin-bottom:12px">Cada ponto mostra: se o Sporting mantivesse a média de golos até àquele jogo até ao fim, qual seria o pote total previsto.</p>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:11px">
-        <span><span style="display:inline-block;width:20px;height:3px;background:#1a5e2e;vertical-align:middle;margin-right:5px;border-radius:2px"></span>Previsão pela média total</span>
-        <span><span style="display:inline-block;width:20px;height:3px;background:#f9a825;vertical-align:middle;margin-right:5px;border-radius:2px;border-top:2px dashed #f9a825;background:transparent"></span>Previsão pela média últimos 10 jogos</span>
-        <span><span style="display:inline-block;width:10px;height:10px;background:#1a5e2e;border-radius:50%;vertical-align:middle;margin-right:5px"></span>Valor real acumulado</span>
+        <span><span style="display:inline-block;width:20px;height:3px;background:#1a5e2e;vertical-align:middle;margin-right:5px;border-radius:2px"></span>Média total</span>
+        <span><span style="display:inline-block;width:20px;height:3px;background:#f9a825;vertical-align:middle;margin-right:5px;border-radius:2px;border-top:2px dashed #f9a825;background:transparent"></span>Últimos 10 jogos</span>
       </div>
       <canvas id="c-evo"></canvas>
     </div>
@@ -572,8 +571,10 @@ function carregar(){
     }catch(e){}
   }
   if(!dbFull.config)dbFull.config={valorPorGolo:1,epocaAtiva:'2025/26'};
-  epocaAtiva=dbFull.config.epocaAtiva||'2025/26';
   actualizarEpocasOrdem();
+  // Posicionar sempre na época mais recente ao carregar
+  epocaAtiva=epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:(dbFull.config.epocaAtiva||'2025/26');
+  dbFull.config.epocaAtiva=epocaAtiva;
   sincEpoca();
 }
 function actualizarEpocasOrdem(){
@@ -706,8 +707,8 @@ function rResumo(){
   atualizarLabelEpoca();
   document.getElementById('stat-cards').innerHTML=`
     <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${nJogosComRes} jogos realizados</div></div>
+    <div class="sc cb"><div class="sc-l">Média de golos</div><div class="sc-v">${nJogosComRes>0?(g/nJogosComRes).toFixed(2):'-'}</div><div class="sc-s">por jogo realizado</div></div>
     <div class="sc co"><div class="sc-l">Pote acumulado</div><div class="sc-v">${(g*n*db.config.valorPorGolo).toFixed(0)}€</div><div class="sc-s">${n} pessoas × ${vt.toFixed(0)}€</div></div>
-    <div class="sc cb"><div class="sc-l">Já recebido</div><div class="sc-v">${potePago.toFixed(0)}€</div><div class="sc-s">de ${(g*n*db.config.valorPorGolo).toFixed(0)}€ total</div></div>
     <div class="sc cr"><div class="sc-l">Por receber</div><div class="sc-v">${totalDividas().toFixed(0)}€</div><div class="sc-s">dívida total em aberto</div></div>
   `;
   document.getElementById('pct-l').textContent=pct+'%';
@@ -812,18 +813,13 @@ function rPrevisao(){
   const prevPoteUlt=prevGolUlt*vg*n;
 
   document.getElementById('prev-cards').innerHTML=`
-    <div class="sc cg">
-      <div class="sc-l">Pote actual</div>
-      <div class="sc-v">${potAtual.toFixed(0)}€</div>
-      <div class="sc-s">${totalG} golos · ${nJogosFeitos} jogos realizados</div>
-    </div>
     <div class="sc co">
-      <div class="sc-l">Previsão — média total</div>
+      <div class="sc-l">Média total</div>
       <div class="sc-v">${prevPoteTot.toFixed(0)}€</div>
       <div class="sc-s">${prevGolTot} golos · ${gppTotal.toFixed(2)}/jogo · ${nRestantes} jogos restantes</div>
     </div>
     <div class="sc cb">
-      <div class="sc-l">Previsão — últimos 10 jogos</div>
+      <div class="sc-l">Últimos 10 jogos</div>
       <div class="sc-v">${prevPoteUlt.toFixed(0)}€</div>
       <div class="sc-s">${prevGolUlt} golos · ${gppUlt10.toFixed(2)}/jogo · ${nRestantes} jogos restantes</div>
     </div>
@@ -857,12 +853,19 @@ function rPrevisao(){
     real.push(accG*vg*n);
   });
 
-  const allVals=[...real,...prevTotArr,...prevUlt10Arr];
+  // Omitir primeiras 5 jornadas (previsão muito instável)
+  const SKIP=5;
+  const prevTotPlot=prevTotArr.slice(SKIP);
+  const prevUlt10Plot=prevUlt10Arr.slice(SKIP);
+  const jogosOrdPlot=jogosOrd.slice(SKIP);
+
+  const allVals=[...prevTotPlot,...prevUlt10Plot];
   const maxV=Math.max(...allVals)*1.08||1;
 
   const PAD_L=52,PAD_R=16,PAD_T=14,PAD_B=28;
   const W2=W-PAD_L-PAD_R,H2=H-PAD_T-PAD_B;
-  const nP=jogosOrd.length;
+  const nP=prevTotPlot.length;
+  if(nP<1){ew.style.display='none';return;}
   function px(i){return PAD_L+i/(nP-1||1)*W2;}
   function py(v){return PAD_T+H2-(v/(maxV||1))*H2;}
 
@@ -877,24 +880,18 @@ function rPrevisao(){
 
   // linha previsão média total (verde)
   ctx.strokeStyle='#1a5e2e';ctx.lineWidth=2;ctx.setLineDash([]);
-  ctx.beginPath();prevTotArr.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
+  ctx.beginPath();prevTotPlot.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
 
   // linha previsão últimos 10 (amarelo tracejado)
   ctx.strokeStyle='#f9a825';ctx.lineWidth=2;ctx.setLineDash([5,4]);
-  ctx.beginPath();prevUlt10Arr.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
+  ctx.beginPath();prevUlt10Plot.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
   ctx.setLineDash([]);
-
-  // linha valor real (cinza fino)
-  ctx.strokeStyle='#bbb';ctx.lineWidth=1.5;
-  ctx.beginPath();real.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
-
-  // ponto final real
-  ctx.beginPath();ctx.arc(px(nP-1),py(real[nP-1]),5,0,Math.PI*2);ctx.fillStyle='#1a5e2e';ctx.fill();
 
   // labels eixo X
   ctx.fillStyle='#aaa';ctx.font='10px Inter';ctx.textAlign='center';
-  jogosOrd.forEach((j,i)=>{
-    if(i===0||i===nP-1||(i+1)%10===0) ctx.fillText('J'+(i+1),px(i),H-6);
+  jogosOrdPlot.forEach((j,i)=>{
+    const jNum=i+SKIP+1; // número real da jornada
+    if(i===0||i===nP-1||(jNum)%10===0) ctx.fillText('J'+jNum,px(i),H-6);
   });
 }
 
