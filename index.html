@@ -291,13 +291,17 @@ input:focus,select:focus{border-color:var(--vd)}
   <div id="t-previsao" class="tp">
     <div class="g4" id="prev-cards"></div>
     <div class="cw" id="evo-w">
-      <h3 style="margin-bottom:4px">Previsão de pote final ao longo da época</h3>
-      <p style="font-size:11px;color:var(--mu);margin-bottom:12px">Cada ponto mostra: se o Sporting mantivesse a média de golos até àquele jogo até ao fim, qual seria o pote total previsto.</p>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:11px">
-        <span><span style="display:inline-block;width:20px;height:3px;background:#1a5e2e;vertical-align:middle;margin-right:5px;border-radius:2px"></span>Média total</span>
-        <span><span style="display:inline-block;width:20px;height:3px;background:#f9a825;vertical-align:middle;margin-right:5px;border-radius:2px;border-top:2px dashed #f9a825;background:transparent"></span>Últimos 10 jogos</span>
+      <h3 style="margin-bottom:4px">Evolução da previsão ao longo da época</h3>
+      <p style="font-size:11px;color:var(--mu);margin-bottom:12px">Cada ponto mostra o pote final previsto se a média de golos se mantivesse até ao fim.</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--mu)">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:22px;height:3px;background:#1a5e2e;border-radius:2px"></span>Média total</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:22px;height:0;border-top:2.5px dashed #f9a825"></span>Últimos 10 jogos</span>
       </div>
-      <canvas id="c-evo"></canvas>
+      <div style="position:relative">
+        <canvas id="c-evo"></canvas>
+        <div id="evo-tooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(30,30,30,.92);color:#fff;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:10;white-space:nowrap;backdrop-filter:blur(4px)"></div>
+        <div id="evo-crosshair" style="display:none;position:absolute;top:0;width:1px;background:rgba(0,0,0,.1);pointer-events:none;z-index:5"></div>
+      </div>
     </div>
   </div>
   <!-- ABA JOGOS (dentro do Dashboard) -->
@@ -825,16 +829,18 @@ function rPrevisao(){
     </div>
   `;
 
-  // Gráfico: em cada jogo i, se o Sporting continuasse à média daqui até ao fim, qual seria o pote final?
+  // Gráfico melhorado
   const ew=document.getElementById('evo-w');
   ew.style.display='block';
   const cv=document.getElementById('c-evo');
-  const W=ew.clientWidth-10||700,H=200;
-  cv.width=W;cv.height=H;cv.style.display='block';
+  const dpr=window.devicePixelRatio||1;
+  const W=ew.clientWidth-40||660,H=260;
+  cv.width=W*dpr;cv.height=H*dpr;
+  cv.style.width=W+'px';cv.style.height=H+'px';
   const ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
   ctx.clearRect(0,0,W,H);
 
-  const real=[];
   const prevTotArr=[];
   const prevUlt10Arr=[];
 
@@ -844,55 +850,134 @@ function rPrevisao(){
     const jogosRestAqui=Math.max(0,nTotal-(i+1));
     const gppAqui=accG/(i+1);
     prevTotArr.push((accG+Math.round(jogosRestAqui*gppAqui))*vg*n);
-
     const slice=jogosOrd.slice(Math.max(0,i-9),i+1);
     const gSlice=slice.reduce((a,s)=>a+(s.golos||0),0);
     const gppSlice=gSlice/slice.length;
     prevUlt10Arr.push((accG+Math.round(jogosRestAqui*gppSlice))*vg*n);
-
-    real.push(accG*vg*n);
   });
 
-  // Omitir primeiras 5 jornadas (previsão muito instável)
   const SKIP=5;
   const prevTotPlot=prevTotArr.slice(SKIP);
   const prevUlt10Plot=prevUlt10Arr.slice(SKIP);
   const jogosOrdPlot=jogosOrd.slice(SKIP);
 
   const allVals=[...prevTotPlot,...prevUlt10Plot];
-  const maxV=Math.max(...allVals)*1.08||1;
+  const minV=Math.min(...allVals)*0.90||0;
+  const maxV=Math.max(...allVals)*1.06||1;
 
-  const PAD_L=52,PAD_R=16,PAD_T=14,PAD_B=28;
+  const PAD_L=52,PAD_R=20,PAD_T=18,PAD_B=34;
   const W2=W-PAD_L-PAD_R,H2=H-PAD_T-PAD_B;
   const nP=prevTotPlot.length;
   if(nP<1){ew.style.display='none';return;}
   function px(i){return PAD_L+i/(nP-1||1)*W2;}
-  function py(v){return PAD_T+H2-(v/(maxV||1))*H2;}
+  function py(v){return PAD_T+H2-((v-minV)/((maxV-minV)||1))*H2;}
 
-  // grid Y
-  ctx.strokeStyle='#e8e8e4';ctx.lineWidth=1;
-  for(let k=0;k<=4;k++){
-    const v=maxV*k/4;const y=py(v);
+  // Fundo suave
+  const bgGrad=ctx.createLinearGradient(0,PAD_T,0,H-PAD_B);
+  bgGrad.addColorStop(0,'rgba(232,245,233,0.2)');
+  bgGrad.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=bgGrad;
+  ctx.fillRect(PAD_L,PAD_T,W2,H2);
+
+  // Grid Y — valores arredondados
+  function niceStep(range,ticks){
+    const raw=range/ticks;const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+    const res=raw/mag;let nice;
+    if(res<=1.5)nice=1;else if(res<=3)nice=2;else if(res<=7)nice=5;else nice=10;
+    return nice*mag;
+  }
+  const step=niceStep(maxV-minV,4);
+  const gridStart=Math.ceil(minV/step)*step;
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let v=gridStart;v<=maxV;v+=step){
+    const y=py(v);
+    ctx.strokeStyle='#eae8e4';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(PAD_L,y);ctx.lineTo(W-PAD_R,y);ctx.stroke();
-    ctx.fillStyle='#aaa';ctx.font='10px Inter';ctx.textAlign='right';
-    ctx.fillText(v>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0)+'€',PAD_L-4,y+3);
+    ctx.fillStyle='#aaa';ctx.font='500 10px Inter,sans-serif';
+    ctx.fillText(v>=1000?(v/1000).toFixed(v%1000===0?0:1)+'k':v.toFixed(0)+'€',PAD_L-6,y);
   }
 
-  // linha previsão média total (verde)
-  ctx.strokeStyle='#1a5e2e';ctx.lineWidth=2;ctx.setLineDash([]);
-  ctx.beginPath();prevTotPlot.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
+  // Curva suave (Catmull-Rom)
+  function smoothLine(arr,close){
+    if(arr.length<2)return;
+    ctx.beginPath();ctx.moveTo(px(0),py(arr[0]));
+    if(arr.length===2){ctx.lineTo(px(1),py(arr[1]));if(!close)ctx.stroke();return;}
+    for(let i=0;i<arr.length-1;i++){
+      const p0=i>0?{x:px(i-1),y:py(arr[i-1])}:{x:px(i),y:py(arr[i])};
+      const p1={x:px(i),y:py(arr[i])};
+      const p2={x:px(i+1),y:py(arr[i+1])};
+      const p3=i<arr.length-2?{x:px(i+2),y:py(arr[i+2])}:p2;
+      const t=0.35;
+      ctx.bezierCurveTo(p1.x+(p2.x-p0.x)*t/3,p1.y+(p2.y-p0.y)*t/3,p2.x-(p3.x-p1.x)*t/3,p2.y-(p3.y-p1.y)*t/3,p2.x,p2.y);
+    }
+    if(!close)ctx.stroke();
+  }
 
-  // linha previsão últimos 10 (amarelo tracejado)
-  ctx.strokeStyle='#f9a825';ctx.lineWidth=2;ctx.setLineDash([5,4]);
-  ctx.beginPath();prevUlt10Plot.forEach((v,i)=>{i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});ctx.stroke();
+  // Área sob a linha verde
+  ctx.save();ctx.strokeStyle='transparent';ctx.lineWidth=0;
+  smoothLine(prevTotPlot,true);
+  ctx.lineTo(px(nP-1),H-PAD_B);ctx.lineTo(px(0),H-PAD_B);ctx.closePath();
+  const areaGrad=ctx.createLinearGradient(0,PAD_T,0,H-PAD_B);
+  areaGrad.addColorStop(0,'rgba(26,94,46,0.12)');areaGrad.addColorStop(1,'rgba(26,94,46,0.01)');
+  ctx.fillStyle=areaGrad;ctx.fill();ctx.restore();
+
+  // Linha verde — média total
+  ctx.strokeStyle='#1a5e2e';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.lineCap='round';ctx.setLineDash([]);
+  smoothLine(prevTotPlot);
+
+  // Linha amarela — últimos 10
+  ctx.strokeStyle='#e6a700';ctx.lineWidth=2;ctx.setLineDash([6,5]);
+  smoothLine(prevUlt10Plot);
   ctx.setLineDash([]);
 
-  // labels eixo X
-  ctx.fillStyle='#aaa';ctx.font='10px Inter';ctx.textAlign='center';
-  jogosOrdPlot.forEach((j,i)=>{
-    const jNum=i+SKIP+1; // número real da jornada
-    if(i===0||i===nP-1||(jNum)%10===0) ctx.fillText('J'+jNum,px(i),H-6);
+  // Pontos finais
+  [['#1a5e2e',prevTotPlot],['#e6a700',prevUlt10Plot]].forEach(([col,arr])=>{
+    const last=arr[arr.length-1];
+    ctx.beginPath();ctx.arc(px(nP-1),py(last),4,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+    ctx.beginPath();ctx.arc(px(nP-1),py(last),6.5,0,Math.PI*2);
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.globalAlpha=0.25;ctx.stroke();ctx.globalAlpha=1;
   });
+
+  // Labels eixo X
+  ctx.fillStyle='#aaa';ctx.font='500 10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  const maxLabels=Math.floor(W2/50);
+  const labelStep=Math.max(1,Math.ceil(nP/maxLabels));
+  jogosOrdPlot.forEach((j,i)=>{
+    const jNum=i+SKIP+1;
+    if(i===0||i===nP-1||i%labelStep===0) ctx.fillText('J'+jNum,px(i),H-PAD_B+8);
+  });
+
+  // Tooltip interactivo
+  const tooltip=document.getElementById('evo-tooltip');
+  const crosshair=document.getElementById('evo-crosshair');
+
+  function handleChartHover(e){
+    e.preventDefault();
+    const rect=cv.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const mx=(clientX-rect.left)*(W/rect.width);
+    let closest=-1,minDist=Infinity;
+    for(let i=0;i<nP;i++){const d=Math.abs(px(i)-mx);if(d<minDist){minDist=d;closest=i;}}
+    if(closest<0||minDist>30){tooltip.style.display='none';crosshair.style.display='none';return;}
+    const jNum=closest+SKIP+1;
+    const adv=jogosOrdPlot[closest]?.adversario||'';
+    const vTot=prevTotPlot[closest];
+    const vUlt=prevUlt10Plot[closest];
+    const diff=vUlt-vTot;const diffStr=diff>=0?'+'+diff.toFixed(0):diff.toFixed(0);
+    tooltip.innerHTML=`<div style="font-weight:700;margin-bottom:3px">Jogo ${jNum}${adv?' · '+adv:''}</div>`+
+      `<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#1a5e2e;border-radius:50%;flex-shrink:0"></span>Média total: <strong>${vTot.toFixed(0)}€</strong></div>`+
+      `<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#e6a700;border-radius:50%;flex-shrink:0"></span>Últ. 10: <strong>${vUlt.toFixed(0)}€</strong> <span style="opacity:.6">(${diffStr}€)</span></div>`;
+    const pxPos=px(closest)*(rect.width/W);
+    const tipW=tooltip.offsetWidth||160;
+    let left=pxPos+12;if(left+tipW>rect.width-10)left=pxPos-tipW-12;
+    tooltip.style.left=left+'px';tooltip.style.top='10px';tooltip.style.display='block';
+    crosshair.style.left=pxPos+'px';
+    crosshair.style.height=(H2*(rect.height/H))+'px';
+    crosshair.style.top=(PAD_T*(rect.height/H))+'px';
+    crosshair.style.display='block';
+  }
+  cv.onmousemove=handleChartHover;cv.ontouchmove=handleChartHover;
+  cv.onmouseleave=function(){tooltip.style.display='none';crosshair.style.display='none';};
 }
 
 /* ── JOGOS ───────────────────────────────────── */
@@ -1374,7 +1459,7 @@ function lerFich(inp){
       const d=JSON.parse(e.target.result);
       if(d.epocas){
         dbFull=d;
-        epocaAtiva=dbFull.config?.epocaAtiva||Object.keys(dbFull.epocas).sort().pop();
+        actualizarEpocasOrdem();epocaAtiva=epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:'2025/26';dbFull.config.epocaAtiva=epocaAtiva;
         actualizarEpocasOrdem();sincEpoca();salvar();rCfg();rDash();toast('Dados importados ✓');
       } else if(d.amigos&&d.jogos){
         dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
@@ -1609,7 +1694,7 @@ async function ghPull(){
     const d=JSON.parse(text);
     if(d.epocas){
       dbFull=d;
-      epocaAtiva=dbFull.config?.epocaAtiva||Object.keys(dbFull.epocas).sort().pop();
+      actualizarEpocasOrdem();epocaAtiva=epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:'2025/26';dbFull.config.epocaAtiva=epocaAtiva;
       actualizarEpocasOrdem();sincEpoca();
     } else if(d.amigos&&d.jogos){
       dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
@@ -1661,7 +1746,7 @@ async function ghAutoPull(){
     const d=JSON.parse(text);
     if(d.epocas){
       dbFull=d;
-      epocaAtiva=dbFull.config?.epocaAtiva||Object.keys(dbFull.epocas).sort().pop();
+      actualizarEpocasOrdem();epocaAtiva=epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:'2025/26';dbFull.config.epocaAtiva=epocaAtiva;
       actualizarEpocasOrdem();sincEpoca();
     } else if(d.amigos&&d.jogos){
       dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
