@@ -231,6 +231,9 @@ input:focus,select:focus{border-color:var(--vd)}
 .modal-body{padding:18px 22px}
 .modal-footer{padding:14px 22px 18px;display:flex;gap:9px;border-top:1px solid var(--bo)}
 
+.collapsible-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.collapsible-hdr:hover h3{color:var(--vd2)}
+
 @media(max-width:600px){
   .hn{padding:5px 8px;font-size:11px}
   .brand h1{font-size:18px}
@@ -249,12 +252,10 @@ input:focus,select:focus{border-color:var(--vd)}
   <div class="hdr">
     <div class="brand">
       <div class="escudo">🦁</div>
-      <div><h1>Golos do Sporting</h1><p id="hdr-sub">Época 2025/26 · 1€ por golo</p></div>
+      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.5px;line-height:1">Golos do Sporting</h1>
     </div>
     <nav class="hnav">
-      <button class="hn on" onclick="nav('dash',this)">Dashboard</button>
-      <button class="hn" onclick="nav('jogos',this)">Jogos</button>
-      <button class="hn" onclick="nav('cfg',this)">Config</button>
+      <span class="hn" id="hdr-epoca" style="cursor:default;opacity:.85;pointer-events:none">Época 2025/26</span>
     </nav>
   </div>
 </header>
@@ -267,6 +268,8 @@ input:focus,select:focus{border-color:var(--vd)}
     <button class="it on" onclick="itab('resumo',this,'dash')">Resumo</button>
     <button class="it" onclick="itab('contas',this,'dash')">Contas</button>
     <button class="it" onclick="itab('previsao',this,'dash')">Previsão</button>
+    <button class="it" onclick="itab('jogos',this,'dash')">Jogos</button>
+    <button class="it" onclick="itab('cfg',this,'dash')">Config</button>
   </div>
   <div id="t-resumo" class="tp on">
     <div class="g4" id="stat-cards"></div>
@@ -294,37 +297,40 @@ input:focus,select:focus{border-color:var(--vd)}
       <canvas id="c-evo"></canvas>
     </div>
   </div>
-</section>
-
-<!-- ═══ JOGOS ═══ -->
-<section id="s-jogos" class="sec">
-  <div class="itabs">
-    <button class="it on" onclick="itab('jlista',this,'jogos')">Todos os jogos</button>
-    <button class="it" onclick="itab('jadd',this,'jogos')">Adicionar</button>
-  </div>
-  <!-- lista -->
-  <div id="t-jlista" class="tp on">
-    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:13px">
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <select id="f-comp" onchange="renderJogosList()" style="min-width:120px;max-width:180px"><option value="">Todas competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
-        <select id="f-local" onchange="renderJogosList()" style="min-width:80px;max-width:120px"><option value="">Local</option><option value="Casa">Casa</option><option value="Fora">Fora</option><option value="Neutro">Neutro</option></select>
+  <!-- ABA JOGOS (dentro do Dashboard) -->
+  <div id="t-jogos" class="tp">
+    <!-- lista -->
+    <div id="t-jlista" style="display:block">
+      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:13px">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select id="f-comp" onchange="renderJogosList()" style="min-width:120px;max-width:180px"><option value="">Todas competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
+          <select id="f-local" onchange="renderJogosList()" style="min-width:80px;max-width:120px"><option value="">Local</option><option value="Casa">Casa</option><option value="Fora">Fora</option><option value="Neutro">Neutro</option></select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button id="f-btn-todos" class="fbtn on" onclick="setFiltPag('todos',this)">Todos</button>
+          <button id="f-btn-div" class="fbtn" onclick="setFiltPag('divida',this)">Com dívida</button>
+          <button id="f-btn-ok" class="fbtn" onclick="setFiltPag('pago',this)">Pagos</button>
+        </div>
       </div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button id="f-btn-todos" class="fbtn on" onclick="setFiltPag('todos',this)">Todos</button>
-        <button id="f-btn-div" class="fbtn" onclick="setFiltPag('divida',this)">Com dívida</button>
-        <button id="f-btn-ok" class="fbtn" onclick="setFiltPag('pago',this)">Pagos</button>
-      </div>
+      <div id="j-list"></div>
     </div>
-    <div id="j-list"></div>
+    <!-- detalhe jogo (oculto por defeito) -->
+    <div id="t-jdetalhe" style="display:none">
+      <button class="btn-back" onclick="voltarLista()">← Voltar à lista</button>
+      <div id="jd-content"></div>
+    </div>
   </div>
-  <!-- detalhe jogo (oculto por defeito) -->
-  <div id="t-jdetalhe" class="tp">
-    <button class="btn-back" onclick="voltarLista()">← Voltar à lista</button>
-    <div id="jd-content"></div>
-  </div>
-  <!-- add: formulário unificado -->
-  <div id="t-jadd" class="tp">
-    <div class="fadd-card">
+  <!-- ABA CONFIG (dentro do Dashboard) -->
+  <div id="t-cfg" class="tp">
+    <div class="fcard">
+      <h3>Configurações gerais</h3>
+      <div class="frow">
+        <div class="fg"><label>Época</label><input type="text" id="c-ep"></div>
+        <div class="fg"><label>Valor por golo (€)</label><input type="number" id="c-vg" min="0.5" step="0.5"></div>
+      </div>
+      <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
+    </div>
+    <div class="fadd-card" style="margin-bottom:16px">
       <div class="fadd-header">
         <div class="fadd-icon-wrap">⚽</div>
         <div>
@@ -332,11 +338,8 @@ input:focus,select:focus{border-color:var(--vd)}
           <div class="fadd-sub">Podes adicionar resultado e golos depois, clicando no jogo.</div>
         </div>
       </div>
-
       <div class="fadd-section-label">Identificação</div>
       <div style="padding:0 22px 4px;display:flex;flex-direction:column;gap:10px">
-
-        <!-- LINHA 1: Adversário + Local -->
         <div style="display:flex;gap:10px;align-items:stretch">
           <div class="fg" style="flex:1;min-width:0">
             <label>Adversário</label>
@@ -345,15 +348,13 @@ input:focus,select:focus{border-color:var(--vd)}
           <div class="fg" style="flex-shrink:0">
             <label>Local</label>
             <div id="cal-local-btns" style="display:flex;gap:4px">
-              <button type="button" class="local-btn on" data-val="Casa" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z" fill="#c8a415"/></svg> Casa</button>
+              <button type="button" class="local-btn on" data-val="Casa" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="12,3 2,11 4,11 4,21 10,21 10,15 14,15 14,21 20,21 20,11 22,11" fill="#c8a415" opacity=".85"/><rect x="10" y="15" width="4" height="6" rx="1" fill="#a07800"/><polygon points="12,3 2,11 22,11" fill="#c8a415"/></svg> Casa</button>
               <button type="button" class="local-btn" data-val="Fora" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg> Fora</button>
               <button type="button" class="local-btn" data-val="Neutro" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/><path d="M5 6V4h2v2H5zm12 0V4h2v2h-2zm-5-3V1h2v2h-2z" fill="#1565c0"/></svg> Neutro</button>
             </div>
             <input type="hidden" id="cal-local" value="Casa">
           </div>
         </div>
-
-        <!-- LINHA 2: Competição + Jornada + Data -->
         <div style="display:flex;gap:10px;align-items:stretch">
           <div class="fg" style="flex:2;min-width:0">
             <label>Competição</label>
@@ -375,89 +376,84 @@ input:focus,select:focus{border-color:var(--vd)}
             <input type="date" id="cal-data" style="width:140px">
           </div>
         </div>
-
       </div>
-
       <div class="fadd-footer" style="margin-top:16px">
         <button class="btn btn-g" onclick="addJogoCal()" style="padding:10px 28px;font-size:14px">Guardar jogo</button>
         <button class="btn btn-n" onclick="limparFormAdd()">Limpar</button>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- ═══ CONFIG ═══ -->
-<section id="s-cfg" class="sec">
-  <div class="fcard">
-    <h3>Configurações gerais</h3>
-    <div class="frow">
-      <div class="fg"><label>Época</label><input type="text" id="c-ep"></div>
-      <div class="fg"><label>Valor por golo (€)</label><input type="number" id="c-vg" min="0.5" step="0.5"></div>
-    </div>
-    <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
-  </div>
-  <div class="fcard">
-    <h3>Amigos participantes</h3>
-    <p style="font-size:12px;color:var(--mu);margin-bottom:13px">Clica na bolinha para mudar a cor.</p>
-    <div id="a-cfg"></div>
-    <button class="btn-add" onclick="addAmigo()">＋ Adicionar amigo</button>
-    <div style="margin-top:14px"><button class="btn btn-g" onclick="guardarAmigos()">Guardar amigos</button></div>
-  </div>
-  <div class="fcard">
-    <h3>Dados</h3>
-    <p style="font-size:13px;color:var(--mu);margin-bottom:13px">Os dados ficam no <strong>localStorage</strong>. Para fazer backup ou sincronizar com outro dispositivo, usa os botões abaixo.</p>
-    <div style="display:flex;gap:9px;flex-wrap:wrap">
-      <button class="btn btn-g" onclick="expJSON()">⬇ Descarregar data.json</button>
-      <button class="btn" style="background:var(--in);color:#fff" onclick="impJSON()">⬆ Importar data.json</button>
-      <button class="btn btn-n" onclick="copJSON()">Copiar JSON</button>
-    </div>
-    <input type="file" id="f-imp" accept=".json" style="display:none" onchange="lerFich(this)">
-
-    <!-- GITHUB SYNC -->
-    <div class="divi"></div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:var(--tx);flex-shrink:0"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.54-1.38-1.33-1.75-1.33-1.75-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49.99.1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.7.82.58C20.56 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg>
-      <strong style="font-size:13px">Sincronização com GitHub</strong>
-    </div>
-    <p style="font-size:12px;color:var(--mu);margin-bottom:11px">Guarda e carrega o <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">data.json</code> no repositório <strong>diogoandrefsilva-ghc/Goals</strong>. Para <strong>importar</strong> não precisas de token (repo público). Para <strong>guardar</strong> precisas de um <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--in)">Personal Access Token</a> com permissão <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">repo</code>.</p>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:11px">
-      <div class="fg">
-        <label>Token GitHub <em style="text-transform:none;font-weight:400;letter-spacing:0">(ghp_… — obrigatório para guardar)</em></label>
-        <div style="display:flex;gap:6px">
-          <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="flex:1">
-          <button class="btn btn-n" style="font-size:12px;padding:0 10px;white-space:nowrap" onclick="toggleGhToken()">👁</button>
-        </div>
+    <div class="fcard">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" onclick="toggleSection('amigos-body',this)">
+        <h3 style="margin:0">Amigos participantes</h3>
+        <span id="amigos-body-arrow" style="font-size:12px;color:var(--mu);transition:transform .2s">▼</span>
       </div>
-      <div class="frow" style="margin-bottom:0">
+      <div id="amigos-body" style="display:none;margin-top:14px">
+        <p style="font-size:12px;color:var(--mu);margin-bottom:13px">Clica na bolinha para mudar a cor.</p>
+        <div id="a-cfg"></div>
+        <button class="btn-add" onclick="addAmigo()">＋ Adicionar amigo</button>
+        <div style="margin-top:14px"><button class="btn btn-g" onclick="guardarAmigos()">Guardar amigos</button></div>
+      </div>
+    </div>
+    <div class="fcard">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" onclick="toggleSection('dados-body',this)">
+        <h3 style="margin:0">Dados</h3>
+        <span id="dados-body-arrow" style="font-size:12px;color:var(--mu);transition:transform .2s">▼</span>
+      </div>
+      <div id="dados-body" style="display:none;margin-top:14px">
+      <p style="font-size:13px;color:var(--mu);margin-bottom:13px">Os dados são lidos do GitHub do owner desta página sempre que esta é refrescada e depois ficam armazenados no localStorage. Para fazer backup ou sincronizar para o teu dispositivo, usa os botões abaixo.</p>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn btn-g" onclick="expJSON()">⬇ Guardar Dados</button>
+        <button class="btn" style="background:var(--in);color:#fff" onclick="impJSON()">⬆ Importar Dados</button>
+      </div>
+      <input type="file" id="f-imp" accept=".json" style="display:none" onchange="lerFich(this)">
+
+      <!-- GITHUB SYNC -->
+      <div class="divi"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;gap:8px" onclick="toggleSection('gh-body',this)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:var(--mu);flex-shrink:0"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.54-1.38-1.33-1.75-1.33-1.75-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49.99.1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.7.82.58C20.56 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg>
+          <span style="font-size:12px;color:var(--mu)">Sincronização com GitHub</span>
+        </div>
+        <span id="gh-body-arrow" style="font-size:12px;color:var(--mu);transition:transform .2s">▶</span>
+      </div>
+      <div id="gh-body" style="display:none;margin-top:10px">
+      <p style="font-size:12px;color:var(--mu);margin-bottom:11px">Guarda o <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">data.json</code> no repositório. Para <strong>guardar</strong> precisas de um <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--in)">Personal Access Token</a> com permissão <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">repo</code>.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:11px">
         <div class="fg">
-          <label>Utilizador / Org</label>
-          <input type="text" id="gh-owner" placeholder="ex: joaosilva">
+          <label>Token GitHub <em style="text-transform:none;font-weight:400;letter-spacing:0">(ghp_… — obrigatório para guardar)</em></label>
+          <div style="display:flex;gap:6px">
+            <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="flex:1">
+            <button class="btn btn-n" style="font-size:12px;padding:0 10px;white-space:nowrap" onclick="toggleGhToken()">👁</button>
+          </div>
+        </div>
+        <div class="frow" style="margin-bottom:0">
+          <div class="fg">
+            <label>Utilizador / Org</label>
+            <input type="text" id="gh-owner" placeholder="ex: joaosilva">
+          </div>
+          <div class="fg">
+            <label>Repositório</label>
+            <input type="text" id="gh-repo" placeholder="ex: sporting-golos">
+          </div>
         </div>
         <div class="fg">
-          <label>Repositório</label>
-          <input type="text" id="gh-repo" placeholder="ex: sporting-golos">
+          <label>Caminho do ficheiro</label>
+          <input type="text" id="gh-path" placeholder="data.json" value="data.json">
+        </div>
+        <div class="fg">
+          <label>Branch</label>
+          <input type="text" id="gh-branch" placeholder="main" value="main">
         </div>
       </div>
-      <div class="fg">
-        <label>Caminho do ficheiro</label>
-        <input type="text" id="gh-path" placeholder="data.json" value="data.json">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn" style="background:#24292e;color:#fff" onclick="ghPush()">⬆ Guardar no GitHub</button>
       </div>
-      <div class="fg">
-        <label>Branch</label>
-        <input type="text" id="gh-branch" placeholder="main" value="main">
+      <p id="gh-status" style="font-size:12px;margin-top:9px;display:none"></p>
       </div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn" style="background:#24292e;color:#fff" onclick="ghPush()">⬆ Guardar no GitHub</button>
-      <button class="btn" style="background:#0969da;color:#fff" onclick="ghPull()">⬇ Importar do GitHub</button>
-      <button class="btn btn-n" style="font-size:12px" onclick="ghSaveCfg()">Guardar configuração</button>
-    </div>
-    <p id="gh-status" style="font-size:12px;margin-top:9px;display:none"></p>
-    <!-- END GITHUB SYNC -->
+      <!-- END GITHUB SYNC -->
 
-    <div class="divi"></div>
-    <p style="font-size:12px;color:var(--mu);margin-bottom:9px">Zona perigosa</p>
-    <button class="btn btn-d" onclick="resetDB()">🗑 Apagar todos os dados</button>
+      </div><!-- /dados-body -->
+    </div>
   </div>
 </section>
 
@@ -481,7 +477,7 @@ input:focus,select:focus{border-color:var(--vd)}
           <div class="fg" style="flex:1;min-width:0">
             <label>Local</label>
             <div id="ed-local-btns" style="display:flex;gap:4px">
-              <button type="button" class="local-btn" data-val="Casa" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z" fill="#c8a415"/></svg> Casa</button>
+              <button type="button" class="local-btn" data-val="Casa" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="12,3 2,11 4,11 4,21 10,21 10,15 14,15 14,21 20,21 20,11 22,11" fill="#c8a415" opacity=".85"/><rect x="10" y="15" width="4" height="6" rx="1" fill="#a07800"/><polygon points="12,3 2,11 22,11" fill="#c8a415"/></svg> Casa</button>
               <button type="button" class="local-btn" data-val="Fora" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg> Fora</button>
               <button type="button" class="local-btn" data-val="Neutro" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/><path d="M5 6V4h2v2H5zm12 0V4h2v2h-2zm-5-3V1h2v2h-2z" fill="#1565c0"/></svg> Neutro</button>
             </div>
@@ -607,21 +603,27 @@ function nav(id,btn){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.hn').forEach(b=>b.classList.remove('on'));
   document.getElementById('s-'+id).classList.add('on');btn.classList.add('on');
-  ({dash:rDash,jogos:rJogos,cfg:rCfg})[id]?.();
+  ({dash:rDash})[id]?.();
 }
 function itab(id,btn,parent){
   const sec=document.getElementById('s-'+parent);
-  sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
-  sec.querySelectorAll('.it').forEach(b=>b.classList.remove('on'));
+  sec.querySelectorAll(':scope > .tp').forEach(p=>p.classList.remove('on'));
+  sec.querySelectorAll(':scope > .itabs .it').forEach(b=>b.classList.remove('on'));
   document.getElementById('t-'+id).classList.add('on');btn.classList.add('on');
-  ({resumo:rResumo,contas:rContas,previsao:rPrevisao,jlista:renderJogosList})[id]?.();
+  ({resumo:rResumo,contas:rContas,previsao:rPrevisao,jogos:rJogos,cfg:rCfg})[id]?.();
 }
+
+
 
 /* ── DASHBOARD ───────────────────────────────── */
 function rDash(){
-  const p=document.querySelector('#s-dash .tp.on');
+  const p=document.querySelector('#s-dash > .tp.on');
   const id=p?.id?.replace('t-','');
-  if(id==='contas')rContas();else if(id==='previsao')rPrevisao();else rResumo();
+  if(id==='contas')rContas();
+  else if(id==='previsao')rPrevisao();
+  else if(id==='jogos')renderJogosList();
+  else if(id==='cfg')rCfg();
+  else rResumo();
 }
 function rResumo(){
   const g=totalGolos(),n=db.amigos.length,vt=deveTotal();
@@ -630,12 +632,12 @@ function rResumo(){
   const nJogosComRes=db.jogos.filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='').length;
   const nJogosTotal=db.jogos.length;
   const pct=nJogosTotal>0?Math.min(100,Math.round(nJogosComRes/nJogosTotal*100)):0;
-  document.getElementById('hdr-sub').textContent=`Época ${db.config.epoca} · ${db.config.valorPorGolo}€ por golo por pessoa`;
+  document.getElementById('hdr-epoca').textContent=`Época ${db.config.epoca}`;
   document.getElementById('stat-cards').innerHTML=`
     <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${nJogosComRes} jogos realizados</div></div>
     <div class="sc co"><div class="sc-l">Pote acumulado</div><div class="sc-v">${(g*n*db.config.valorPorGolo).toFixed(0)}€</div><div class="sc-s">${n} pessoas × ${vt.toFixed(0)}€</div></div>
     <div class="sc cb"><div class="sc-l">Já recebido</div><div class="sc-v">${potePago.toFixed(0)}€</div><div class="sc-s">de ${(g*n*db.config.valorPorGolo).toFixed(0)}€ total</div></div>
-    <div class="sc cr"><div class="sc-l">Por cobrar</div><div class="sc-v">${totalDividas().toFixed(0)}€</div><div class="sc-s">dívida total em aberto</div></div>
+    <div class="sc cr"><div class="sc-l">Por receber</div><div class="sc-v">${totalDividas().toFixed(0)}€</div><div class="sc-s">dívida total em aberto</div></div>
   `;
   document.getElementById('pct-l').textContent=pct+'%';
   document.getElementById('prog-b').style.width=pct+'%';
@@ -949,25 +951,21 @@ function renderJogosList(){
 
 function abrirDetalhe(jogoId){
   const jogo=db.jogos.find(j=>j.id===jogoId);if(!jogo)return;
-  // navigate to jogos section first
-  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
-  document.getElementById('s-jogos').classList.add('on');
-  document.querySelectorAll('.hn').forEach(b=>b.classList.remove('on'));
-  document.querySelectorAll('.hn').forEach(b=>{if(b.textContent.trim()==='Jogos')b.classList.add('on');});
-  // mostrar painel detalhe na secção jogos
-  const sec=document.getElementById('s-jogos');
-  sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
-  sec.querySelectorAll('.it').forEach(b=>b.classList.remove('on'));
-  document.getElementById('t-jdetalhe').classList.add('on');
+  // Garantir que estamos na aba Jogos do dashboard
+  const dashSec=document.getElementById('s-dash');
+  dashSec.querySelectorAll(':scope > .tp').forEach(p=>p.classList.remove('on'));
+  dashSec.querySelectorAll(':scope > .itabs .it').forEach(b=>b.classList.remove('on'));
+  document.getElementById('t-jogos').classList.add('on');
+  document.querySelector('#s-dash > .itabs .it:nth-child(4)').classList.add('on');
+  // mostrar painel detalhe dentro da aba Jogos
+  document.getElementById('t-jlista').style.display='none';
+  document.getElementById('t-jdetalhe').style.display='block';
   renderDetalhe(jogo);
 }
 
 function voltarLista(){
-  const sec=document.getElementById('s-jogos');
-  sec.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
-  sec.querySelectorAll('.it').forEach(b=>b.classList.remove('on'));
-  document.getElementById('t-jlista').classList.add('on');
-  document.querySelector('#s-jogos .it').classList.add('on');
+  document.getElementById('t-jlista').style.display='block';
+  document.getElementById('t-jdetalhe').style.display='none';
   renderJogosList();
 }
 
@@ -1010,7 +1008,7 @@ function renderDetalhe(jogo){
   }
 
   // Local icon inline
-  const localSVGsm={'Casa':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z" fill="#c8a415"/></svg>','Fora':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg>','Neutro':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/></svg>'};
+  const localSVGsm={'Casa':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><polygon points="12,3 2,11 4,11 4,21 10,21 10,15 14,15 14,21 20,21 20,11 22,11" fill="#c8a415" opacity=".85"/><rect x="10" y="15" width="4" height="6" rx="1" fill="#a07800"/><polygon points="12,3 2,11 22,11" fill="#c8a415"/></svg>','Fora':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg>','Neutro':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/></svg>'};
   const localLabel=jogo.local?(localSVGsm[jogo.local]||'')+' '+jogo.local:'';
 
   // Lista de amigos em 2 colunas, sem siglas nem "pago/deve" — só nome + toggle
@@ -1096,11 +1094,9 @@ function desmarcarTodos(jogoId){
 
 function rJogos(){
   const hoje=new Date().toISOString().split('T')[0];
-  document.getElementById('cal-data').value=hoje;
-  limparGolos();
-  // activar tab lista e renderizar — independentemente do estado anterior
-  document.getElementById('t-jlista').classList.add('on');
-  document.querySelector('#s-jogos .it').classList.add('on');
+  if(document.getElementById('cal-data'))document.getElementById('cal-data').value=hoje;
+  document.getElementById('t-jlista').style.display='block';
+  document.getElementById('t-jdetalhe').style.display='none';
   renderJogosList();
 }
 
@@ -1234,15 +1230,10 @@ function guardarEdicao(){
   j.golos=gv===''?null:parseInt(gv);
   salvar();
   fecharModalEditar();
-  // re-render onde estivermos
-  const secAtiva=document.querySelector('.sec.on');
-  if(secAtiva?.id==='s-jogos'){
-    const tAtivo=secAtiva.querySelector('.tp.on');
-    if(tAtivo?.id==='t-jdetalhe'){renderDetalhe(j);}
-    else{renderJogosList();}
-  } else {
-    rDash();
-  }
+  // re-render: verificar se estamos no detalhe do jogo
+  const tJdetalhe=document.getElementById('t-jdetalhe');
+  if(tJdetalhe&&tJdetalhe.classList.contains('on')){renderDetalhe(j);}
+  else{rDash();renderJogosList();}
   toast(`Jogo vs ${j.adversario} actualizado ✓`);
 }
 function remJogo(id){
@@ -1548,6 +1539,15 @@ async function ghPull(){
     ghStatus(`✗ Erro: ${e.message}`,1);
     toast('Erro ao importar do GitHub!',1);
   }
+}
+
+/* ── COLLAPSIBLE SECTIONS ───────────────────── */
+function toggleSection(id,hdr){
+  const body=document.getElementById(id);
+  const arrow=document.getElementById(id+'-arrow');
+  const open=body.style.display==='none'||body.style.display==='';
+  body.style.display=open?'block':'none';
+  if(arrow)arrow.style.transform=open?'rotate(0deg)':'rotate(-90deg)';
 }
 
 /* ── TOAST ─────────────────────────────────── */
