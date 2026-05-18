@@ -255,7 +255,11 @@ input:focus,select:focus{border-color:var(--vd)}
       <h1 style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.5px;line-height:1">Golos do Sporting</h1>
     </div>
     <nav class="hnav">
-      <span class="hn" id="hdr-epoca" style="cursor:default;opacity:.85;pointer-events:none">Época 2025/26</span>
+      <div id="hdr-epoca-nav" style="display:flex;align-items:center;gap:4px">
+        <button class="hn" id="epoca-prev" onclick="mudarEpoca(-1)" style="padding:6px 8px;font-size:14px;line-height:1" title="Época anterior">‹</button>
+        <span class="hn on" id="epoca-label" style="cursor:default;min-width:90px;text-align:center">Época 2025/26</span>
+        <button class="hn" id="epoca-next" onclick="mudarEpoca(1)" style="padding:6px 8px;font-size:14px;line-height:1" title="Época seguinte">›</button>
+      </div>
     </nav>
   </div>
 </header>
@@ -325,7 +329,7 @@ input:focus,select:focus{border-color:var(--vd)}
     <div class="fcard">
       <h3>Configurações gerais</h3>
       <div class="frow">
-        <div class="fg"><label>Época</label><input type="text" id="c-ep"></div>
+        <div class="fg"><label>Época activa</label><input type="text" id="c-ep" readonly style="background:#f4f4f0;color:var(--mu);cursor:default" title="Usa as setas no cabeçalho para mudar de época"></div>
         <div class="fg"><label>Valor por golo (€)</label><input type="number" id="c-vg" min="0.5" step="0.5"></div>
       </div>
       <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
@@ -538,16 +542,77 @@ input:focus,select:focus{border-color:var(--vd)}
 const CORES=['#1b5e20','#1a237e','#4a148c','#b71c1c','#e65100','#006064','#33691e','#880e4f','#1565c0','#37474f','#f57f17','#3e2723','#004d40','#311b92','#bf360c'];
 
 /* ── DB ─────────────────────────────────────── */
-let db={config:{valorPorGolo:1,epoca:'2025/26'},amigos:[],jogos:[],pagosPorJogo:{}};
+// Multi-época: db contém a estrutura completa carregada do JSON
+let dbFull={config:{valorPorGolo:1,epocaAtiva:'2025/26'},epocas:{}};
+// db é o "atalho" para a época activa (amigos, jogos, pagosPorJogo)
+let db={amigos:[],jogos:[],pagosPorJogo:{}};
+let epocaAtiva='2025/26';
+const epocasOrdem=['2024/25','2025/26']; // ordem cronológica
 
-function salvar(){localStorage.setItem('sg_v4',JSON.stringify(db));}
+function salvar(){
+  // guardar na época activa
+  if(!dbFull.epocas[epocaAtiva])dbFull.epocas[epocaAtiva]={};
+  dbFull.epocas[epocaAtiva].amigos=db.amigos;
+  dbFull.epocas[epocaAtiva].jogos=db.jogos;
+  dbFull.epocas[epocaAtiva].pagosPorJogo=db.pagosPorJogo;
+  dbFull.config.epocaAtiva=epocaAtiva;
+  localStorage.setItem('sg_v5',JSON.stringify(dbFull));
+}
 function carregar(){
-  const s=localStorage.getItem('sg_v4');
-  if(s){try{const d=JSON.parse(s);if(d.amigos&&d.jogos){db=d;}}catch(e){}}
-  if(!db.pagosPorJogo)db.pagosPorJogo={};
-  // Migração: garantir que jogos antigos com golos:null não quebram cálculos
-  // (não alteramos os dados, só garantimos que o campo existe)
+  const s=localStorage.getItem('sg_v5');
+  if(s){
+    try{
+      const d=JSON.parse(s);
+      if(d.epocas){dbFull=d;}
+      else if(d.amigos&&d.jogos){
+        // migração do formato antigo
+        dbFull.epocas['2025/26']={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
+        if(d.config){dbFull.config.valorPorGolo=d.config.valorPorGolo||1;}
+      }
+    }catch(e){}
+  }
+  if(!dbFull.config)dbFull.config={valorPorGolo:1,epocaAtiva:'2025/26'};
+  epocaAtiva=dbFull.config.epocaAtiva||'2025/26';
+  actualizarEpocasOrdem();
+  sincEpoca();
+}
+function actualizarEpocasOrdem(){
+  // Reconstruir a lista ordenada das épocas existentes
+  const eps=Object.keys(dbFull.epocas||{});
+  eps.sort(); // lexicographic: '2024/25' < '2025/26'
+  // Garantir que epocasOrdem reflecte as épocas reais
+  epocasOrdem.length=0;
+  eps.forEach(e=>epocasOrdem.push(e));
+  if(!epocasOrdem.length)epocasOrdem.push('2025/26');
+}
+function sincEpoca(){
+  const ep=dbFull.epocas[epocaAtiva]||{amigos:[],jogos:[],pagosPorJogo:{}};
+  db.amigos=ep.amigos||[];
+  db.jogos=ep.jogos||[];
+  db.pagosPorJogo=ep.pagosPorJogo||{};
   db.jogos.forEach(j=>{if(j.golos===undefined)j.golos=null;});
+  // actualizar config global para retrocompatibilidade de funções que usam db.config
+  db.config={valorPorGolo:dbFull.config.valorPorGolo||1,epoca:epocaAtiva};
+}
+
+/* ── ÉPOCA NAV ───────────────────────────────── */
+function mudarEpoca(dir){
+  actualizarEpocasOrdem();
+  const idx=epocasOrdem.indexOf(epocaAtiva);
+  const nIdx=idx+dir;
+  if(nIdx<0||nIdx>=epocasOrdem.length)return;
+  epocaAtiva=epocasOrdem[nIdx];
+  dbFull.config.epocaAtiva=epocaAtiva;
+  sincEpoca();
+  salvar();
+  rDash();
+  // forçar re-render da secção activa
+  const activeItab=document.querySelector('#s-dash .tp.on');
+  if(activeItab){
+    const id=activeItab.id.replace('t-','');
+    const fn={resumo:rResumo,contas:rContas,previsao:rPrevisao,jogos:rJogos,cfg:rCfg};
+    fn[id]?.();
+  }
 }
 
 /* ── CÁLCULOS ────────────────────────────────── */
@@ -632,7 +697,9 @@ function rResumo(){
   const nJogosComRes=db.jogos.filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='').length;
   const nJogosTotal=db.jogos.length;
   const pct=nJogosTotal>0?Math.min(100,Math.round(nJogosComRes/nJogosTotal*100)):0;
-  document.getElementById('hdr-epoca').textContent=`Época ${db.config.epoca}`;
+  document.getElementById('epoca-label').textContent=`Época ${epocaAtiva}`;
+  document.getElementById('epoca-prev').style.opacity=epocasOrdem.indexOf(epocaAtiva)<=0?'0.3':'1';
+  document.getElementById('epoca-next').style.opacity=epocasOrdem.indexOf(epocaAtiva)>=epocasOrdem.length-1?'0.3':'1';
   document.getElementById('stat-cards').innerHTML=`
     <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${nJogosComRes} jogos realizados</div></div>
     <div class="sc co"><div class="sc-l">Pote acumulado</div><div class="sc-v">${(g*n*db.config.valorPorGolo).toFixed(0)}€</div><div class="sc-s">${n} pessoas × ${vt.toFixed(0)}€</div></div>
@@ -1282,18 +1349,18 @@ function rHistPag(){
 
 /* ── CONFIG ─────────────────────────────────── */
 function rCfg(){
-  document.getElementById('c-ep').value=db.config.epoca;
-  document.getElementById('c-vg').value=db.config.valorPorGolo;
+  document.getElementById('c-ep').value=epocaAtiva;
+  document.getElementById('c-vg').value=dbFull.config.valorPorGolo||1;
   rAmCfg();
 }
 function guardarCfg(){
-  db.config.epoca=document.getElementById('c-ep').value;
-  db.config.valorPorGolo=parseFloat(document.getElementById('c-vg').value)||1;
+  dbFull.config.valorPorGolo=parseFloat(document.getElementById('c-vg').value)||1;
+  db.config={valorPorGolo:dbFull.config.valorPorGolo,epoca:epocaAtiva};
   guardarAmigos();
   salvar();toast('Configurações guardadas ✓');
 }
 function expJSON(){
-  const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const b=new Blob([JSON.stringify(dbFull,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='data.json';a.click();
   toast('data.json descarregado ✓');
 }
@@ -1302,12 +1369,22 @@ function lerFich(inp){
   const f=inp.files[0];if(!f)return;
   const r=new FileReader();
   r.onload=e=>{
-    try{const d=JSON.parse(e.target.result);if(!d.amigos||!d.jogos)throw 0;db=d;if(!db.pagosPorJogo)db.pagosPorJogo={};salvar();rCfg();rDash();toast('Dados importados ✓');}
+    try{
+      const d=JSON.parse(e.target.result);
+      if(d.epocas){
+        dbFull=d;
+        epocaAtiva=dbFull.config?.epocaAtiva||Object.keys(dbFull.epocas).sort().pop();
+        actualizarEpocasOrdem();sincEpoca();salvar();rCfg();rDash();toast('Dados importados ✓');
+      } else if(d.amigos&&d.jogos){
+        dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
+        actualizarEpocasOrdem();sincEpoca();salvar();rCfg();rDash();toast('Dados importados ✓');
+      } else throw 0;
+    }
     catch{toast('Ficheiro JSON inválido!',1);}inp.value='';
   };r.readAsText(f);
 }
-function copJSON(){navigator.clipboard.writeText(JSON.stringify(db,null,2)).then(()=>toast('JSON copiado ✓'));}
-function resetDB(){if(!confirm('Apagar TODOS os dados?'))return;if(!confirm('Tens a certeza?'))return;localStorage.removeItem('sg_v4');location.reload();}
+function copJSON(){navigator.clipboard.writeText(JSON.stringify(dbFull,null,2)).then(()=>toast('JSON copiado ✓'));}
+function resetDB(){if(!confirm('Apagar TODOS os dados?'))return;if(!confirm('Tens a certeza?'))return;localStorage.removeItem('sg_v5');location.reload();}
 
 
 /* ── EXPORTAR DÍVIDAS ─────────────────────────────────── */
@@ -1420,7 +1497,7 @@ const GH_DEFAULTS={owner:'diogoandrefsilva-ghc',repo:'Goals',path:'data.json',br
 
    Resumo:
      ✅ localStorage['sg_github_cfg'] → token, owner, repo, path, branch
-     ✅ localStorage['sg_v4'] / db    → amigos, jogos, config, pagosPorJogo
+     ✅ localStorage['sg_v5'] / dbFull → config, epocas{amigos,jogos,pagosPorJogo}
      ❌ NUNCA misturar os dois
 ─────────────────────────────────────────────────────────────────────────── */
 
@@ -1479,7 +1556,7 @@ async function ghPush(){
   if(!token||!owner||!repo){toast('Preenche Token, Utilizador e Repositório!',1);return;}
   ghStatus('A guardar no GitHub…');
   try{
-    const content=btoa(unescape(encodeURIComponent(JSON.stringify(db,null,2))));
+    const content=btoa(unescape(encodeURIComponent(JSON.stringify(dbFull,null,2))));
     // Check if file exists to get its SHA
     let sha=null;
     const check=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,{
@@ -1529,9 +1606,14 @@ async function ghPull(){
       text=await res.text();
     }
     const d=JSON.parse(text);
-    if(!d.amigos||!d.jogos)throw new Error('Ficheiro JSON inválido (faltam campos obrigatórios)');
-    db=d;
-    if(!db.pagosPorJogo)db.pagosPorJogo={};
+    if(d.epocas){
+      dbFull=d;
+      epocaAtiva=dbFull.config?.epocaAtiva||Object.keys(dbFull.epocas).sort().pop();
+      actualizarEpocasOrdem();sincEpoca();
+    } else if(d.amigos&&d.jogos){
+      dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
+      actualizarEpocasOrdem();sincEpoca();
+    } else throw new Error('Ficheiro JSON inválido (faltam campos obrigatórios)');
     salvar();rCfg();rDash();renderJogosList();
     ghStatus(`✓ Dados importados de ${owner}/${repo}/${path} (branch: ${branch})`);
     toast('Dados importados do GitHub ✓');
@@ -1576,17 +1658,27 @@ async function ghAutoPull(){
       text=await res.text();
     }
     const d=JSON.parse(text);
-    if(!d.amigos||!d.jogos)return;
-    db=d;
-    if(!db.pagosPorJogo)db.pagosPorJogo={};
+    if(d.epocas){
+      dbFull=d;
+      epocaAtiva=dbFull.config?.epocaAtiva||Object.keys(dbFull.epocas).sort().pop();
+      actualizarEpocasOrdem();sincEpoca();
+    } else if(d.amigos&&d.jogos){
+      dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
+      actualizarEpocasOrdem();sincEpoca();
+    } else return;
     salvar();rCfg();rDash();renderJogosList();
-    toast('Dados sincronizados do GitHub \u2713');
+    toast('Dados sincronizados do GitHub ✓');
   }catch{}
 }
 
 /* ── INIT ──────────────────────────────────── */
 carregar();
 ghLoadCfg();
+if(!Object.keys(dbFull.epocas).length){
+  // Sem dados: criar época activa vazia com amigos default
+  dbFull.epocas[epocaAtiva]={amigos:[],jogos:[],pagosPorJogo:{}};
+  sincEpoca();
+}
 if(!db.amigos.length){
   ['Tu','Amigo 2','Amigo 3','Amigo 4','Amigo 5','Amigo 6','Amigo 7','Amigo 8','Amigo 9','Amigo 10']
     .forEach((n,i)=>db.amigos.push({id:i+1,nome:n,cor:CORES[i]}));
