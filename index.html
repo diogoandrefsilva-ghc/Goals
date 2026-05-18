@@ -303,8 +303,17 @@ input:focus,select:focus{border-color:var(--vd)}
         <div id="evo-crosshair" style="display:none;position:absolute;top:0;width:1px;background:rgba(0,0,0,.1);pointer-events:none;z-index:5"></div>
       </div>
     </div>
+    <div class="cw" id="comp-w" style="display:none">
+      <h3 style="margin-bottom:4px">Comparação com épocas anteriores</h3>
+      <p style="font-size:11px;color:var(--mu);margin-bottom:12px">Golos acumulados por jogo disputado — alinhado pelo número de jogos (não pela jornada).</p>
+      <div id="comp-legend" style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--mu)"></div>
+      <div style="position:relative">
+        <canvas id="c-comp"></canvas>
+        <div id="comp-tooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(30,30,30,.92);color:#fff;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:10;white-space:nowrap;backdrop-filter:blur(4px)"></div>
+        <div id="comp-crosshair" style="display:none;position:absolute;top:0;width:1px;background:rgba(0,0,0,.1);pointer-events:none;z-index:5"></div>
+      </div>
+    </div>
   </div>
-  <!-- ABA JOGOS (dentro do Dashboard) -->
   <div id="t-jogos" class="tp">
     <!-- lista -->
     <div id="t-jlista" style="display:block">
@@ -817,12 +826,12 @@ function rPrevisao(){
   const prevPoteUlt=prevGolUlt*vg*n;
 
   document.getElementById('prev-cards').innerHTML=`
-    <div class="sc co">
+    <div class="sc cg">
       <div class="sc-l">Média total</div>
       <div class="sc-v">${prevPoteTot.toFixed(0)}€</div>
       <div class="sc-s">${prevGolTot} golos · ${gppTotal.toFixed(2)}/jogo · ${nRestantes} jogos restantes</div>
     </div>
-    <div class="sc cb">
+    <div class="sc co">
       <div class="sc-l">Últimos 10 jogos</div>
       <div class="sc-v">${prevPoteUlt.toFixed(0)}€</div>
       <div class="sc-s">${prevGolUlt} golos · ${gppUlt10.toFixed(2)}/jogo · ${nRestantes} jogos restantes</div>
@@ -978,6 +987,185 @@ function rPrevisao(){
   }
   cv.onmousemove=handleChartHover;cv.ontouchmove=handleChartHover;
   cv.onmouseleave=function(){tooltip.style.display='none';crosshair.style.display='none';};
+
+  // Gráfico comparativo com épocas anteriores
+  rCompEpocas();
+}
+
+function rCompEpocas(){
+  const cw=document.getElementById('comp-w');
+  const idxAtual=epocasOrdem.indexOf(epocaAtiva);
+  // Precisa de pelo menos uma época anterior
+  if(idxAtual<=0){cw.style.display='none';return;}
+
+  // Recolher até 3 épocas: actual + 2 anteriores
+  const epocasComp=[];
+  for(let i=Math.max(0,idxAtual-2);i<=idxAtual;i++){
+    epocasComp.push(epocasOrdem[i]);
+  }
+
+  // Cores e estilos por posição (mais recente = mais destaque)
+  const STYLES=[
+    {cor:'#bbb',width:1.5,dash:[4,4],area:false},    // mais antiga
+    {cor:'#7b5e00',width:2,dash:[6,4],area:false},    // intermédia
+    {cor:'#1a5e2e',width:2.5,dash:[],area:true}       // actual
+  ];
+  // Alinhar: se só 2 épocas, usar posições [0] e [2] (skip middle)
+  const styleMap=epocasComp.length===2?[STYLES[0],STYLES[2]]
+    :epocasComp.length===3?STYLES:[STYLES[2]];
+
+  // Calcular golos acumulados por jogo para cada época
+  const series=[];
+  epocasComp.forEach((ep,si)=>{
+    const epData=dbFull.epocas[ep];
+    if(!epData)return;
+    const jogos=[...(epData.jogos||[])]
+      .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
+      .sort((a,b)=>new Date(a.data)-new Date(b.data));
+    if(!jogos.length)return;
+    let acc=0;
+    const pontos=jogos.map((j,i)=>{acc+=(j.golos||0);return{golos:acc,adv:j.adversario||''};});
+    series.push({ep,pontos,style:styleMap[si]});
+  });
+
+  if(series.length<2){cw.style.display='none';return;}
+
+  cw.style.display='block';
+
+  // Legenda
+  const legend=document.getElementById('comp-legend');
+  legend.innerHTML=series.map(s=>{
+    const lineStyle=s.style.dash.length
+      ?`width:22px;height:0;border-top:2.5px dashed ${s.style.cor}`
+      :`width:22px;height:3px;background:${s.style.cor};border-radius:2px`;
+    return`<span style="display:flex;align-items:center;gap:5px"><span style="${lineStyle}"></span>${s.ep}</span>`;
+  }).join('');
+
+  // Canvas
+  const cv2=document.getElementById('c-comp');
+  const dpr=window.devicePixelRatio||1;
+  const W=cw.clientWidth-40||660,H=260;
+  cv2.width=W*dpr;cv2.height=H*dpr;
+  cv2.style.width=W+'px';cv2.style.height=H+'px';
+  const ctx=cv2.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const maxJogos=Math.max(...series.map(s=>s.pontos.length));
+  const maxGolos=Math.max(...series.flatMap(s=>s.pontos.map(p=>p.golos)))*1.08||1;
+
+  const PAD_L=42,PAD_R=20,PAD_T=18,PAD_B=34;
+  const W2=W-PAD_L-PAD_R,H2=H-PAD_T-PAD_B;
+  function cpx(i){return PAD_L+i/(maxJogos-1||1)*W2;}
+  function cpy(v){return PAD_T+H2-(v/(maxGolos||1))*H2;}
+
+  // Fundo
+  const bgGrad=ctx.createLinearGradient(0,PAD_T,0,H-PAD_B);
+  bgGrad.addColorStop(0,'rgba(232,245,233,0.15)');
+  bgGrad.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=bgGrad;
+  ctx.fillRect(PAD_L,PAD_T,W2,H2);
+
+  // Grid Y
+  function niceStep2(range,ticks){
+    const raw=range/ticks;const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+    const res=raw/mag;let nice;
+    if(res<=1.5)nice=1;else if(res<=3)nice=2;else if(res<=7)nice=5;else nice=10;
+    return nice*mag;
+  }
+  const step=niceStep2(maxGolos,4);
+  const gridStart=Math.ceil(0/step)*step;
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let v=gridStart;v<=maxGolos;v+=step){
+    const y=cpy(v);
+    ctx.strokeStyle='#eae8e4';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PAD_L,y);ctx.lineTo(W-PAD_R,y);ctx.stroke();
+    ctx.fillStyle='#aaa';ctx.font='500 10px Inter,sans-serif';
+    ctx.fillText(v.toFixed(0),PAD_L-6,y);
+  }
+
+  // Curva suave
+  function smoothLine2(pts,close){
+    const arr=pts.map(p=>p.golos);
+    if(arr.length<2)return;
+    ctx.beginPath();ctx.moveTo(cpx(0),cpy(arr[0]));
+    if(arr.length===2){ctx.lineTo(cpx(1),cpy(arr[1]));if(!close)ctx.stroke();return;}
+    for(let i=0;i<arr.length-1;i++){
+      const p0=i>0?{x:cpx(i-1),y:cpy(arr[i-1])}:{x:cpx(i),y:cpy(arr[i])};
+      const p1={x:cpx(i),y:cpy(arr[i])};
+      const p2={x:cpx(i+1),y:cpy(arr[i+1])};
+      const p3=i<arr.length-2?{x:cpx(i+2),y:cpy(arr[i+2])}:p2;
+      const t=0.35;
+      ctx.bezierCurveTo(p1.x+(p2.x-p0.x)*t/3,p1.y+(p2.y-p0.y)*t/3,p2.x-(p3.x-p1.x)*t/3,p2.y-(p3.y-p1.y)*t/3,p2.x,p2.y);
+    }
+    if(!close)ctx.stroke();
+  }
+
+  // Desenhar cada série
+  series.forEach(s=>{
+    const pts=s.pontos;const st=s.style;
+    // Área (só para a época actual)
+    if(st.area&&pts.length>1){
+      ctx.save();ctx.strokeStyle='transparent';ctx.lineWidth=0;
+      smoothLine2(pts,true);
+      ctx.lineTo(cpx(pts.length-1),H-PAD_B);ctx.lineTo(cpx(0),H-PAD_B);ctx.closePath();
+      const ag=ctx.createLinearGradient(0,PAD_T,0,H-PAD_B);
+      ag.addColorStop(0,'rgba(26,94,46,0.10)');ag.addColorStop(1,'rgba(26,94,46,0.01)');
+      ctx.fillStyle=ag;ctx.fill();ctx.restore();
+    }
+    // Linha
+    ctx.strokeStyle=st.cor;ctx.lineWidth=st.width;ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.setLineDash(st.dash);
+    smoothLine2(pts);
+    ctx.setLineDash([]);
+    // Ponto final
+    const last=pts[pts.length-1];
+    ctx.beginPath();ctx.arc(cpx(pts.length-1),cpy(last.golos),3.5,0,Math.PI*2);
+    ctx.fillStyle=st.cor;ctx.fill();
+  });
+
+  // Labels eixo X
+  ctx.fillStyle='#aaa';ctx.font='500 10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  const maxLbl=Math.floor(W2/50);
+  const lblStep=Math.max(1,Math.ceil(maxJogos/maxLbl));
+  for(let i=0;i<maxJogos;i++){
+    if(i===0||i===maxJogos-1||i%lblStep===0) ctx.fillText(''+(i+1),cpx(i),H-PAD_B+8);
+  }
+  // Eixo X title
+  ctx.fillStyle='#bbb';ctx.font='500 9px Inter,sans-serif';
+  ctx.fillText('Jogo nº',PAD_L+W2/2,H-4);
+
+  // Tooltip
+  const tooltip2=document.getElementById('comp-tooltip');
+  const cross2=document.getElementById('comp-crosshair');
+  function handleCompHover(e){
+    e.preventDefault();
+    const rect=cv2.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const mx=(clientX-rect.left)*(W/rect.width);
+    let closest=-1,minDist=Infinity;
+    for(let i=0;i<maxJogos;i++){const d=Math.abs(cpx(i)-mx);if(d<minDist){minDist=d;closest=i;}}
+    if(closest<0||minDist>30){tooltip2.style.display='none';cross2.style.display='none';return;}
+    let html=`<div style="font-weight:700;margin-bottom:3px">Jogo ${closest+1}</div>`;
+    series.forEach(s=>{
+      if(closest<s.pontos.length){
+        const p=s.pontos[closest];
+        const avg=(p.golos/(closest+1)).toFixed(2);
+        html+=`<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:${s.style.cor};border-radius:50%;flex-shrink:0"></span>${s.ep}: <strong>${p.golos}</strong> golos <span style="opacity:.6">(${avg}/jogo)</span></div>`;
+      }
+    });
+    tooltip2.innerHTML=html;
+    const pxPos=cpx(closest)*(rect.width/W);
+    const tipW=tooltip2.offsetWidth||160;
+    let left=pxPos+12;if(left+tipW>rect.width-10)left=pxPos-tipW-12;
+    tooltip2.style.left=left+'px';tooltip2.style.top='10px';tooltip2.style.display='block';
+    cross2.style.left=pxPos+'px';
+    cross2.style.height=(H2*(rect.height/H))+'px';
+    cross2.style.top=(PAD_T*(rect.height/H))+'px';
+    cross2.style.display='block';
+  }
+  cv2.onmousemove=handleCompHover;cv2.ontouchmove=handleCompHover;
+  cv2.onmouseleave=function(){tooltip2.style.display='none';cross2.style.display='none';};
 }
 
 /* ── JOGOS ───────────────────────────────────── */
