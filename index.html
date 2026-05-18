@@ -252,7 +252,7 @@ input:focus,select:focus{border-color:var(--vd)}
   <div class="hdr">
     <div class="brand">
       <div class="escudo">🦁</div>
-      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.5px;line-height:1">Golos do Sporting</h1>
+      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.5px;line-height:1">⚽ Golos do Sporting</h1>
     </div>
     <nav class="hnav">
       <div id="hdr-epoca-nav" style="display:flex;align-items:center;gap:4px">
@@ -596,6 +596,11 @@ function sincEpoca(){
 }
 
 /* ── ÉPOCA NAV ───────────────────────────────── */
+function atualizarLabelEpoca(){
+  document.getElementById('epoca-label').textContent=`Época ${epocaAtiva}`;
+  document.getElementById('epoca-prev').style.opacity=epocasOrdem.indexOf(epocaAtiva)<=0?'0.3':'1';
+  document.getElementById('epoca-next').style.opacity=epocasOrdem.indexOf(epocaAtiva)>=epocasOrdem.length-1?'0.3':'1';
+}
 function mudarEpoca(dir){
   actualizarEpocasOrdem();
   const idx=epocasOrdem.indexOf(epocaAtiva);
@@ -604,6 +609,7 @@ function mudarEpoca(dir){
   epocaAtiva=epocasOrdem[nIdx];
   dbFull.config.epocaAtiva=epocaAtiva;
   sincEpoca();
+  atualizarLabelEpoca();
   salvar();
   rDash();
   // forçar re-render da secção activa
@@ -697,9 +703,7 @@ function rResumo(){
   const nJogosComRes=db.jogos.filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='').length;
   const nJogosTotal=db.jogos.length;
   const pct=nJogosTotal>0?Math.min(100,Math.round(nJogosComRes/nJogosTotal*100)):0;
-  document.getElementById('epoca-label').textContent=`Época ${epocaAtiva}`;
-  document.getElementById('epoca-prev').style.opacity=epocasOrdem.indexOf(epocaAtiva)<=0?'0.3':'1';
-  document.getElementById('epoca-next').style.opacity=epocasOrdem.indexOf(epocaAtiva)>=epocasOrdem.length-1?'0.3':'1';
+  atualizarLabelEpoca();
   document.getElementById('stat-cards').innerHTML=`
     <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${nJogosComRes} jogos realizados</div></div>
     <div class="sc co"><div class="sc-l">Pote acumulado</div><div class="sc-v">${(g*n*db.config.valorPorGolo).toFixed(0)}€</div><div class="sc-s">${n} pessoas × ${vt.toFixed(0)}€</div></div>
