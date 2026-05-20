@@ -341,7 +341,13 @@ input:focus,select:focus{border-color:var(--vd)}
     <div class="fcard">
       <h3>Configurações gerais</h3>
       <div class="frow">
-        <div class="fg"><label>Época activa</label><input type="text" id="c-ep" readonly style="background:#f4f4f0;color:var(--mu);cursor:default" title="Usa as setas no cabeçalho para mudar de época"></div>
+        <div class="fg">
+          <label>Época activa</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="text" id="c-ep" readonly style="background:#f4f4f0;color:var(--mu);cursor:default;flex:1" title="Usa as setas no cabeçalho para mudar de época">
+            <button class="btn btn-n" onclick="criarNovaEpoca()" style="font-size:12px;padding:0 11px;height:37px;white-space:nowrap;flex-shrink:0" title="Criar nova época">＋ Nova época</button>
+          </div>
+        </div>
         <div class="fg"><label>Valor por golo (€)</label><input type="number" id="c-vg" min="0.5" step="0.5"></div>
       </div>
       <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
@@ -736,10 +742,13 @@ function rResumo(){
     .slice(0,8);
   const ul=document.getElementById('ult-jogos');
   const tit=document.getElementById('ult-jogos-tit');
-  if(tit) tit.textContent=pendentes.length?`Jogos com pagamentos pendentes (${pendentes.length})`:'Jogos com pagamentos pendentes';
-  ul.innerHTML=pendentes.length
-    ?pendentes.map(j=>jogoCardHTML(j,true)).join('')
-    :'<div class="empty"><em>✅</em>Todos os jogos com resultado estão totalmente pagos!</div>';
+  if(pendentes.length){
+    if(tit){tit.style.display='';tit.textContent=`Jogos com pagamentos pendentes (${pendentes.length})`;}
+    ul.innerHTML=pendentes.map(j=>jogoCardHTML(j,true)).join('');
+  } else {
+    if(tit)tit.style.display='none';
+    ul.innerHTML='';
+  }
 }
 function rContas(){
   // Jogos por liquidar por amigo
@@ -1290,9 +1299,11 @@ function renderJogosList(){
   document.getElementById('j-list').innerHTML=jogos.length?jogos.map(j=>jogoCardHTML(j)).join(''):'<div class="empty"><em>⚽</em>Sem jogos</div>';
 }
 
+let _lastViewedJogoId=null;
+
 function abrirDetalhe(jogoId){
   const jogo=db.jogos.find(j=>j.id===jogoId);if(!jogo)return;
-  // Garantir que estamos na aba Jogos do dashboard
+  _lastViewedJogoId=jogoId;
   const dashSec=document.getElementById('s-dash');
   dashSec.querySelectorAll(':scope > .tp').forEach(p=>p.classList.remove('on'));
   dashSec.querySelectorAll(':scope > .itabs .it').forEach(b=>b.classList.remove('on'));
@@ -1308,6 +1319,23 @@ function voltarLista(){
   document.getElementById('t-jlista').style.display='block';
   document.getElementById('t-jdetalhe').style.display='none';
   renderJogosList();
+  // Posicionar na lista no jogo que estávamos a ver
+  if(_lastViewedJogoId){
+    requestAnimationFrame(()=>{
+      const cards=document.querySelectorAll('#j-list .jcard');
+      for(const card of cards){
+        if(card.getAttribute('onclick')&&card.getAttribute('onclick').includes(_lastViewedJogoId)){
+          card.scrollIntoView({block:'center',behavior:'smooth'});
+          // Piscar brevemente para destacar o jogo
+          card.style.transition='box-shadow .2s,border-color .2s';
+          card.style.borderColor='var(--vd)';
+          card.style.boxShadow='0 0 0 2px rgba(26,94,46,.2)';
+          setTimeout(()=>{card.style.borderColor='';card.style.boxShadow='';},900);
+          break;
+        }
+      }
+    });
+  }
 }
 
 function renderDetalhe(jogo){
@@ -1571,9 +1599,9 @@ function guardarEdicao(){
   j.golos=gv===''?null:parseInt(gv);
   salvar();
   fecharModalEditar();
-  // re-render: verificar se estamos no detalhe do jogo
+  // re-render: verificar se estamos no detalhe do jogo (usa style.display, não classes)
   const tJdetalhe=document.getElementById('t-jdetalhe');
-  if(tJdetalhe&&tJdetalhe.classList.contains('on')){renderDetalhe(j);}
+  if(tJdetalhe&&tJdetalhe.style.display!=='none'&&tJdetalhe.style.display!==''){renderDetalhe(j);}
   else{rDash();renderJogosList();}
   toast(`Jogo vs ${j.adversario} actualizado ✓`);
 }
@@ -1621,7 +1649,37 @@ function rHistPag(){
   }).join('');
 }
 
-/* ── CONFIG ─────────────────────────────────── */
+function criarNovaEpoca(){
+  // Sugerir o nome seguinte automaticamente (ex: se temos 2025/26, sugere 2026/27)
+  let sugestao='';
+  if(epocasOrdem.length){
+    const ultima=epocasOrdem[epocasOrdem.length-1];
+    const m=ultima.match(/^(\d{4})\/(\d{2})$/);
+    if(m){
+      const a1=parseInt(m[1])+1;
+      const a2=(parseInt(m[2])+1).toString().padStart(2,'0');
+      sugestao=`${a1}/${a2}`;
+    }
+  }
+  const nome=prompt('Nome da nova época (ex: 2026/27):',sugestao);
+  if(!nome||!nome.trim())return;
+  const nomeF=nome.trim();
+  if(dbFull.epocas[nomeF]){toast(`A época "${nomeF}" já existe!`,1);return;}
+  // Perguntar se copia amigos da época actual
+  const copiar=db.amigos.length&&confirm(`Copiar os ${db.amigos.length} amigos da época actual para a nova época?`);
+  const amigosIniciais=copiar?JSON.parse(JSON.stringify(db.amigos)):[];
+  dbFull.epocas[nomeF]={amigos:amigosIniciais,jogos:[],pagosPorJogo:{}};
+  actualizarEpocasOrdem();
+  // Navegar para a nova época
+  epocaAtiva=nomeF;
+  dbFull.config.epocaAtiva=epocaAtiva;
+  sincEpoca();
+  atualizarLabelEpoca();
+  salvar();rCfg();rDash();renderJogosList();
+  toast(`Época "${nomeF}" criada ✓`);
+}
+
+
 function rCfg(){
   document.getElementById('c-ep').value=epocaAtiva;
   document.getElementById('c-vg').value=dbFull.config.valorPorGolo||1;
