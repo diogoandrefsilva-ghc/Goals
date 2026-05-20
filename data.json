@@ -1,7 +1,7 @@
 {
   "config": {
     "valorPorGolo": 1,
-    "epocaAtiva": "2024/25"
+    "epocaAtiva": "2025/26"
   },
   "epocas": {
     "2025/26": {
@@ -607,6 +607,16 @@
           "resultado": "",
           "jornada": "Final",
           "local": "Neutro"
+        },
+        {
+          "id": 1779257023230,
+          "data": "2025-07-31",
+          "adversario": "Benfica",
+          "golos": 0,
+          "resultado": "0-1",
+          "competicao": "Supertaça",
+          "jornada": "",
+          "local": "Neutro"
         }
       ],
       "pagosPorJogo": {
@@ -1203,7 +1213,8 @@
           3,
           9
         ],
-        "55": []
+        "55": [],
+        "1779257023230": []
       }
     },
     "2024/25": {
