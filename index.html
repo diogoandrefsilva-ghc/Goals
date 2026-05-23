@@ -245,6 +245,22 @@ input:focus,select:focus{border-color:var(--vd)}
   .fadd-row1>div:first-child,.fadd-row2>div:first-child{min-width:100%!important;flex:1 1 100%!important}
   .local-btn{padding:5px 7px;font-size:11px}
 }
+
+/* ── READ-ONLY MODE ──────────────────────── */
+.ro-banner{display:none;background:linear-gradient(135deg,#fff3e0,#ffe0b2);border:1px solid #ffcc80;border-radius:var(--r);padding:12px 18px;margin-bottom:16px;align-items:center;gap:12px}
+body.readonly .ro-banner{display:flex}
+.ro-banner-icon{font-size:22px;flex-shrink:0}
+.ro-banner-text{flex:1;font-size:12px;color:#5d4037;line-height:1.5}
+.ro-banner-text strong{color:#e65100;font-weight:700}
+.ro-banner-btn{background:#e65100;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s;flex-shrink:0}
+.ro-banner-btn:hover{background:#bf360c}
+
+/* Hide edit elements in read-only mode */
+body.readonly .ro-hide{display:none!important}
+body.readonly .toggle-pago{cursor:default;pointer-events:none}
+body.readonly .toggle-check{opacity:.6}
+body.readonly .bsm{display:none!important}
+body.readonly .jdel{display:none!important}
 </style>
 </head>
 <body>
@@ -338,7 +354,12 @@ input:focus,select:focus{border-color:var(--vd)}
   </div>
   <!-- ABA CONFIG (dentro do Dashboard) -->
   <div id="t-cfg" class="tp">
-    <div class="fcard">
+    <!-- READ-ONLY BANNER -->
+    <div class="ro-banner" id="ro-banner">
+      <span class="ro-banner-icon">🔒</span>
+      <div class="ro-banner-text"><strong>Modo consulta</strong> — Estás a ver os dados sem permissão de edição. Para editar (marcar pagamentos, adicionar jogos, etc.), configura o token GitHub abaixo.</div>
+    </div>
+    <div class="fcard ro-hide">
       <h3>Configurações gerais</h3>
       <div class="frow">
         <div class="fg">
@@ -352,7 +373,7 @@ input:focus,select:focus{border-color:var(--vd)}
       </div>
       <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
     </div>
-    <div class="fadd-card" style="margin-bottom:16px">
+    <div class="fadd-card ro-hide" style="margin-bottom:16px">
       <div class="fadd-header">
         <div class="fadd-icon-wrap">⚽</div>
         <div>
@@ -404,7 +425,7 @@ input:focus,select:focus{border-color:var(--vd)}
         <button class="btn btn-n" onclick="limparFormAdd()">Limpar</button>
       </div>
     </div>
-    <div class="fcard">
+    <div class="fcard ro-hide">
       <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" onclick="toggleSection('amigos-body',this)">
         <h3 style="margin:0">Amigos participantes</h3>
         <span id="amigos-body-arrow" style="font-size:12px;color:var(--mu);transition:transform .2s">▼</span>
@@ -423,7 +444,7 @@ input:focus,select:focus{border-color:var(--vd)}
       </div>
       <div id="dados-body" style="display:none;margin-top:14px">
       <p style="font-size:13px;color:var(--mu);margin-bottom:13px">Os dados são lidos do GitHub do owner desta página sempre que esta é refrescada e depois ficam armazenados no localStorage. Para fazer backup ou sincronizar para o teu dispositivo, usa os botões abaixo.</p>
-      <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <div style="display:flex;gap:9px;flex-wrap:wrap" class="ro-hide">
         <button class="btn btn-g" onclick="expJSON()">⬇ Guardar Dados</button>
         <button class="btn" style="background:var(--in);color:#fff" onclick="impJSON()">⬆ Importar Dados</button>
       </div>
@@ -468,7 +489,8 @@ input:focus,select:focus{border-color:var(--vd)}
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn" style="background:#24292e;color:#fff" onclick="ghPush()">⬆ Guardar no GitHub</button>
+        <button class="btn" style="background:var(--vd);color:#fff" onclick="ghSaveCfg()">💾 Guardar configuração</button>
+        <button class="btn ro-hide" style="background:#24292e;color:#fff" onclick="ghPush()">⬆ Guardar no GitHub</button>
       </div>
       <p id="gh-status" style="font-size:12px;margin-top:9px;display:none"></p>
       </div>
@@ -558,6 +580,22 @@ input:focus,select:focus{border-color:var(--vd)}
 
 <script>
 const CORES=['#1b5e20','#1a237e','#4a148c','#b71c1c','#e65100','#006064','#33691e','#880e4f','#1565c0','#37474f','#f57f17','#3e2723','#004d40','#311b92','#bf360c'];
+
+/* ── READ-ONLY CHECK ───────────────────────── */
+const GH_KEY='sg_github_cfg';
+let isReadOnly=true;
+function checkReadOnly(){
+  const s=localStorage.getItem(GH_KEY);
+  let hasToken=false;
+  if(s){try{const c=JSON.parse(s);hasToken=!!c.token;}catch{}}
+  isReadOnly=!hasToken;
+  document.body.classList.toggle('readonly',isReadOnly);
+}
+function roGuard(action){
+  if(!isReadOnly)return false;
+  toast('🔒 Modo consulta — configura o token GitHub para editar',1);
+  return true;
+}
 
 /* ── DB ─────────────────────────────────────── */
 // Multi-época: db contém a estrutura completa carregada do JSON
@@ -669,6 +707,7 @@ function jogoAmigoPago(jogoId,amigoId){
   return (db.pagosPorJogo[String(jogoId)]||[]).includes(amigoId);
 }
 function togglePagamento(jogoId,amigoId){
+  if(roGuard())return;
   const k=String(jogoId);
   if(!db.pagosPorJogo[k])db.pagosPorJogo[k]=[];
   const idx=db.pagosPorJogo[k].indexOf(amigoId);
@@ -795,6 +834,7 @@ function rContas(){
 }
 
 function marcarPagoRapido(jogoId,amigoId){
+  if(roGuard())return;
   const k=String(jogoId);
   if(!db.pagosPorJogo[k])db.pagosPorJogo[k]=[];
   if(!db.pagosPorJogo[k].includes(amigoId))db.pagosPorJogo[k].push(amigoId);
@@ -1449,12 +1489,14 @@ function togglePagJogo(jogoId,amigoId,labelEl){
   renderDetalhe(jogo); // re-render para actualizar tudo
 }
 function marcarTodos(jogoId){
+  if(roGuard())return;
   db.pagosPorJogo[String(jogoId)]=db.amigos.map(a=>a.id);
   salvar();
   const jogo=db.jogos.find(j=>j.id===jogoId);renderDetalhe(jogo);
   toast('Todos marcados como pagos ✓');
 }
 function desmarcarTodos(jogoId){
+  if(roGuard())return;
   db.pagosPorJogo[String(jogoId)]=[];
   salvar();
   const jogo=db.jogos.find(j=>j.id===jogoId);renderDetalhe(jogo);
@@ -1500,6 +1542,7 @@ function limparFormAdd(){
 }
 
 function addJogoCal(){
+  if(roGuard())return;
   const data=document.getElementById('cal-data').value;
   const adv=document.getElementById('cal-adv').value.trim();
   const comp=document.getElementById('cal-comp').value;
@@ -1587,6 +1630,7 @@ function limparGolosEd(){
   document.getElementById('btn-clear-golos-ed').style.display='none';
 }
 function guardarEdicao(){
+  if(roGuard())return;
   if(_editId===null)return;
   const j=db.jogos.find(x=>x.id===_editId);if(!j)return;
   j.adversario=document.getElementById('ed-adv').value.trim()||j.adversario;
@@ -1606,6 +1650,7 @@ function guardarEdicao(){
   toast(`Jogo vs ${j.adversario} actualizado ✓`);
 }
 function remJogo(id){
+  if(roGuard())return;
   if(!confirm('Remover este jogo?'))return;
   db.jogos=db.jogos.filter(j=>j.id!==id);
   delete db.pagosPorJogo[String(id)];
@@ -1621,15 +1666,17 @@ function rAmCfg(){
     <button class="jdel" onclick="remAmigo(${am.id})">✕</button></div>`).join('');
 }
 function addAmigo(){
+  if(roGuard())return;
   db.amigos.push({id:Date.now(),nome:'Novo amigo',cor:CORES[db.amigos.length%CORES.length]});
   rAmCfg();setTimeout(()=>{const ins=document.querySelectorAll('.ni');ins[ins.length-1]?.select();},50);
 }
 function remAmigo(id){
+  if(roGuard())return;
   if(db.amigos.length<=1)return toast('Tem de ficar pelo menos um!',1);
   if(!confirm('Remover?'))return;
   db.amigos=db.amigos.filter(a=>a.id!==id);rAmCfg();
 }
-function guardarAmigos(){salvar();toast('Amigos guardados ✓');}
+function guardarAmigos(){if(roGuard())return;salvar();toast('Amigos guardados ✓');}
 
 // Histórico: lista todos os jogos com quem pagou/não pagou
 function rHistPag(){
@@ -1650,6 +1697,7 @@ function rHistPag(){
 }
 
 function criarNovaEpoca(){
+  if(roGuard())return;
   // Sugerir o nome seguinte automaticamente (ex: se temos 2025/26, sugere 2026/27)
   let sugestao='';
   if(epocasOrdem.length){
@@ -1686,6 +1734,7 @@ function rCfg(){
   rAmCfg();
 }
 function guardarCfg(){
+  if(roGuard())return;
   dbFull.config.valorPorGolo=parseFloat(document.getElementById('c-vg').value)||1;
   db.config={valorPorGolo:dbFull.config.valorPorGolo,epoca:epocaAtiva};
   guardarAmigos();
@@ -1716,7 +1765,7 @@ function lerFich(inp){
   };r.readAsText(f);
 }
 function copJSON(){navigator.clipboard.writeText(JSON.stringify(dbFull,null,2)).then(()=>toast('JSON copiado ✓'));}
-function resetDB(){if(!confirm('Apagar TODOS os dados?'))return;if(!confirm('Tens a certeza?'))return;localStorage.removeItem('sg_v5');location.reload();}
+function resetDB(){if(roGuard())return;if(!confirm('Apagar TODOS os dados?'))return;if(!confirm('Tens a certeza?'))return;localStorage.removeItem('sg_v5');location.reload();}
 
 
 /* ── EXPORTAR DÍVIDAS ─────────────────────────────────── */
@@ -1814,7 +1863,6 @@ function exportarDividas(){
 }
 
 /* ── GITHUB SYNC ───────────────────────────── */
-const GH_KEY='sg_github_cfg';
 
 const GH_DEFAULTS={owner:'diogoandrefsilva-ghc',repo:'Goals',path:'data.json',branch:'main'};
 
@@ -1858,6 +1906,7 @@ function ghSaveCfg(){
     branch:document.getElementById('gh-branch').value.trim()||'main'
   };
   localStorage.setItem(GH_KEY,JSON.stringify(cfg));
+  checkReadOnly();
   toast('Configuração GitHub guardada ✓');
 }
 
@@ -2006,6 +2055,7 @@ async function ghAutoPull(){
 /* ── INIT ──────────────────────────────────── */
 carregar();
 ghLoadCfg();
+checkReadOnly();
 if(!Object.keys(dbFull.epocas).length){
   // Sem dados: criar época activa vazia com amigos default
   dbFull.epocas[epocaAtiva]={amigos:[],jogos:[],pagosPorJogo:{}};
