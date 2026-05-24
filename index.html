@@ -266,7 +266,7 @@ body.readonly .toggle-check{opacity:.6}
 body.readonly .bsm{display:none!important}
 body.readonly .jdel{display:none!important}
 /* Read-only: contas grid — button is hidden, so 5 cols fill the space better */
-body.readonly .divida-row{grid-template-columns:54px 1fr 76px 40px 50px!important}
+body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!important}
 </style>
 </head>
 <body>
@@ -850,18 +850,18 @@ function rContas(){
           else{bgCor='#c62828';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
           const leftNum=isFora?`<span style="color:${numCorA}">${gA}</span>`:`<span style="color:${numCorS}">${gS}</span>`;
           const rightNum=isFora?`<span style="color:${numCorS}">${gS}</span>`:`<span style="color:${numCorA}">${gA}</span>`;
-          resMini=`<span style="background:${bgCor};border-radius:5px;padding:2px 5px;display:inline-flex;align-items:baseline;gap:1px;font-family:'Bebas Neue',sans-serif;font-size:13px;line-height:1;white-space:nowrap">${leftNum}<span style="color:rgba(255,255,255,0.5);font-size:10px">-</span>${rightNum}</span>`;
+          resMini=`<span style="background:${bgCor};border-radius:5px;padding:2px 5px;display:inline-flex;align-items:center;gap:1px;font-family:'Bebas Neue',sans-serif;font-size:13px;line-height:1;white-space:nowrap">${leftNum}<span style="color:rgba(255,255,255,0.5);font-size:10px">-</span>${rightNum}</span>`;
         } else {
           resMini=`<span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--ou)">${gJ(j)}</span>`;
         }
       } else {
         resMini=`<span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--ou)">${gJ(j)}</span>`;
       }
-      return`<div class="divida-row" style="display:grid;grid-template-columns:54px 1fr 72px 40px 42px 48px;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--bo)">
+      return`<div class="divida-row" style="display:grid;grid-template-columns:44px 1fr 52px 40px 46px 48px;align-items:center;gap:4px;padding:7px 0;border-bottom:1px solid var(--bo)">
         <span style="font-size:11px;color:var(--mu)">${dt}</span>
         <span style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.adversario}</span>
         <span style="font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${jorn}</span>
-        <span style="text-align:center">${resMini}</span>
+        <span style="text-align:center;display:flex;align-items:center;justify-content:center">${resMini}</span>
         <span style="font-size:10px;font-weight:600;color:var(--mu);text-align:right">${val}€</span>
         <button class="bsm" style="font-size:11px;padding:3px 6px;justify-self:end" onclick="marcarPagoRapido(${j.id},${am.id})">✓</button>
       </div>`;
