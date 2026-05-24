@@ -236,9 +236,13 @@ input:focus,select:focus{border-color:var(--vd)}
 
 @media(max-width:600px){
   .hn{padding:5px 8px;font-size:11px}
-  .brand h1{font-size:18px}
+  .brand h1{font-size:16px}
   .jres,.jsep,.jpag-bar{display:none}
   .g4{grid-template-columns:1fr 1fr}
+}
+@media(max-width:380px){
+  .brand h1{font-size:14px}
+  .escudo{width:32px;height:32px;font-size:16px}
 }
 @media(max-width:560px){
   .fadd-row1,.fadd-row2{flex-wrap:wrap!important}
@@ -261,6 +265,8 @@ body.readonly .toggle-pago{cursor:default;pointer-events:none}
 body.readonly .toggle-check{opacity:.6}
 body.readonly .bsm{display:none!important}
 body.readonly .jdel{display:none!important}
+/* Read-only: contas grid — button is hidden, so 5 cols fill the space better */
+body.readonly .divida-row{grid-template-columns:54px 1fr 64px 24px 58px!important}
 </style>
 </head>
 <body>
@@ -268,7 +274,7 @@ body.readonly .jdel{display:none!important}
   <div class="hdr">
     <div class="brand">
       <div class="escudo">🦁</div>
-      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.5px;line-height:1">⚽ Golos do Sporting</h1>
+      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.5px;line-height:1;white-space:nowrap">⚽ Golos do Sporting</h1>
     </div>
     <nav class="hnav">
       <div id="hdr-epoca-nav" style="display:flex;align-items:center;gap:4px">
@@ -830,7 +836,7 @@ function rContas(){
       const dt=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
       const val=(gJ(j)*db.config.valorPorGolo).toFixed(2);
       const jorn=j.jornada||(j.competicao||'').split(' ').slice(0,2).join(' ');
-      return`<div style="display:grid;grid-template-columns:54px 1fr 60px 22px 42px 48px;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--bo)">
+      return`<div class="divida-row" style="display:grid;grid-template-columns:54px 1fr 60px 22px 42px 48px;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--bo)">
         <span style="font-size:11px;color:var(--mu)">${dt}</span>
         <span style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.adversario}</span>
         <span style="font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${jorn}</span>
