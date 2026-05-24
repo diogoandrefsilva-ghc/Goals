@@ -605,6 +605,9 @@ let db={amigos:[],jogos:[],pagosPorJogo:{}};
 let epocaAtiva='2025/26';
 const epocasOrdem=['2024/25','2025/26']; // ordem cronológica
 
+let _ghAutoSaveTimer=null;
+const GH_AUTOSAVE_DELAY=3000; // 3 segundos de debounce
+
 function salvar(){
   // guardar na época activa
   if(!dbFull.epocas[epocaAtiva])dbFull.epocas[epocaAtiva]={};
@@ -613,6 +616,23 @@ function salvar(){
   dbFull.epocas[epocaAtiva].pagosPorJogo=db.pagosPorJogo;
   dbFull.config.epocaAtiva=epocaAtiva;
   localStorage.setItem('sg_v5',JSON.stringify(dbFull));
+  // Auto-save para GitHub (com debounce de 3s)
+  ghAutoSave();
+}
+
+function ghAutoSave(){
+  // Só faz push se o token estiver configurado
+  const s=localStorage.getItem(GH_KEY);
+  if(!s)return;
+  try{
+    const c=JSON.parse(s);
+    if(!c.token||!c.owner||!c.repo)return;
+  }catch{return;}
+  // Debounce: cancelar timer anterior e agendar novo
+  clearTimeout(_ghAutoSaveTimer);
+  _ghAutoSaveTimer=setTimeout(()=>{
+    ghPush(true);
+  },GH_AUTOSAVE_DELAY);
 }
 function carregar(){
   const s=localStorage.getItem('sg_v5');
@@ -1932,10 +1952,10 @@ function toggleGhToken(){
   inp.type=inp.type==='password'?'text':'password';
 }
 
-async function ghPush(){
+async function ghPush(silent){
   const{token,owner,repo,path,branch}=ghGetCfg();
-  if(!token||!owner||!repo){toast('Preenche Token, Utilizador e Repositório!',1);return;}
-  ghStatus('A guardar no GitHub…');
+  if(!token||!owner||!repo){if(!silent)toast('Preenche Token, Utilizador e Repositório!',1);return;}
+  if(!silent)ghStatus('A guardar no GitHub…');
   try{
     const content=btoa(unescape(encodeURIComponent(JSON.stringify(dbFull,null,2))));
     // Check if file exists to get its SHA
@@ -1956,11 +1976,15 @@ async function ghPush(){
     });
     if(!res.ok){const e=await res.json();throw new Error(e.message||res.status);}
     ghSaveCfg();
-    ghStatus(`✓ Guardado com sucesso em ${owner}/${repo}/${path} (branch: ${branch})`);
-    toast('Dados guardados no GitHub ✓');
+    if(!silent){
+      ghStatus(`✓ Guardado com sucesso em ${owner}/${repo}/${path} (branch: ${branch})`);
+      toast('Dados guardados no GitHub ✓');
+    }
   }catch(e){
-    ghStatus(`✗ Erro: ${e.message}`,1);
-    toast('Erro ao guardar no GitHub!',1);
+    if(!silent){
+      ghStatus(`✗ Erro: ${e.message}`,1);
+      toast('Erro ao guardar no GitHub!',1);
+    }
   }
 }
 
