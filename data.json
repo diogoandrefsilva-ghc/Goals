@@ -603,8 +603,8 @@
           "data": "2026-05-27",
           "adversario": "Torreense",
           "competicao": "Taça de Portugal",
-          "golos": null,
-          "resultado": "",
+          "golos": 1,
+          "resultado": "1-2",
           "jornada": "Final",
           "local": "Neutro"
         },
@@ -1213,7 +1213,9 @@
           3,
           9
         ],
-        "55": [],
+        "55": [
+          2
+        ],
         "1779257023230": []
       }
     },
