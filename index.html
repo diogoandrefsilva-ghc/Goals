@@ -613,6 +613,8 @@ const epocasOrdem=['2024/25','2025/26']; // ordem cronológica
 
 let _ghAutoSaveTimer=null;
 const GH_AUTOSAVE_DELAY=3000; // 3 segundos de debounce
+let _ghPushRunning=false;
+let _ghPushQueued=false;
 
 function salvar(){
   // guardar na época activa
@@ -1982,6 +1984,14 @@ function toggleGhToken(){
 async function ghPush(silent){
   const{token,owner,repo,path,branch}=ghGetCfg();
   if(!token||!owner||!repo){if(!silent)toast('Preenche Token, Utilizador e Repositório!',1);return;}
+
+  // If a push is already running, mark that we need another one after it finishes
+  if(_ghPushRunning){
+    _ghPushQueued=true;
+    return;
+  }
+  _ghPushRunning=true;
+
   if(!silent)ghStatus('A guardar no GitHub…');
   try{
     const content=btoa(unescape(encodeURIComponent(JSON.stringify(dbFull,null,2))));
@@ -2011,6 +2021,13 @@ async function ghPush(silent){
     if(!silent){
       ghStatus(`✗ Erro: ${e.message}`,1);
       toast('Erro ao guardar no GitHub!',1);
+    }
+  }finally{
+    _ghPushRunning=false;
+    // If another save was requested while we were pushing, do it now with fresh data
+    if(_ghPushQueued){
+      _ghPushQueued=false;
+      ghPush(true);
     }
   }
 }
