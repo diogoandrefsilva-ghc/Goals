@@ -1238,43 +1238,8 @@
         ],
         "1779257023230": []
       },
-      "estouros": [
-        {
-          "id": 1780188140041,
-          "nome": "Lanche Jaquim D'Adelina",
-          "data": "2026-05-30",
-          "valor": 98.8,
-          "participantes": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "id": 1780188186141,
-          "nome": "Chapa 7",
-          "data": "2026-05-30",
-          "valor": 1399.8,
-          "participantes": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10
-          ]
-        }
-      ]
+      "estouros": [],
+      "estouroPagos": []
     },
     "2024/25": {
       "amigos": [
@@ -2323,7 +2288,8 @@
           10
         ]
       },
-      "estouros": []
+      "estouros": [],
+      "estouroPagos": []
     }
   }
 }
