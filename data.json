@@ -1277,7 +1277,9 @@
           "pagoPor": 2
         }
       ],
-      "estouroPagos": [],
+      "estouroPagos": [
+        7
+      ],
       "creditosExtra": [
         {
           "id": 1780211914582,
