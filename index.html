@@ -2405,6 +2405,16 @@ function rEstouro(){
     return true;
   });
 
+  // Dívida pendente (devedores ainda não acertados) e crédito total
+  const totalPendingDebt=db.amigos.reduce((a,am)=>{
+    const s=estSaldoPessoa(am.id);
+    return(s>0.01&&!(db.estouroPagos||[]).includes(am.id))?a+s:a;
+  },0);
+  const totalCreditAbs=db.amigos.reduce((a,am)=>{
+    const s=estSaldoPessoa(am.id);
+    return s<-0.01?a+Math.abs(s):a;
+  },0);
+
   const blocks=db.amigos.map(am=>{
     const share=estSharePorPessoa(am.id);
     const potePago=pagouAmigo(am.id);
@@ -2421,6 +2431,9 @@ function rEstouro(){
     // Credor auto-acertado: se todos os devedores já pagaram
     const autoSettled=(saldo<-0.01&&allDebtorsSettled);
     const isSettled=estPagoFlag||autoSettled;
+
+    // Para credores: valor a receber diminui à medida que devedores pagam
+    const receivable=(saldo<-0.01&&totalCreditAbs>0.01)?totalPendingDebt*(Math.abs(saldo)/totalCreditAbs):0;
 
     const evRows=(db.estouros||[]).map(ev=>{
       const participa=(ev.participantes||[]).includes(am.id);
@@ -2448,7 +2461,7 @@ function rEstouro(){
       statusLabel=`deve ${saldo.toFixed(2)}€`;statusCls='est-bal-pos';
       if(credores.length)statusLabel+=` a ${credores.join(', ')}`;
     } else if(saldo<-0.01){
-      statusLabel=`a receber ${Math.abs(saldo).toFixed(2)}€`;statusCls='est-bal-neg';
+      statusLabel=`a receber ${receivable.toFixed(2)}€`;statusCls='est-bal-neg';
     } else {
       statusLabel='✓ Acertado';statusCls='est-bal-zero';
     }
@@ -2472,7 +2485,7 @@ function rEstouro(){
           <span style="font-weight:600;font-size:14px">${am.nome}</span>
           <div style="font-size:10px;color:var(--mu);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${statusLabel}</div>
         </div>
-        <div class="est-bal-val ${statusCls}">${isSettled?'0.00':Math.abs(saldo).toFixed(2)}€</div>
+        <div class="est-bal-val ${statusCls}">${isSettled?'0.00':(saldo<-0.01?receivable.toFixed(2):saldo.toFixed(2))}€</div>
       </div>
       <div class="est-person-body">
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px">Detalhe</div>
