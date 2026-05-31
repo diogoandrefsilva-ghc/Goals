@@ -1278,7 +1278,14 @@
         }
       ],
       "estouroPagos": [],
-      "creditosExtra": [],
+      "creditosExtra": [
+        {
+          "id": 1780211914582,
+          "nome": "Sobras Jamor",
+          "data": "2026-05-24",
+          "valor": 40
+        }
+      ],
       "poteHolder": null
     },
     "2024/25": {
