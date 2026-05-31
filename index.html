@@ -32,7 +32,7 @@ header{background:var(--vd);color:#fff;position:sticky;top:0;z-index:100;box-sha
 .wrap{max-width:1040px;margin:0 auto;padding:20px 18px}
 .sec{display:none}.sec.on{display:block}
 .itabs{display:flex;margin-bottom:20px;border-bottom:1.5px solid var(--bo)}
-.it{background:none;border:none;padding:8px 15px 10px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--mu);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .15s;font-weight:500;white-space:nowrap}
+.it{background:none;border:none;padding:8px 10px 10px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--mu);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .15s;font-weight:500;white-space:nowrap}
 .it:hover{color:var(--tx)}
 .it.on{color:var(--vd);border-bottom-color:var(--vd);font-weight:600}
 .tp{display:none}.tp.on{display:block}
@@ -663,6 +663,10 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
           <input type="number" id="ested-valor" min="0" step="0.01" placeholder="ex: 250.00">
         </div>
         <div class="fg">
+          <label>Quem pagou?</label>
+          <select id="ested-pagopor" style="width:100%"></select>
+        </div>
+        <div class="fg">
           <label style="margin-bottom:8px">Participantes</label>
           <div id="ested-participantes" style="display:grid;grid-template-columns:1fr 1fr;gap:0"></div>
           <div style="display:flex;gap:8px;margin-top:8px">
@@ -675,6 +679,7 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
     <div class="modal-footer">
       <button class="btn btn-g" id="modal-estouro-save" onclick="guardarEstouroEdicao()">Guardar alterações</button>
       <button class="btn btn-n" onclick="fecharModalEstouro()">Cancelar</button>
+      <button class="btn" id="modal-estouro-del" style="background:var(--dg);color:#fff;margin-left:auto;display:none" onclick="remEstouroFromModal()">Apagar</button>
     </div>
   </div>
 </div>
@@ -2223,7 +2228,6 @@ async function ghAutoPull(){
 /* ── ESTOURO DOS GOLOS ────────────────────────── */
 
 function estSharePorPessoa(amigoId){
-  // Soma da quota deste amigo em todos os eventos que participou
   return (db.estouros||[]).reduce((acc,ev)=>{
     if((ev.participantes||[]).includes(amigoId)){
       const nP=(ev.participantes||[]).length||1;
@@ -2233,15 +2237,32 @@ function estSharePorPessoa(amigoId){
   },0);
 }
 
+function estPagouEventos(amigoId){
+  return (db.estouros||[]).reduce((a,ev)=>a+(ev.pagoPor===amigoId?(ev.valor||0):0),0);
+}
+
 function estTotalEventos(){
   return (db.estouros||[]).reduce((a,ev)=>a+(ev.valor||0),0);
 }
 
 function estSaldoPessoa(amigoId){
-  // positivo = deve ao admin; negativo = admin deve-lhe
   const share=estSharePorPessoa(amigoId);
-  const pago=pagouAmigo(amigoId);
-  return share-pago;
+  const potePago=pagouAmigo(amigoId);
+  const eventosPagos=estPagouEventos(amigoId);
+  return share-potePago-eventosPagos;
+}
+
+function estDeveAQuem(amigoId){
+  const devidas={};
+  (db.estouros||[]).forEach(ev=>{
+    if(!(ev.participantes||[]).includes(amigoId))return;
+    if(ev.pagoPor===amigoId)return;
+    if(!ev.pagoPor)return;
+    const nP=(ev.participantes||[]).length||1;
+    const quota=(ev.valor||0)/nP;
+    devidas[ev.pagoPor]=(devidas[ev.pagoPor]||0)+quota;
+  });
+  return devidas;
 }
 
 function rEstouro(){
@@ -2254,99 +2275,107 @@ function rEstouro(){
   const excedente=Math.max(0,totalEv-poteBruto);
   const sobra=Math.max(0,poteBruto-totalEv);
 
-  // Stat cards
   document.getElementById('estouro-stat-cards').innerHTML=`
     <div class="sc cg"><div class="sc-l">Pote total</div><div class="sc-v">${poteBruto.toFixed(0)}€</div><div class="sc-s">${totalGolos()} golos × ${n} amigos × ${vg}€</div></div>
     <div class="sc cr"><div class="sc-l">Gasto em eventos</div><div class="sc-v">${totalEv.toFixed(2)}€</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>
-    <div class="sc ${excedente>0?'co':'cb'}"><div class="sc-l">${excedente>0?'Excedente do teu bolso':'Sobra no pote'}</div><div class="sc-v">${excedente>0?excedente.toFixed(2):sobra.toFixed(2)}€</div><div class="sc-s">${excedente>0?'eventos custaram mais que o pote':'ainda por gastar'}</div></div>
+    <div class="sc ${excedente>0?'co':'cb'}"><div class="sc-l">${excedente>0?'Excedente':'Sobra no pote'}</div><div class="sc-v">${excedente>0?excedente.toFixed(2):sobra.toFixed(2)}€</div><div class="sc-s">${excedente>0?'eventos custaram mais que o pote':'ainda por gastar'}</div></div>
   `;
 
-  // Lista de eventos (rendered first)
   rEstouroEventos();
 
-  // Balanço por pessoa
   const balEl=document.getElementById('estouro-balanco');
-  if(!db.estouros.length){
-    balEl.innerHTML='';
-  } else {
-    const blocks=db.amigos.map(am=>{
-      const share=estSharePorPessoa(am.id);
-      const pago=pagouAmigo(am.id);
-      const saldo=share-pago;
-      const estPago=(db.estouroPagos||[]).includes(am.id);
+  if(!db.estouros.length){balEl.innerHTML='';return;}
 
-      // Per-event breakdown
-      const evRows=(db.estouros||[]).map(ev=>{
-        const participa=(ev.participantes||[]).includes(am.id);
-        if(!participa)return'';
-        const nP=(ev.participantes||[]).length||1;
-        const quota=(ev.valor||0)/nP;
-        return`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--mu)">
-          <span>${ev.nome}</span><span style="font-weight:600;color:var(--tx)">${quota.toFixed(2)}€</span>
-        </div>`;
-      }).filter(Boolean).join('');
+  const blocks=db.amigos.map(am=>{
+    const share=estSharePorPessoa(am.id);
+    const potePago=pagouAmigo(am.id);
+    const eventosPagos=estPagouEventos(am.id);
+    const saldo=share-potePago-eventosPagos;
+    const estPagoFlag=(db.estouroPagos||[]).includes(am.id);
 
-      let statusLabel,statusCls,btnHTML='';
-      if(estPago){
-        statusLabel='✓ Acertado';statusCls='est-bal-zero';
-        btnHTML=`<button class="est-paid-btn paid ro-hide" onclick="toggleEstouroPago(${am.id})">Acertado ✓</button>`;
-      } else if(saldo>0.01){
-        statusLabel=`deve-te ${saldo.toFixed(2)}€`;statusCls='est-bal-pos';
-        btnHTML=`<button class="est-paid-btn unpaid ro-hide" onclick="toggleEstouroPago(${am.id})">Marcar pago</button>`;
-      } else if(saldo<-0.01){
-        statusLabel=`devolver ${Math.abs(saldo).toFixed(2)}€`;statusCls='est-bal-neg';
-        btnHTML=`<button class="est-paid-btn unpaid ro-hide" onclick="toggleEstouroPago(${am.id})">Marcar pago</button>`;
-      } else {
-        statusLabel='✓ Acertado';statusCls='est-bal-zero';
-        btnHTML='';
-      }
-
-      return`<div class="est-person-block${estPago?' est-settled':''}">
-        <div class="est-person-head" onclick="this.parentElement.classList.toggle('open')">
-          <div class="av" style="background:${am.cor};width:30px;height:30px;font-size:10px;flex-shrink:0">${ini(am.nome)}</div>
-          <span style="font-weight:600;font-size:14px;flex:1">${am.nome}</span>
-          <div class="est-person-right">
-            <div class="est-bal-val ${statusCls}">${estPago?'0.00':Math.abs(saldo).toFixed(2)}€</div>
-            <div style="font-size:10px;color:var(--mu)">${statusLabel}</div>
-          </div>
-        </div>
-        <div class="est-person-body">
-          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px">Detalhe</div>
-          ${evRows}
-          <div style="display:flex;justify-content:space-between;padding:4px 0 0;margin-top:4px;border-top:1px solid var(--bo);font-size:12px;font-weight:600">
-            <span>Total eventos</span><span>${share.toFixed(2)}€</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--vd);font-weight:600">
-            <span>Pago ao pote</span><span>−${pago.toFixed(2)}€</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:5px 0 0;margin-top:4px;border-top:2px solid var(--bo);font-size:13px;font-weight:700">
-            <span>Saldo</span><span class="${statusCls}">${saldo>0.01?'+':''}${saldo.toFixed(2)}€</span>
-          </div>
-          <div style="margin-top:10px;text-align:right">${btnHTML}</div>
-        </div>
+    const evRows=(db.estouros||[]).map(ev=>{
+      const participa=(ev.participantes||[]).includes(am.id);
+      if(!participa)return'';
+      const nP=(ev.participantes||[]).length||1;
+      const quota=(ev.valor||0)/nP;
+      const pagador=ev.pagoPor?db.amigos.find(a=>a.id===ev.pagoPor):null;
+      const pagadorLabel=pagador?(ev.pagoPor===am.id?'(tu pagaste)':'→ '+pagador.nome):'';
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px;color:var(--mu)">
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.nome}</span>
+        ${pagadorLabel?`<span style="font-size:10px;margin:0 6px;opacity:.7">${pagadorLabel}</span>`:''}
+        <span style="font-weight:600;color:var(--tx);flex-shrink:0">${quota.toFixed(2)}€</span>
       </div>`;
-    }).join('');
+    }).filter(Boolean).join('');
 
-    const totalDevem=db.amigos.reduce((a,am)=>{
-      if((db.estouroPagos||[]).includes(am.id))return a;
-      const s=estSaldoPessoa(am.id);return s>0?a+s:a;
-    },0);
-    const totalDevolver=db.amigos.reduce((a,am)=>{
-      if((db.estouroPagos||[]).includes(am.id))return a;
-      const s=estSaldoPessoa(am.id);return s<0?a+Math.abs(s):a;
-    },0);
+    let statusLabel,statusCls;
+    if(estPagoFlag){
+      statusLabel='✓ Acertado';statusCls='est-bal-zero';
+    } else if(saldo>0.01){
+      const devidas=estDeveAQuem(am.id);
+      const credores=Object.entries(devidas).map(([cId])=>{
+        const cr=db.amigos.find(a=>a.id===parseInt(cId));
+        return cr?cr.nome:'?';
+      });
+      statusLabel=`deve ${saldo.toFixed(2)}€`;statusCls='est-bal-pos';
+      if(credores.length)statusLabel+=` a ${credores.join(', ')}`;
+    } else if(saldo<-0.01){
+      statusLabel=`credor de ${Math.abs(saldo).toFixed(2)}€`;statusCls='est-bal-neg';
+    } else {
+      statusLabel='✓ Acertado';statusCls='est-bal-zero';
+    }
 
-    balEl.innerHTML=`
-      <div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px">
-        <h2 class="stit" style="margin:0">Balanço por pessoa</h2>
-        <div style="display:flex;gap:12px;font-size:12px">
-          ${totalDevem>0.01?`<span style="color:var(--dg);font-weight:600">Devem-te: ${totalDevem.toFixed(2)}€</span>`:''}
-          ${totalDevolver>0.01?`<span style="color:var(--vd);font-weight:600">Devolver: ${totalDevolver.toFixed(2)}€</span>`:''}
+    const btnHTML=(!estPagoFlag&&Math.abs(saldo)>0.01)?
+      `<button class="est-paid-btn unpaid ro-hide" onclick="event.stopPropagation();toggleEstouroPago(${am.id})">Marcar acertado</button>`:
+      (estPagoFlag?`<button class="est-paid-btn paid ro-hide" onclick="event.stopPropagation();toggleEstouroPago(${am.id})">Acertado ✓</button>`:'');
+
+    return`<div class="est-person-block${estPagoFlag?' est-settled':''}">
+      <div class="est-person-head" onclick="this.parentElement.classList.toggle('open')">
+        <div class="av" style="background:${am.cor};width:30px;height:30px;font-size:10px;flex-shrink:0">${ini(am.nome)}</div>
+        <div style="flex:1;min-width:0">
+          <span style="font-weight:600;font-size:14px">${am.nome}</span>
+          <div style="font-size:10px;color:var(--mu);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${statusLabel}</div>
         </div>
+        <div class="est-bal-val ${statusCls}">${estPagoFlag?'0.00':Math.abs(saldo).toFixed(2)}€</div>
       </div>
-      ${blocks}
-    `;
-  }
+      <div class="est-person-body">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px">Detalhe</div>
+        ${evRows}
+        <div style="display:flex;justify-content:space-between;padding:4px 0 0;margin-top:4px;border-top:1px solid var(--bo);font-size:12px;font-weight:600">
+          <span>Total eventos</span><span>${share.toFixed(2)}€</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--vd);font-weight:600">
+          <span>Pago ao pote</span><span>−${potePago.toFixed(2)}€</span>
+        </div>
+        ${eventosPagos>0?`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--vd);font-weight:600">
+          <span>Eventos pagos por si</span><span>−${eventosPagos.toFixed(2)}€</span>
+        </div>`:''}
+        <div style="display:flex;justify-content:space-between;padding:5px 0 0;margin-top:4px;border-top:2px solid var(--bo);font-size:13px;font-weight:700">
+          <span>Saldo</span><span class="${statusCls}">${saldo>0.01?'+':''}${saldo.toFixed(2)}€</span>
+        </div>
+        <div style="margin-top:10px;text-align:right">${btnHTML}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const totalDevem=db.amigos.reduce((a,am)=>{
+    if((db.estouroPagos||[]).includes(am.id))return a;
+    const s=estSaldoPessoa(am.id);return s>0?a+s:a;
+  },0);
+  const totalDevolver=db.amigos.reduce((a,am)=>{
+    if((db.estouroPagos||[]).includes(am.id))return a;
+    const s=estSaldoPessoa(am.id);return s<0?a+Math.abs(s):a;
+  },0);
+
+  balEl.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px">
+      <h2 class="stit" style="margin:0">Balanço por pessoa</h2>
+      <div style="display:flex;gap:12px;font-size:12px">
+        ${totalDevem>0.01?`<span style="color:var(--dg);font-weight:600">Devem: ${totalDevem.toFixed(2)}€</span>`:''}
+        ${totalDevolver>0.01?`<span style="color:var(--vd);font-weight:600">Crédito: ${totalDevolver.toFixed(2)}€</span>`:''}
+      </div>
+    </div>
+    ${blocks}
+  `;
 }
 
 function rEstouroEventos(){
@@ -2364,19 +2393,16 @@ function rEstouroEventos(){
     }).join('');
     const nP=(ev.participantes||[]).length;
     const perPerson=nP>0?((ev.valor||0)/nP).toFixed(2):'0.00';
-    return`<div class="est-ev">
+    const pagador=ev.pagoPor?db.amigos.find(a=>a.id===ev.pagoPor):null;
+    const pagadorLabel=pagador?`pago por ${pagador.nome}`:'';
+    const clickable=!isReadOnly;
+    return`<div class="est-ev" onclick="${clickable?'abrirModalEstouro('+ev.id+')':''}" style="${clickable?'cursor:pointer':''}">
       <div class="est-ev-head">
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="est-ev-name">${ev.nome||'Evento'}</div>
-          <div class="est-ev-meta">${d}${d?' · ':''}${nP} participante${nP!==1?'s':''} · ${perPerson}€/pessoa</div>
+          <div class="est-ev-meta">${d}${d&&pagadorLabel?' · ':''}${pagadorLabel}${(d||pagadorLabel)?' · ':''}${nP} pessoa${nP!==1?'s':''} · ${perPerson}€/pessoa</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="est-ev-val">${(ev.valor||0).toFixed(2)}€</div>
-          <div style="display:flex;gap:4px" class="ro-hide">
-            <button class="jdel" style="color:#1565c0;border:1px solid #ddd;border-radius:7px;padding:4px 7px;font-size:12px" onclick="abrirModalEstouro(${ev.id})" title="Editar">✏️</button>
-            <button class="jdel" style="color:var(--dg);border:1px solid #ddd;border-radius:7px;padding:4px 7px;font-size:12px" onclick="remEstouro(${ev.id})" title="Remover">✕</button>
-          </div>
-        </div>
+        <div class="est-ev-val">${(ev.valor||0).toFixed(2)}€</div>
       </div>
       <div class="est-ev-parts">${parts}</div>
     </div>`;
@@ -2391,15 +2417,15 @@ function toggleEstouroPago(amigoId){
   else db.estouroPagos.push(amigoId);
   salvar();rEstouro();
   const am=db.amigos.find(a=>a.id===amigoId);
-  const pago=db.estouroPagos.includes(amigoId);
-  toast(`${am?.nome} ${pago?'marcado como acertado ✓':'reaberto'}`);
+  toast(`${am?.nome} ${db.estouroPagos.includes(amigoId)?'marcado como acertado ✓':'reaberto'}`);
 }
 
-function remEstouro(id){
+function remEstouroFromModal(){
   if(roGuard())return;
+  if(_estEditId===null)return;
   if(!confirm('Remover este evento?'))return;
-  db.estouros=(db.estouros||[]).filter(e=>e.id!==id);
-  salvar();rEstouro();
+  db.estouros=(db.estouros||[]).filter(e=>e.id!==_estEditId);
+  salvar();fecharModalEstouro();rEstouro();
   toast('Evento removido');
 }
 
@@ -2407,16 +2433,23 @@ function remEstouro(id){
 let _estEditId=null;
 let _estIsNew=false;
 
+function _fillPagoporSelect(selectedId){
+  const sel=document.getElementById('ested-pagopor');
+  sel.innerHTML='<option value="">— Selecionar —</option>'+
+    db.amigos.map(am=>`<option value="${am.id}"${am.id===selectedId?' selected':''}>${am.nome}</option>`).join('');
+}
+
 function abrirModalAddEstouro(){
   if(roGuard())return;
-  _estEditId=null;
-  _estIsNew=true;
+  _estEditId=null;_estIsNew=true;
   document.getElementById('modal-estouro-title').textContent='🎉 Novo evento';
   document.getElementById('modal-estouro-save').textContent='Criar evento';
   document.getElementById('modal-estouro-save').onclick=criarEstouroFromModal;
+  document.getElementById('modal-estouro-del').style.display='none';
   document.getElementById('ested-nome').value='';
   document.getElementById('ested-data').value=new Date().toISOString().split('T')[0];
   document.getElementById('ested-valor').value='';
+  _fillPagoporSelect(null);
   const el=document.getElementById('ested-participantes');
   el.innerHTML=db.amigos.map(am=>`<label class="est-pchk">
     <input type="checkbox" value="${am.id}" checked>
@@ -2432,31 +2465,33 @@ function criarEstouroFromModal(){
   const nome=document.getElementById('ested-nome').value.trim();
   const data=document.getElementById('ested-data').value;
   const valor=parseFloat(document.getElementById('ested-valor').value)||0;
+  const pagoPor=parseInt(document.getElementById('ested-pagopor').value)||null;
   if(!nome)return toast('Dá um nome ao evento!',1);
   if(valor<=0)return toast('O custo tem de ser superior a 0€!',1);
+  if(!pagoPor)return toast('Indica quem pagou o evento!',1);
   const participantes=[];
   document.querySelectorAll('#ested-participantes input[type=checkbox]:checked').forEach(cb=>{
     participantes.push(parseInt(cb.value));
   });
   if(!participantes.length)return toast('Seleciona pelo menos um participante!',1);
   if(!db.estouros)db.estouros=[];
-  db.estouros.push({id:Date.now(),nome,data,valor,participantes});
-  salvar();
-  fecharModalEstouro();
+  db.estouros.push({id:Date.now(),nome,data,valor,participantes,pagoPor});
+  salvar();fecharModalEstouro();
   toast(`Evento "${nome}" adicionado ✓`);
   rEstouro();
 }
 
 function abrirModalEstouro(id){
   const ev=(db.estouros||[]).find(e=>e.id===id);if(!ev)return;
-  _estEditId=id;
-  _estIsNew=false;
+  _estEditId=id;_estIsNew=false;
   document.getElementById('modal-estouro-title').textContent='✏️ Editar evento';
   document.getElementById('modal-estouro-save').textContent='Guardar alterações';
   document.getElementById('modal-estouro-save').onclick=guardarEstouroEdicao;
+  document.getElementById('modal-estouro-del').style.display='';
   document.getElementById('ested-nome').value=ev.nome||'';
   document.getElementById('ested-data').value=ev.data||'';
   document.getElementById('ested-valor').value=ev.valor||'';
+  _fillPagoporSelect(ev.pagoPor||null);
   const el=document.getElementById('ested-participantes');
   el.innerHTML=db.amigos.map(am=>{
     const checked=(ev.participantes||[]).includes(am.id)?'checked':'';
@@ -2486,15 +2521,14 @@ function guardarEstouroEdicao(){
   ev.nome=document.getElementById('ested-nome').value.trim()||ev.nome;
   ev.data=document.getElementById('ested-data').value||ev.data;
   ev.valor=parseFloat(document.getElementById('ested-valor').value)||ev.valor;
+  ev.pagoPor=parseInt(document.getElementById('ested-pagopor').value)||ev.pagoPor;
   const parts=[];
   document.querySelectorAll('#ested-participantes input[type=checkbox]:checked').forEach(cb=>{
     parts.push(parseInt(cb.value));
   });
   if(!parts.length){toast('Seleciona pelo menos um participante!',1);return;}
   ev.participantes=parts;
-  salvar();
-  fecharModalEstouro();
-  rEstouro();
+  salvar();fecharModalEstouro();rEstouro();
   toast(`Evento "${ev.nome}" actualizado ✓`);
 }
 
