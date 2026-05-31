@@ -236,6 +236,28 @@ input:focus,select:focus{border-color:var(--vd)}
 
 @media(max-width:600px){
   .hn{padding:5px 8px;font-size:11px}
+
+/* ESTOURO */
+.est-ev{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:14px 18px;margin-bottom:10px;transition:box-shadow .15s}
+.est-ev:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.est-ev-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.est-ev-name{font-weight:600;font-size:14px}
+.est-ev-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--dg)}
+.est-ev-meta{font-size:11px;color:var(--mu);margin-top:3px}
+.est-ev-parts{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.est-ev-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff}
+.est-bal-card{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:0;overflow:hidden;margin-bottom:10px}
+.est-bal-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--bo)}
+.est-bal-row:last-child{border-bottom:none}
+.est-bal-name{flex:1;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px}
+.est-bal-val{font-family:'Bebas Neue',sans-serif;font-size:18px;min-width:70px;text-align:right}
+.est-bal-pos{color:var(--dg)}
+.est-bal-neg{color:var(--vd)}
+.est-bal-zero{color:#999}
+.est-detail-grid{display:grid;grid-template-columns:1fr auto auto;gap:2px 12px;font-size:11px;color:var(--mu);padding:0 16px 10px;margin-top:-2px}
+.est-detail-grid span:last-child{text-align:right;font-weight:600}
+.est-pchk{display:flex;align-items:center;gap:8px;padding:7px 4px;cursor:pointer;user-select:none}
+.est-pchk input[type=checkbox]{width:18px;height:18px;accent-color:var(--vd)}
   .brand h1{font-size:16px}
   .jres,.jsep,.jpag-bar{display:none}
   .g4{grid-template-columns:1fr 1fr}
@@ -295,7 +317,8 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
     <button class="it" onclick="itab('contas',this,'dash')">Contas</button>
     <button class="it" onclick="itab('previsao',this,'dash')">Previsão</button>
     <button class="it" onclick="itab('jogos',this,'dash')">Jogos</button>
-    <button class="it" onclick="itab('cfg',this,'dash')">Config</button>
+    <button class="it" onclick="itab('estouro',this,'dash')">Estouro</button>
+    <button class="it" onclick="itab('cfg',this,'dash')" title="Configurações"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
   <div id="t-resumo" class="tp on">
     <div class="g4" id="stat-cards"></div>
@@ -356,6 +379,58 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
     <div id="t-jdetalhe" style="display:none">
       <button class="btn-back" onclick="voltarLista()">← Voltar à lista</button>
       <div id="jd-content"></div>
+    </div>
+  </div>
+  <!-- ═══ ABA ESTOURO ═══ -->
+  <div id="t-estouro" class="tp">
+    <div class="g4" id="estouro-stat-cards"></div>
+
+    <!-- BALANÇO POR PESSOA -->
+    <div id="estouro-balanco"></div>
+
+    <!-- LISTA DE EVENTOS -->
+    <h2 class="stit" style="margin-top:20px;display:flex;align-items:center;justify-content:space-between">
+      <span>Eventos</span>
+    </h2>
+    <div id="estouro-eventos-list"></div>
+
+    <!-- FORM ADD EVENTO -->
+    <div class="fadd-card ro-hide" style="margin-top:16px" id="estouro-add-card">
+      <div class="fadd-header">
+        <div class="fadd-icon-wrap">🎉</div>
+        <div>
+          <div class="fadd-title">Novo evento de estouro</div>
+          <div class="fadd-sub">Adiciona o lanche, jantar ou outro evento pago com o pote.</div>
+        </div>
+      </div>
+      <div style="padding:0 22px 4px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:10px;align-items:stretch">
+          <div class="fg" style="flex:2;min-width:0">
+            <label>Nome do evento</label>
+            <input type="text" id="est-nome" placeholder="ex: Jantar de final de época" autocomplete="off">
+          </div>
+          <div class="fg" style="flex:0 0 auto">
+            <label>Data</label>
+            <input type="date" id="est-data" style="width:140px">
+          </div>
+        </div>
+        <div class="fg">
+          <label>Custo total (€)</label>
+          <input type="number" id="est-valor" min="0" step="0.01" placeholder="ex: 250.00">
+        </div>
+        <div class="fg">
+          <label style="margin-bottom:8px">Quem participou neste evento?</label>
+          <div id="est-participantes" style="display:grid;grid-template-columns:1fr 1fr;gap:0"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-n" style="font-size:11px;padding:4px 10px" onclick="estToggleAll(true)">Selecionar todos</button>
+            <button class="btn btn-n" style="font-size:11px;padding:4px 10px" onclick="estToggleAll(false)">Desselecionar todos</button>
+          </div>
+        </div>
+      </div>
+      <div class="fadd-footer" style="margin-top:16px">
+        <button class="btn btn-g" onclick="addEstouro()" style="padding:10px 28px;font-size:14px">Guardar evento</button>
+        <button class="btn btn-n" onclick="limparFormEstouro()">Limpar</button>
+      </div>
     </div>
   </div>
   <!-- ABA CONFIG (dentro do Dashboard) -->
@@ -584,6 +659,46 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- MODAL EDITAR ESTOURO -->
+<div class="modal-overlay" id="modal-estouro" style="display:none" onclick="fecharModalEstouro(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h3>✏️ Editar evento</h3>
+      <button class="modal-close" onclick="fecharModalEstouro()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div style="display:flex;gap:10px">
+          <div class="fg" style="flex:2;min-width:0">
+            <label>Nome</label>
+            <input type="text" id="ested-nome">
+          </div>
+          <div class="fg" style="flex:0 0 auto">
+            <label>Data</label>
+            <input type="date" id="ested-data" style="width:auto;min-width:130px">
+          </div>
+        </div>
+        <div class="fg">
+          <label>Custo total (€)</label>
+          <input type="number" id="ested-valor" min="0" step="0.01">
+        </div>
+        <div class="fg">
+          <label style="margin-bottom:8px">Participantes</label>
+          <div id="ested-participantes" style="display:grid;grid-template-columns:1fr 1fr;gap:0"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-n" style="font-size:11px;padding:4px 10px" onclick="estedToggleAll(true)">Todos</button>
+            <button class="btn btn-n" style="font-size:11px;padding:4px 10px" onclick="estedToggleAll(false)">Nenhum</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-g" onclick="guardarEstouroEdicao()">Guardar alterações</button>
+      <button class="btn btn-n" onclick="fecharModalEstouro()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const CORES=['#1b5e20','#1a237e','#4a148c','#b71c1c','#e65100','#006064','#33691e','#880e4f','#1565c0','#37474f','#f57f17','#3e2723','#004d40','#311b92','#bf360c'];
 
@@ -607,7 +722,7 @@ function roGuard(action){
 // Multi-época: db contém a estrutura completa carregada do JSON
 let dbFull={config:{valorPorGolo:1,epocaAtiva:'2025/26'},epocas:{}};
 // db é o "atalho" para a época activa (amigos, jogos, pagosPorJogo)
-let db={amigos:[],jogos:[],pagosPorJogo:{}};
+let db={amigos:[],jogos:[],pagosPorJogo:{},estouros:[]};
 let epocaAtiva='2025/26';
 const epocasOrdem=['2024/25','2025/26']; // ordem cronológica
 
@@ -622,6 +737,7 @@ function salvar(){
   dbFull.epocas[epocaAtiva].amigos=db.amigos;
   dbFull.epocas[epocaAtiva].jogos=db.jogos;
   dbFull.epocas[epocaAtiva].pagosPorJogo=db.pagosPorJogo;
+  dbFull.epocas[epocaAtiva].estouros=db.estouros||[];
   dbFull.config.epocaAtiva=epocaAtiva;
   localStorage.setItem('sg_v5',JSON.stringify(dbFull));
   // Auto-save para GitHub (com debounce de 3s)
@@ -672,10 +788,11 @@ function actualizarEpocasOrdem(){
   if(!epocasOrdem.length)epocasOrdem.push('2025/26');
 }
 function sincEpoca(){
-  const ep=dbFull.epocas[epocaAtiva]||{amigos:[],jogos:[],pagosPorJogo:{}};
+  const ep=dbFull.epocas[epocaAtiva]||{amigos:[],jogos:[],pagosPorJogo:{},estouros:[]};
   db.amigos=ep.amigos||[];
   db.jogos=ep.jogos||[];
   db.pagosPorJogo=ep.pagosPorJogo||{};
+  db.estouros=ep.estouros||[];
   db.jogos.forEach(j=>{if(j.golos===undefined)j.golos=null;});
   // actualizar config global para retrocompatibilidade de funções que usam db.config
   db.config={valorPorGolo:dbFull.config.valorPorGolo||1,epoca:epocaAtiva};
@@ -702,7 +819,7 @@ function mudarEpoca(dir){
   const activeItab=document.querySelector('#s-dash .tp.on');
   if(activeItab){
     const id=activeItab.id.replace('t-','');
-    const fn={resumo:rResumo,contas:rContas,previsao:rPrevisao,jogos:rJogos,cfg:rCfg};
+    const fn={resumo:rResumo,contas:rContas,previsao:rPrevisao,jogos:rJogos,estouro:rEstouro,cfg:rCfg};
     fn[id]?.();
   }
 }
@@ -768,7 +885,7 @@ function itab(id,btn,parent){
   sec.querySelectorAll(':scope > .tp').forEach(p=>p.classList.remove('on'));
   sec.querySelectorAll(':scope > .itabs .it').forEach(b=>b.classList.remove('on'));
   document.getElementById('t-'+id).classList.add('on');btn.classList.add('on');
-  ({resumo:rResumo,contas:rContas,previsao:rPrevisao,jogos:rJogos,cfg:rCfg})[id]?.();
+  ({resumo:rResumo,contas:rContas,previsao:rPrevisao,jogos:rJogos,estouro:rEstouro,cfg:rCfg})[id]?.();
 }
 
 
@@ -780,6 +897,7 @@ function rDash(){
   if(id==='contas')rContas();
   else if(id==='previsao')rPrevisao();
   else if(id==='jogos')renderJogosList();
+  else if(id==='estouro')rEstouro();
   else if(id==='cfg')rCfg();
   else rResumo();
 }
@@ -1765,7 +1883,7 @@ function criarNovaEpoca(){
   // Perguntar se copia amigos da época actual
   const copiar=db.amigos.length&&confirm(`Copiar os ${db.amigos.length} amigos da época actual para a nova época?`);
   const amigosIniciais=copiar?JSON.parse(JSON.stringify(db.amigos)):[];
-  dbFull.epocas[nomeF]={amigos:amigosIniciais,jogos:[],pagosPorJogo:{}};
+  dbFull.epocas[nomeF]={amigos:amigosIniciais,jogos:[],pagosPorJogo:{},estouros:[]};
   actualizarEpocasOrdem();
   // Navegar para a nova época
   epocaAtiva=nomeF;
@@ -2120,13 +2238,245 @@ async function ghAutoPull(){
   }catch{}
 }
 
+/* ── ESTOURO DOS GOLOS ────────────────────────── */
+
+function estSharePorPessoa(amigoId){
+  // Soma da quota deste amigo em todos os eventos que participou
+  return (db.estouros||[]).reduce((acc,ev)=>{
+    if((ev.participantes||[]).includes(amigoId)){
+      const nP=(ev.participantes||[]).length||1;
+      return acc+((ev.valor||0)/nP);
+    }
+    return acc;
+  },0);
+}
+
+function estTotalEventos(){
+  return (db.estouros||[]).reduce((a,ev)=>a+(ev.valor||0),0);
+}
+
+function estSaldoPessoa(amigoId){
+  // positivo = deve ao admin; negativo = admin deve-lhe
+  const share=estSharePorPessoa(amigoId);
+  const pago=pagouAmigo(amigoId);
+  return share-pago;
+}
+
+function rEstouro(){
+  if(!db.estouros)db.estouros=[];
+  const n=db.amigos.length||1;
+  const vg=db.config.valorPorGolo;
+  const poteBruto=totalGolos()*vg*n;
+  const poteRecebido=db.amigos.reduce((a,am)=>a+pagouAmigo(am.id),0);
+  const totalEv=estTotalEventos();
+  const excedente=Math.max(0,totalEv-poteBruto);
+  const sobra=Math.max(0,poteBruto-totalEv);
+
+  // Stat cards
+  document.getElementById('estouro-stat-cards').innerHTML=`
+    <div class="sc cg"><div class="sc-l">Pote total</div><div class="sc-v">${poteBruto.toFixed(0)}€</div><div class="sc-s">${totalGolos()} golos × ${n} amigos × ${vg}€</div></div>
+    <div class="sc cr"><div class="sc-l">Gasto em eventos</div><div class="sc-v">${totalEv.toFixed(0)}€</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>
+    <div class="sc ${excedente>0?'co':'cb'}"><div class="sc-l">${excedente>0?'Excedente (do teu bolso)':'Sobra no pote'}</div><div class="sc-v">${excedente>0?excedente.toFixed(0):sobra.toFixed(0)}€</div><div class="sc-s">${excedente>0?'eventos custaram mais que o pote':'ainda por gastar'}</div></div>
+  `;
+
+  // Balanço por pessoa
+  const balEl=document.getElementById('estouro-balanco');
+  if(!db.estouros.length){
+    balEl.innerHTML='<div class="fcard" style="text-align:center;padding:28px;color:var(--mu)"><div style="font-size:28px;margin-bottom:6px">🎉</div><div style="font-size:13px">Adiciona eventos abaixo para calcular o balanço de cada amigo.</div></div>';
+  } else {
+    const rows=db.amigos.map(am=>{
+      const share=estSharePorPessoa(am.id);
+      const pago=pagouAmigo(am.id);
+      const saldo=share-pago; // positivo=deve, negativo=admin deve
+      const cls=saldo>0.01?'est-bal-pos':saldo<-0.01?'est-bal-neg':'est-bal-zero';
+      const label=saldo>0.01?`deve-te ${saldo.toFixed(2)}€`:saldo<-0.01?`devolver ${Math.abs(saldo).toFixed(2)}€`:'✓ Acertado';
+
+      // Detail: per-event breakdown
+      const evDetails=(db.estouros||[]).map(ev=>{
+        const participa=(ev.participantes||[]).includes(am.id);
+        if(!participa)return'';
+        const nP=(ev.participantes||[]).length||1;
+        const quota=(ev.valor||0)/nP;
+        return`<span>${ev.nome}</span><span></span><span>${quota.toFixed(2)}€</span>`;
+      }).filter(Boolean).join('');
+
+      return`<div class="est-bal-row">
+        <div class="est-bal-name"><div class="av" style="background:${am.cor};width:26px;height:26px;font-size:9px">${ini(am.nome)}</div>${am.nome}</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+          <div class="est-bal-val ${cls}">${saldo>0.01?'+':saldo<-0.01?'−':''}${saldo>0.01?saldo.toFixed(2):saldo<-0.01?Math.abs(saldo).toFixed(2):'0.00'}€</div>
+          <div style="font-size:10px;color:var(--mu)">${label}</div>
+        </div>
+      </div>
+      ${evDetails?`<div class="est-detail-grid">${evDetails}<span style="border-top:1px solid var(--bo);padding-top:3px;font-weight:500;color:var(--tx)">Pago ao pote</span><span style="border-top:1px solid var(--bo);padding-top:3px"></span><span style="border-top:1px solid var(--bo);padding-top:3px;color:var(--vd)">−${pago.toFixed(2)}€</span></div>`:''}`;
+    }).join('');
+
+    const totalDevem=db.amigos.reduce((a,am)=>{const s=estSaldoPessoa(am.id);return s>0?a+s:a;},0);
+    const totalDevolver=db.amigos.reduce((a,am)=>{const s=estSaldoPessoa(am.id);return s<0?a+Math.abs(s):a;},0);
+
+    balEl.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <h2 class="stit" style="margin:0">Balanço por pessoa</h2>
+        <div style="display:flex;gap:12px;font-size:12px">
+          ${totalDevem>0?`<span style="color:var(--dg);font-weight:600">Devem-te: ${totalDevem.toFixed(2)}€</span>`:''}
+          ${totalDevolver>0?`<span style="color:var(--vd);font-weight:600">Devolver: ${totalDevolver.toFixed(2)}€</span>`:''}
+        </div>
+      </div>
+      <div class="est-bal-card">${rows}</div>
+    `;
+  }
+
+  // Lista de eventos
+  rEstouroEventos();
+
+  // Participantes no form
+  rEstouroParticipantes();
+  const hoje=new Date().toISOString().split('T')[0];
+  if(document.getElementById('est-data')&&!document.getElementById('est-data').value)document.getElementById('est-data').value=hoje;
+}
+
+function rEstouroEventos(){
+  const el=document.getElementById('estouro-eventos-list');
+  if(!db.estouros||!db.estouros.length){
+    el.innerHTML='<div style="text-align:center;padding:16px;color:var(--mu);font-size:12px">Nenhum evento adicionado.</div>';
+    return;
+  }
+  const evs=[...db.estouros].sort((a,b)=>new Date(b.data||0)-new Date(a.data||0));
+  el.innerHTML=evs.map(ev=>{
+    const d=ev.data?new Date(ev.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'}):'';
+    const parts=(ev.participantes||[]).map(pid=>{
+      const am=db.amigos.find(a=>a.id===pid);
+      return am?`<div class="est-ev-dot" style="background:${am.cor}" title="${am.nome}">${ini(am.nome)}</div>`:'';
+    }).join('');
+    const nP=(ev.participantes||[]).length;
+    const perPerson=nP>0?((ev.valor||0)/nP).toFixed(2):'0.00';
+    return`<div class="est-ev">
+      <div class="est-ev-head">
+        <div>
+          <div class="est-ev-name">${ev.nome||'Evento'}</div>
+          <div class="est-ev-meta">${d}${d?' · ':''}${nP} participante${nP!==1?'s':''} · ${perPerson}€ cada</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="est-ev-val">${(ev.valor||0).toFixed(0)}€</div>
+          <div style="display:flex;gap:4px" class="ro-hide">
+            <button class="jdel" style="color:#1565c0;border:1px solid #ddd;border-radius:7px;padding:4px 7px;font-size:12px" onclick="abrirModalEstouro(${ev.id})" title="Editar">✏️</button>
+            <button class="jdel" style="color:var(--dg);border:1px solid #ddd;border-radius:7px;padding:4px 7px;font-size:12px" onclick="remEstouro(${ev.id})" title="Remover">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="est-ev-parts">${parts}</div>
+    </div>`;
+  }).join('');
+}
+
+function rEstouroParticipantes(){
+  const el=document.getElementById('est-participantes');
+  if(!el)return;
+  el.innerHTML=db.amigos.map(am=>`
+    <label class="est-pchk">
+      <input type="checkbox" value="${am.id}" checked>
+      <div class="av" style="background:${am.cor};width:22px;height:22px;font-size:8px;flex-shrink:0">${ini(am.nome)}</div>
+      <span style="font-size:13px">${am.nome}</span>
+    </label>
+  `).join('');
+}
+
+function estToggleAll(on){
+  document.querySelectorAll('#est-participantes input[type=checkbox]').forEach(cb=>cb.checked=on);
+}
+
+function addEstouro(){
+  if(roGuard())return;
+  const nome=document.getElementById('est-nome').value.trim();
+  const data=document.getElementById('est-data').value;
+  const valor=parseFloat(document.getElementById('est-valor').value)||0;
+  if(!nome)return toast('Dá um nome ao evento!',1);
+  if(valor<=0)return toast('O custo tem de ser superior a 0€!',1);
+  const participantes=[];
+  document.querySelectorAll('#est-participantes input[type=checkbox]:checked').forEach(cb=>{
+    participantes.push(parseInt(cb.value));
+  });
+  if(!participantes.length)return toast('Seleciona pelo menos um participante!',1);
+  if(!db.estouros)db.estouros=[];
+  db.estouros.push({id:Date.now(),nome,data,valor,participantes});
+  salvar();
+  limparFormEstouro();
+  toast(`Evento "${nome}" adicionado ✓`);
+  rEstouro();
+}
+
+function limparFormEstouro(){
+  document.getElementById('est-nome').value='';
+  document.getElementById('est-valor').value='';
+  const hoje=new Date().toISOString().split('T')[0];
+  document.getElementById('est-data').value=hoje;
+  estToggleAll(true);
+}
+
+function remEstouro(id){
+  if(roGuard())return;
+  if(!confirm('Remover este evento?'))return;
+  db.estouros=(db.estouros||[]).filter(e=>e.id!==id);
+  salvar();rEstouro();
+  toast('Evento removido');
+}
+
+/* ── MODAL EDITAR ESTOURO ── */
+let _estEditId=null;
+
+function abrirModalEstouro(id){
+  const ev=(db.estouros||[]).find(e=>e.id===id);if(!ev)return;
+  _estEditId=id;
+  document.getElementById('ested-nome').value=ev.nome||'';
+  document.getElementById('ested-data').value=ev.data||'';
+  document.getElementById('ested-valor').value=ev.valor||'';
+  // Participantes
+  const el=document.getElementById('ested-participantes');
+  el.innerHTML=db.amigos.map(am=>{
+    const checked=(ev.participantes||[]).includes(am.id)?'checked':'';
+    return`<label class="est-pchk">
+      <input type="checkbox" value="${am.id}" ${checked}>
+      <div class="av" style="background:${am.cor};width:22px;height:22px;font-size:8px;flex-shrink:0">${ini(am.nome)}</div>
+      <span style="font-size:13px">${am.nome}</span>
+    </label>`;
+  }).join('');
+  document.getElementById('modal-estouro').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function fecharModalEstouro(e){
+  if(e&&e.target!==document.getElementById('modal-estouro'))return;
+  document.getElementById('modal-estouro').style.display='none';
+  document.body.style.overflow='';
+  _estEditId=null;
+}
+function estedToggleAll(on){
+  document.querySelectorAll('#ested-participantes input[type=checkbox]').forEach(cb=>cb.checked=on);
+}
+function guardarEstouroEdicao(){
+  if(roGuard())return;
+  if(_estEditId===null)return;
+  const ev=(db.estouros||[]).find(e=>e.id===_estEditId);if(!ev)return;
+  ev.nome=document.getElementById('ested-nome').value.trim()||ev.nome;
+  ev.data=document.getElementById('ested-data').value||ev.data;
+  ev.valor=parseFloat(document.getElementById('ested-valor').value)||ev.valor;
+  const parts=[];
+  document.querySelectorAll('#ested-participantes input[type=checkbox]:checked').forEach(cb=>{
+    parts.push(parseInt(cb.value));
+  });
+  if(!parts.length){toast('Seleciona pelo menos um participante!',1);return;}
+  ev.participantes=parts;
+  salvar();
+  fecharModalEstouro();
+  rEstouro();
+  toast(`Evento "${ev.nome}" actualizado ✓`);
+}
+
 /* ── INIT ──────────────────────────────────── */
 carregar();
 ghLoadCfg();
 checkReadOnly();
 if(!Object.keys(dbFull.epocas).length){
   // Sem dados: criar época activa vazia com amigos default
-  dbFull.epocas[epocaAtiva]={amigos:[],jogos:[],pagosPorJogo:{}};
+  dbFull.epocas[epocaAtiva]={amigos:[],jogos:[],pagosPorJogo:{},estouros:[]};
   sincEpoca();
 }
 if(!db.amigos.length){
