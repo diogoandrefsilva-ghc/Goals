@@ -787,6 +787,7 @@ function salvar(){
   dbFull.epocas[epocaAtiva].poteHolder=db.poteHolder||null;
   dbFull.config.epocaAtiva=epocaAtiva;
   localStorage.setItem('sg_v5',JSON.stringify(dbFull));
+  localStorage.setItem('sg_dirty','1');
   // Auto-save para GitHub (com debounce de 3s)
   ghAutoSave();
 }
@@ -2172,7 +2173,6 @@ async function ghPush(silent){
 
   if(!silent)ghStatus('A guardar no GitHub…');
   try{
-    const content=btoa(unescape(encodeURIComponent(JSON.stringify(dbFull,null,2))));
     // Check if file exists to get its SHA
     let sha=null;
     const check=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,{
@@ -2180,6 +2180,9 @@ async function ghPush(silent){
     });
     if(check.ok){const j=await check.json();sha=j.sha;}
     else if(check.status!==404){throw new Error(`Erro ao verificar ficheiro: ${check.status}`);}
+
+    // Encode content AFTER SHA fetch to include any changes made during the fetch
+    const content=btoa(unescape(encodeURIComponent(JSON.stringify(dbFull,null,2))));
 
     const body={message:`Atualização automática Golos do Sporting ${new Date().toLocaleString('pt-PT')}`,content,branch};
     if(sha)body.sha=sha;
@@ -2190,6 +2193,7 @@ async function ghPush(silent){
       body:JSON.stringify(body)
     });
     if(!res.ok){const e=await res.json();throw new Error(e.message||res.status);}
+    localStorage.setItem('sg_dirty','0');
     ghSaveCfg();
     if(!silent){
       ghStatus(`✓ Guardado com sucesso em ${owner}/${repo}/${path} (branch: ${branch})`);
@@ -2285,6 +2289,14 @@ async function ghAutoPull(){
       text=await res.text();
     }
     const d=JSON.parse(text);
+
+    // Se há alterações locais não guardadas no GitHub, não sobrescrever — push em vez disso
+    if(localStorage.getItem('sg_dirty')==='1'){
+      // Dados locais são mais recentes — guardar no GitHub em vez de sobrescrever
+      ghPush(true);
+      return;
+    }
+
     if(d.epocas){
       dbFull=d;
       actualizarEpocasOrdem();epocaAtiva=epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:'2025/26';dbFull.config.epocaAtiva=epocaAtiva;
@@ -2293,7 +2305,9 @@ async function ghAutoPull(){
       dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
       actualizarEpocasOrdem();sincEpoca();
     } else return;
-    salvar();rCfg();rDash();renderJogosList();
+    salvar();
+    localStorage.setItem('sg_dirty','0'); // dados vieram do GitHub, não são dirty
+    rCfg();rDash();renderJogosList();
     toast('Dados sincronizados do GitHub ✓');
   }catch{}
 }
@@ -2800,6 +2814,14 @@ function remCreditoFromModal(){
 }
 
 /* ── INIT ──────────────────────────────────── */
+// Flush pending saves on page unload
+window.addEventListener('beforeunload',()=>{
+  if(_ghAutoSaveTimer){
+    clearTimeout(_ghAutoSaveTimer);
+    _ghAutoSaveTimer=null;
+    ghPush(true);
+  }
+});
 carregar();
 ghLoadCfg();
 checkReadOnly();
