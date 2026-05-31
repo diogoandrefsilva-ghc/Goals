@@ -2291,7 +2291,8 @@ async function ghAutoPull(){
     const d=JSON.parse(text);
 
     // Se há alterações locais não guardadas no GitHub, não sobrescrever — push em vez disso
-    if(localStorage.getItem('sg_dirty')==='1'){
+    // (só faz sentido se tiver token — sem token não pode fazer push, aplica sempre os dados remotos)
+    if(token && localStorage.getItem('sg_dirty')==='1'){
       // Dados locais são mais recentes — guardar no GitHub em vez de sobrescrever
       ghPush(true);
       return;
