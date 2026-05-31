@@ -2359,14 +2359,22 @@ function rEstouro(){
   const excedente=Math.max(0,totalEv-poteTotal);
   const sobra=Math.max(0,poteTotal-totalEv);
 
+  // Helper: valor arredondado + exacto pequenino se diferente
+  function scVal(v){
+    const r=Math.round(v);
+    const exact=v.toFixed(2);
+    const diff=Math.abs(v-r)>0.004;
+    return`${r}€${diff?`<span style="font-family:'Inter',sans-serif;font-size:11px;color:#aaa;font-weight:400;margin-left:4px">${exact}€</span>`:''}`;
+  }
+
   let cardsHTML=`
-    <div class="sc cg"><div class="sc-l">Pote total</div><div class="sc-v">${poteBruto.toFixed(0)}€</div><div class="sc-s">${totalGolos()} golos × ${n} amigos × ${vg}€</div></div>`;
+    <div class="sc cg"><div class="sc-l">Pote total</div><div class="sc-v">${scVal(poteBruto)}</div><div class="sc-s">${totalGolos()} golos × ${n} amigos × ${vg}€</div></div>`;
   if(totalCreditos>0){
-    cardsHTML+=`<div class="sc cb"><div class="sc-l">Créditos extra</div><div class="sc-v">${totalCreditos.toFixed(2)}€</div><div class="sc-s">${db.creditosExtra.length} crédito${db.creditosExtra.length!==1?'s':''} · Pote final: ${poteTotal.toFixed(0)}€</div></div>`;
+    cardsHTML+=`<div class="sc cb"><div class="sc-l">Créditos extra</div><div class="sc-v">${scVal(totalCreditos)}</div><div class="sc-s">${db.creditosExtra.length} crédito${db.creditosExtra.length!==1?'s':''} · Pote final: ${scVal(poteTotal)}</div></div>`;
   }
   cardsHTML+=`
-    <div class="sc cr"><div class="sc-l">Gasto em eventos</div><div class="sc-v">${totalEv.toFixed(2)}€</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>
-    <div class="sc ${excedente>0?'co':'cb'}"><div class="sc-l">${excedente>0?'Excedente':'Sobra no pote'}</div><div class="sc-v">${excedente>0?excedente.toFixed(2):sobra.toFixed(2)}€</div><div class="sc-s">${excedente>0?'eventos custaram mais que o pote':'ainda por gastar'}</div></div>
+    <div class="sc cr"><div class="sc-l">Gasto em eventos</div><div class="sc-v">${scVal(totalEv)}</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>
+    <div class="sc ${excedente>0?'co':'cb'}"><div class="sc-l">${excedente>0?'Excedente':'Sobra no pote'}</div><div class="sc-v">${scVal(excedente>0?excedente:sobra)}</div><div class="sc-s">${excedente>0?'eventos custaram mais que o pote':'ainda por gastar'}</div></div>
   `;
   document.getElementById('estouro-stat-cards').innerHTML=cardsHTML;
 
@@ -2444,6 +2452,9 @@ function rEstouro(){
     // Linhas de detalhe com espaçamento uniforme
     const detailLineStyle='display:flex;justify-content:space-between;padding:4px 0;font-size:12px;font-weight:600';
 
+    // Display saldo: negate (negative=owes, positive=owed)
+    const displaySaldo=-saldo;
+
     return`<div class="est-person-block${estPagoFlag?' est-settled':''}">
       <div class="est-person-head" onclick="this.parentElement.classList.toggle('open')">
         <div class="av" style="background:${am.cor};width:30px;height:30px;font-size:10px;flex-shrink:0">${ini(am.nome)}</div>
@@ -2457,22 +2468,22 @@ function rEstouro(){
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px">Detalhe</div>
         ${evRows}
         <div style="${detailLineStyle};margin-top:4px;border-top:1px solid var(--bo);padding-top:6px">
-          <span>Total eventos</span><span>${share.toFixed(2)}€</span>
+          <span>Total eventos</span><span style="color:var(--dg)">−${share.toFixed(2)}€</span>
         </div>
         <div style="${detailLineStyle};color:var(--vd)">
-          <span>Pago do pote</span><span>−${potePago.toFixed(2)}€</span>
+          <span>Pago do pote</span><span>+${potePago.toFixed(2)}€</span>
         </div>
         ${creditShare>0?`<div style="${detailLineStyle};color:var(--in)">
-          <span>Créditos extra</span><span>−${creditShare.toFixed(2)}€</span>
+          <span>Créditos extra</span><span>+${creditShare.toFixed(2)}€</span>
         </div>`:''}
         ${eventosPagos>0?`<div style="${detailLineStyle};color:var(--vd)">
-          <span>Eventos pagos por ti</span><span>−${eventosPagos.toFixed(2)}€</span>
+          <span>Eventos pagos por ti</span><span>+${eventosPagos.toFixed(2)}€</span>
         </div>`:''}
         ${poteRecolhido>0?`<div style="${detailLineStyle};color:var(--ou)">
-          <span>Recolha do pote</span><span>+${poteRecolhido.toFixed(2)}€</span>
+          <span>Recolha do pote</span><span>−${poteRecolhido.toFixed(2)}€</span>
         </div>`:''}
         <div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:2px solid var(--bo);font-size:13px;font-weight:700">
-          <span>Saldo</span><span class="${statusCls}">${saldo>0.01?'+':''}${saldo.toFixed(2)}€</span>
+          <span>Saldo</span><span class="${statusCls}">${displaySaldo>0.01?'+':''}${displaySaldo.toFixed(2)}€</span>
         </div>
         <div style="margin-top:10px;text-align:right">${btnHTML}</div>
       </div>
@@ -2483,18 +2494,10 @@ function rEstouro(){
     if((db.estouroPagos||[]).includes(am.id))return a;
     const s=estSaldoPessoa(am.id);return s>0?a+s:a;
   },0);
-  const totalDevolver=db.amigos.reduce((a,am)=>{
-    if((db.estouroPagos||[]).includes(am.id))return a;
-    const s=estSaldoPessoa(am.id);return s<0?a+Math.abs(s):a;
-  },0);
 
   balEl.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px">
       <h2 class="stit" style="margin:0">Balanço por pessoa</h2>
-      <div style="display:flex;gap:12px;font-size:12px">
-        ${totalDevem>0.01?`<span style="color:var(--dg);font-weight:600">Devem: ${totalDevem.toFixed(2)}€</span>`:''}
-        ${totalDevolver>0.01?`<span style="color:var(--vd);font-weight:600">Crédito: ${totalDevolver.toFixed(2)}€</span>`:''}
-      </div>
     </div>
     ${blocks}
   `;
