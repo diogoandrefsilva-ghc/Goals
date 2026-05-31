@@ -553,7 +553,6 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
           <label>Token GitHub <em style="text-transform:none;font-weight:400;letter-spacing:0">(ghp_… — obrigatório para guardar)</em></label>
           <div style="display:flex;gap:6px">
             <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="flex:1">
-            <button class="btn btn-n" style="font-size:12px;padding:0 10px;white-space:nowrap" onclick="toggleGhToken()">👁</button>
           </div>
         </div>
         <div class="frow" style="margin-bottom:0">
@@ -2155,10 +2154,6 @@ function ghStatus(msg,err){
   el.textContent=msg;
 }
 
-function toggleGhToken(){
-  const inp=document.getElementById('gh-token');
-  inp.type=inp.type==='password'?'text':'password';
-}
 
 async function ghPush(silent){
   const{token,owner,repo,path,branch}=ghGetCfg();
