@@ -1,7 +1,7 @@
 {
   "config": {
     "valorPorGolo": 1,
-    "epocaAtiva": "2025/26"
+    "epocaAtiva": "2024/25"
   },
   "epocas": {
     "2025/26": {
@@ -1286,7 +1286,7 @@
           "valor": 40
         }
       ],
-      "poteHolder": null
+      "poteHolder": 2
     },
     "2024/25": {
       "amigos": [
@@ -2336,7 +2336,9 @@
         ]
       },
       "estouros": [],
-      "estouroPagos": []
+      "estouroPagos": [],
+      "creditosExtra": [],
+      "poteHolder": null
     }
   }
 }
