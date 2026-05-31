@@ -1277,7 +1277,9 @@
           "pagoPor": 2
         }
       ],
-      "estouroPagos": []
+      "estouroPagos": [],
+      "creditosExtra": [],
+      "poteHolder": null
     },
     "2024/25": {
       "amigos": [
