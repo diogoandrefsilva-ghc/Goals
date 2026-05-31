@@ -261,6 +261,17 @@ input:focus,select:focus{border-color:var(--vd)}
 .est-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--vd);color:#fff;border:none;font-size:28px;font-weight:300;cursor:pointer;box-shadow:0 4px 16px rgba(26,94,46,.4);display:flex;align-items:center;justify-content:center;z-index:90;transition:transform .15s,box-shadow .15s;line-height:1}
 .est-fab:hover{transform:scale(1.08);box-shadow:0 6px 24px rgba(26,94,46,.5)}
 .est-fab:active{transform:scale(0.95)}
+.est-fab-menu{position:fixed;bottom:90px;right:24px;z-index:89;display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(10px)}
+.est-fab-menu.open{opacity:1;pointer-events:auto;transform:translateY(0)}
+.est-fab-option{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--bo);border-radius:10px;padding:9px 16px;box-shadow:0 4px 16px rgba(0,0,0,.12);cursor:pointer;white-space:nowrap;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;color:var(--tx);transition:all .15s}
+.est-fab-option:hover{border-color:var(--vd);color:var(--vd);box-shadow:0 4px 20px rgba(0,0,0,.16)}
+.est-fab-option span.fab-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0}
+.est-fab-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.15);z-index:88;display:none}
+.est-fab-backdrop.open{display:block}
+.est-credit-card{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:10px;transition:box-shadow .15s}
+.est-credit-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.pote-holder-select{border:1px solid var(--bo);border-radius:8px;padding:5px 8px;font-size:12px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;cursor:pointer}
+.pote-holder-select:focus{border-color:var(--vd)}
 .est-person-block{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
 .est-person-head{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;user-select:none}
 .est-person-head:hover{background:#fafaf8}
@@ -401,6 +412,12 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
   <div id="t-estouro" class="tp">
     <div class="g4" id="estouro-stat-cards"></div>
 
+    <!-- QUEM TEM O POTE -->
+    <div id="estouro-pote-holder" style="margin-bottom:16px"></div>
+
+    <!-- CRÉDITOS EXTRA -->
+    <div id="estouro-creditos-section"></div>
+
     <!-- LISTA DE EVENTOS -->
     <h2 class="stit" style="display:flex;align-items:center;justify-content:space-between">
       <span>Eventos</span>
@@ -410,8 +427,17 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
     <!-- BALANÇO POR PESSOA -->
     <div id="estouro-balanco"></div>
 
-    <!-- FAB -->
-    <button class="est-fab ro-hide" onclick="abrirModalAddEstouro()" title="Novo evento">＋</button>
+    <!-- FAB MENU -->
+    <div class="est-fab-backdrop ro-hide" id="est-fab-backdrop" onclick="fecharFabMenu()"></div>
+    <div class="est-fab-menu ro-hide" id="est-fab-menu">
+      <div class="est-fab-option" onclick="fecharFabMenu();abrirModalAddEstouro()">
+        <span class="fab-icon" style="background:var(--dg)">🎉</span> Novo Evento
+      </div>
+      <div class="est-fab-option" onclick="fecharFabMenu();abrirModalAddCredito()">
+        <span class="fab-icon" style="background:var(--in)">💰</span> Crédito Extra
+      </div>
+    </div>
+    <button class="est-fab ro-hide" id="est-fab-btn" onclick="toggleFabMenu()" title="Adicionar">＋</button>
   </div>
   <!-- ABA CONFIG (dentro do Dashboard) -->
   <div id="t-cfg" class="tp">
@@ -684,6 +710,39 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
   </div>
 </div>
 
+<!-- MODAL CRÉDITO EXTRA -->
+<div class="modal-overlay" id="modal-credito" style="display:none" onclick="fecharModalCredito(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h3 id="modal-credito-title">💰 Novo crédito extra</h3>
+      <button class="modal-close" onclick="fecharModalCredito()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div style="display:flex;gap:10px">
+          <div class="fg" style="flex:2;min-width:0">
+            <label>Descrição</label>
+            <input type="text" id="cred-nome" placeholder="ex: Sobra da época anterior">
+          </div>
+          <div class="fg" style="flex:0 0 auto">
+            <label>Data</label>
+            <input type="date" id="cred-data" style="width:auto;min-width:130px">
+          </div>
+        </div>
+        <div class="fg">
+          <label>Valor (€)</label>
+          <input type="number" id="cred-valor" min="0" step="0.01" placeholder="ex: 50.00">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-g" id="modal-credito-save">Criar crédito</button>
+      <button class="btn btn-n" onclick="fecharModalCredito()">Cancelar</button>
+      <button class="btn" id="modal-credito-del" style="background:var(--dg);color:#fff;margin-left:auto;display:none" onclick="remCreditoFromModal()">Apagar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const CORES=['#1b5e20','#1a237e','#4a148c','#b71c1c','#e65100','#006064','#33691e','#880e4f','#1565c0','#37474f','#f57f17','#3e2723','#004d40','#311b92','#bf360c'];
 
@@ -707,7 +766,7 @@ function roGuard(action){
 // Multi-época: db contém a estrutura completa carregada do JSON
 let dbFull={config:{valorPorGolo:1,epocaAtiva:'2025/26'},epocas:{}};
 // db é o "atalho" para a época activa (amigos, jogos, pagosPorJogo)
-let db={amigos:[],jogos:[],pagosPorJogo:{},estouros:[],estouroPagos:[]};
+let db={amigos:[],jogos:[],pagosPorJogo:{},estouros:[],estouroPagos:[],creditosExtra:[],poteHolder:null};
 let epocaAtiva='2025/26';
 const epocasOrdem=['2024/25','2025/26']; // ordem cronológica
 
@@ -724,6 +783,8 @@ function salvar(){
   dbFull.epocas[epocaAtiva].pagosPorJogo=db.pagosPorJogo;
   dbFull.epocas[epocaAtiva].estouros=db.estouros||[];
   dbFull.epocas[epocaAtiva].estouroPagos=db.estouroPagos||[];
+  dbFull.epocas[epocaAtiva].creditosExtra=db.creditosExtra||[];
+  dbFull.epocas[epocaAtiva].poteHolder=db.poteHolder||null;
   dbFull.config.epocaAtiva=epocaAtiva;
   localStorage.setItem('sg_v5',JSON.stringify(dbFull));
   // Auto-save para GitHub (com debounce de 3s)
@@ -780,6 +841,8 @@ function sincEpoca(){
   db.pagosPorJogo=ep.pagosPorJogo||{};
   db.estouros=ep.estouros||[];
   db.estouroPagos=ep.estouroPagos||[];
+  db.creditosExtra=ep.creditosExtra||[];
+  db.poteHolder=ep.poteHolder||null;
   db.jogos.forEach(j=>{if(j.golos===undefined)j.golos=null;});
   // actualizar config global para retrocompatibilidade de funções que usam db.config
   db.config={valorPorGolo:dbFull.config.valorPorGolo||1,epoca:epocaAtiva};
@@ -896,11 +959,21 @@ function rResumo(){
   const nJogosTotal=db.jogos.length;
   const pct=nJogosTotal>0?Math.min(100,Math.round(nJogosComRes/nJogosTotal*100)):0;
   atualizarLabelEpoca();
+  // Estouro cards for resumo
+  const hasEstouros=(db.estouros||[]).length>0;
+  const estTotalEv=hasEstouros?estTotalEventos():0;
+  const estPorReceber=hasEstouros?db.amigos.reduce((a,am)=>{
+    if((db.estouroPagos||[]).includes(am.id))return a;
+    const s=estSaldoPessoa(am.id);return s>0?a+s:a;
+  },0):0;
+
   document.getElementById('stat-cards').innerHTML=`
     <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${nJogosComRes} jogos realizados</div></div>
     <div class="sc cb"><div class="sc-l">Média de golos</div><div class="sc-v">${nJogosComRes>0?(g/nJogosComRes).toFixed(2):'-'}</div><div class="sc-s">por jogo realizado</div></div>
     <div class="sc co"><div class="sc-l">Pote acumulado</div><div class="sc-v">${(g*n*db.config.valorPorGolo).toFixed(0)}€</div><div class="sc-s">${n} pessoas × ${vt.toFixed(0)}€</div></div>
     <div class="sc cr"><div class="sc-l">Por receber</div><div class="sc-v">${totalDividas().toFixed(0)}€</div><div class="sc-s">dívida total em aberto</div></div>
+    ${hasEstouros?`<div class="sc cr"><div class="sc-l">Estouro</div><div class="sc-v">${estTotalEv.toFixed(0)}€</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>`:''}
+    ${hasEstouros&&estPorReceber>0.01?`<div class="sc" style="border-left:3px solid var(--ou)"><div class="sc-l">Por receber (estouro)</div><div class="sc-v">${estPorReceber.toFixed(0)}€</div><div class="sc-s">em falta para acertar</div></div>`:''}
   `;
   document.getElementById('pct-l').textContent=pct+'%';
   document.getElementById('prog-b').style.width=pct+'%';
@@ -1870,7 +1943,7 @@ function criarNovaEpoca(){
   // Perguntar se copia amigos da época actual
   const copiar=db.amigos.length&&confirm(`Copiar os ${db.amigos.length} amigos da época actual para a nova época?`);
   const amigosIniciais=copiar?JSON.parse(JSON.stringify(db.amigos)):[];
-  dbFull.epocas[nomeF]={amigos:amigosIniciais,jogos:[],pagosPorJogo:{},estouros:[]};
+  dbFull.epocas[nomeF]={amigos:amigosIniciais,jogos:[],pagosPorJogo:{},estouros:[],creditosExtra:[]};
   actualizarEpocasOrdem();
   // Navegar para a nova época
   epocaAtiva=nomeF;
@@ -2268,18 +2341,41 @@ function estDeveAQuem(amigoId){
 function rEstouro(){
   if(!db.estouros)db.estouros=[];
   if(!db.estouroPagos)db.estouroPagos=[];
+  if(!db.creditosExtra)db.creditosExtra=[];
   const n=db.amigos.length||1;
   const vg=db.config.valorPorGolo;
   const poteBruto=totalGolos()*vg*n;
+  const totalCreditos=(db.creditosExtra||[]).reduce((a,c)=>a+(c.valor||0),0);
+  const poteTotal=poteBruto+totalCreditos;
   const totalEv=estTotalEventos();
-  const excedente=Math.max(0,totalEv-poteBruto);
-  const sobra=Math.max(0,poteBruto-totalEv);
+  const excedente=Math.max(0,totalEv-poteTotal);
+  const sobra=Math.max(0,poteTotal-totalEv);
 
-  document.getElementById('estouro-stat-cards').innerHTML=`
-    <div class="sc cg"><div class="sc-l">Pote total</div><div class="sc-v">${poteBruto.toFixed(0)}€</div><div class="sc-s">${totalGolos()} golos × ${n} amigos × ${vg}€</div></div>
+  let cardsHTML=`
+    <div class="sc cg"><div class="sc-l">Pote total</div><div class="sc-v">${poteBruto.toFixed(0)}€</div><div class="sc-s">${totalGolos()} golos × ${n} amigos × ${vg}€</div></div>`;
+  if(totalCreditos>0){
+    cardsHTML+=`<div class="sc cb"><div class="sc-l">Créditos extra</div><div class="sc-v">${totalCreditos.toFixed(2)}€</div><div class="sc-s">${db.creditosExtra.length} crédito${db.creditosExtra.length!==1?'s':''} · Pote final: ${poteTotal.toFixed(0)}€</div></div>`;
+  }
+  cardsHTML+=`
     <div class="sc cr"><div class="sc-l">Gasto em eventos</div><div class="sc-v">${totalEv.toFixed(2)}€</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>
     <div class="sc ${excedente>0?'co':'cb'}"><div class="sc-l">${excedente>0?'Excedente':'Sobra no pote'}</div><div class="sc-v">${excedente>0?excedente.toFixed(2):sobra.toFixed(2)}€</div><div class="sc-s">${excedente>0?'eventos custaram mais que o pote':'ainda por gastar'}</div></div>
   `;
+  document.getElementById('estouro-stat-cards').innerHTML=cardsHTML;
+
+  // Pote holder
+  const phEl=document.getElementById('estouro-pote-holder');
+  const holderAm=db.poteHolder?db.amigos.find(a=>a.id===db.poteHolder):null;
+  const holderOpts=db.amigos.map(am=>`<option value="${am.id}"${am.id===db.poteHolder?' selected':''}>${am.nome}</option>`).join('');
+  phEl.innerHTML=`<div style="background:var(--oup);border:1px solid #ffe082;border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:13px;font-weight:600;color:#7b5e00">💰 Quem tem o dinheiro do pote?</span>
+    <select class="pote-holder-select ro-hide" onchange="setPoteHolder(parseInt(this.value)||null)">
+      <option value="">— Ninguém —</option>${holderOpts}
+    </select>
+    ${holderAm?`<span style="font-size:12px;color:#5d4037;font-weight:500">${holderAm.nome} tem o pote</span>`:''}
+  </div>`;
+
+  // Créditos extra section
+  rCreditosExtra();
 
   rEstouroEventos();
 
@@ -2532,13 +2628,132 @@ function guardarEstouroEdicao(){
   toast(`Evento "${ev.nome}" actualizado ✓`);
 }
 
+/* ── FAB MENU ── */
+function toggleFabMenu(){
+  const menu=document.getElementById('est-fab-menu');
+  const backdrop=document.getElementById('est-fab-backdrop');
+  const btn=document.getElementById('est-fab-btn');
+  const isOpen=menu.classList.contains('open');
+  menu.classList.toggle('open',!isOpen);
+  backdrop.classList.toggle('open',!isOpen);
+  btn.style.transform=isOpen?'':'rotate(45deg)';
+}
+function fecharFabMenu(){
+  document.getElementById('est-fab-menu').classList.remove('open');
+  document.getElementById('est-fab-backdrop').classList.remove('open');
+  document.getElementById('est-fab-btn').style.transform='';
+}
+
+/* ── POTE HOLDER ── */
+function setPoteHolder(id){
+  if(roGuard())return;
+  db.poteHolder=id||null;
+  salvar();rEstouro();
+  const am=id?db.amigos.find(a=>a.id===id):null;
+  toast(am?`${am.nome} ficou com o pote 💰`:'Pote sem responsável');
+}
+
+/* ── CRÉDITOS EXTRA ── */
+function estTotalCreditos(){return (db.creditosExtra||[]).reduce((a,c)=>a+(c.valor||0),0);}
+
+function rCreditosExtra(){
+  const el=document.getElementById('estouro-creditos-section');
+  if(!db.creditosExtra||!db.creditosExtra.length){el.innerHTML='';return;}
+  const creds=[...db.creditosExtra].sort((a,b)=>new Date(b.data||0)-new Date(a.data||0));
+  el.innerHTML=`<h2 class="stit" style="margin-bottom:8px">Créditos extra</h2>`+
+    creds.map(c=>{
+      const d=c.data?new Date(c.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'}):'';
+      const clickable=!isReadOnly;
+      return`<div class="est-credit-card" onclick="${clickable?'abrirModalEditCredito('+c.id+')':''}" style="${clickable?'cursor:pointer':''}">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--in);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;color:#fff">💰</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${c.nome||'Crédito'}</div>
+          <div style="font-size:11px;color:var(--mu)">${d}</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--in);flex-shrink:0">+${(c.valor||0).toFixed(2)}€</div>
+      </div>`;
+    }).join('')+`<div style="margin-bottom:16px"></div>`;
+}
+
+let _credEditId=null;
+
+function abrirModalAddCredito(){
+  if(roGuard())return;
+  _credEditId=null;
+  document.getElementById('modal-credito-title').textContent='💰 Novo crédito extra';
+  const saveBtn=document.getElementById('modal-credito-save');
+  saveBtn.textContent='Criar crédito';
+  saveBtn.onclick=criarCreditoFromModal;
+  document.getElementById('modal-credito-del').style.display='none';
+  document.getElementById('cred-nome').value='';
+  document.getElementById('cred-data').value=new Date().toISOString().split('T')[0];
+  document.getElementById('cred-valor').value='';
+  document.getElementById('modal-credito').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+function abrirModalEditCredito(id){
+  const c=(db.creditosExtra||[]).find(cr=>cr.id===id);if(!c)return;
+  _credEditId=id;
+  document.getElementById('modal-credito-title').textContent='✏️ Editar crédito';
+  const saveBtn=document.getElementById('modal-credito-save');
+  saveBtn.textContent='Guardar alterações';
+  saveBtn.onclick=guardarCreditoEdicao;
+  document.getElementById('modal-credito-del').style.display='';
+  document.getElementById('cred-nome').value=c.nome||'';
+  document.getElementById('cred-data').value=c.data||'';
+  document.getElementById('cred-valor').value=c.valor||'';
+  document.getElementById('modal-credito').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+function fecharModalCredito(e){
+  if(e&&e.target!==document.getElementById('modal-credito'))return;
+  document.getElementById('modal-credito').style.display='none';
+  document.body.style.overflow='';
+  _credEditId=null;
+}
+
+function criarCreditoFromModal(){
+  if(roGuard())return;
+  const nome=document.getElementById('cred-nome').value.trim();
+  const data=document.getElementById('cred-data').value;
+  const valor=parseFloat(document.getElementById('cred-valor').value)||0;
+  if(!nome)return toast('Dá um nome ao crédito!',1);
+  if(valor<=0)return toast('O valor tem de ser superior a 0€!',1);
+  if(!db.creditosExtra)db.creditosExtra=[];
+  db.creditosExtra.push({id:Date.now(),nome,data,valor});
+  salvar();fecharModalCredito();rEstouro();
+  toast(`Crédito "${nome}" adicionado ✓`);
+}
+
+function guardarCreditoEdicao(){
+  if(roGuard())return;
+  if(_credEditId===null)return;
+  const c=(db.creditosExtra||[]).find(cr=>cr.id===_credEditId);if(!c)return;
+  c.nome=document.getElementById('cred-nome').value.trim()||c.nome;
+  c.data=document.getElementById('cred-data').value||c.data;
+  c.valor=parseFloat(document.getElementById('cred-valor').value)||c.valor;
+  salvar();fecharModalCredito();rEstouro();
+  toast(`Crédito "${c.nome}" actualizado ✓`);
+}
+
+function remCreditoFromModal(){
+  if(roGuard())return;
+  if(_credEditId===null)return;
+  if(!confirm('Remover este crédito?'))return;
+  db.creditosExtra=(db.creditosExtra||[]).filter(c=>c.id!==_credEditId);
+  salvar();fecharModalCredito();rEstouro();
+  toast('Crédito removido');
+}
+
 /* ── INIT ──────────────────────────────────── */
 carregar();
 ghLoadCfg();
 checkReadOnly();
 if(!Object.keys(dbFull.epocas).length){
   // Sem dados: criar época activa vazia com amigos default
-  dbFull.epocas[epocaAtiva]={amigos:[],jogos:[],pagosPorJogo:{},estouros:[]};
+  dbFull.epocas[epocaAtiva]={amigos:[],jogos:[],pagosPorJogo:{},estouros:[],creditosExtra:[]};
   sincEpoca();
 }
 if(!db.amigos.length){
