@@ -2322,8 +2322,15 @@ function estSaldoPessoa(amigoId){
   const share=estSharePorPessoa(amigoId);
   const potePago=pagouAmigo(amigoId);
   const eventosPagos=estPagouEventos(amigoId);
-  const creditShare=((db.creditosExtra||[]).reduce((a,c)=>a+(c.valor||0),0))/(db.amigos.length||1);
-  return share-potePago-eventosPagos-creditShare;
+  const totalCreditos=(db.creditosExtra||[]).reduce((a,c)=>a+(c.valor||0),0);
+  const creditShare=totalCreditos/(db.amigos.length||1);
+  // Pote holder: recolheu o dinheiro de todos + créditos extra
+  let poteRecolhido=0;
+  if(db.poteHolder&&db.poteHolder===amigoId){
+    const totalPotePago=db.amigos.reduce((a,am)=>a+pagouAmigo(am.id),0);
+    poteRecolhido=totalPotePago+totalCreditos;
+  }
+  return share-potePago-eventosPagos-creditShare+poteRecolhido;
 }
 
 function estDeveAQuem(amigoId){
@@ -2388,7 +2395,13 @@ function rEstouro(){
     const potePago=pagouAmigo(am.id);
     const eventosPagos=estPagouEventos(am.id);
     const creditShare=totalCreditos/(db.amigos.length||1);
-    const saldo=share-potePago-eventosPagos-creditShare;
+    // Pote holder: recolheu o dinheiro de todos + créditos extra
+    let poteRecolhido=0;
+    if(db.poteHolder&&db.poteHolder===am.id){
+      const totalPotePago=db.amigos.reduce((a,a2)=>a+pagouAmigo(a2.id),0);
+      poteRecolhido=totalPotePago+totalCreditos;
+    }
+    const saldo=share-potePago-eventosPagos-creditShare+poteRecolhido;
     const estPagoFlag=(db.estouroPagos||[]).includes(am.id);
 
     const evRows=(db.estouros||[]).map(ev=>{
@@ -2428,6 +2441,9 @@ function rEstouro(){
       `<button class="est-paid-btn unpaid ro-hide" onclick="event.stopPropagation();toggleEstouroPago(${am.id})">Marcar acertado</button>`:
       (estPagoFlag?`<button class="est-paid-btn paid ro-hide" onclick="event.stopPropagation();toggleEstouroPago(${am.id})">Acertado ✓</button>`:'');
 
+    // Linhas de detalhe com espaçamento uniforme
+    const detailLineStyle='display:flex;justify-content:space-between;padding:4px 0;font-size:12px;font-weight:600';
+
     return`<div class="est-person-block${estPagoFlag?' est-settled':''}">
       <div class="est-person-head" onclick="this.parentElement.classList.toggle('open')">
         <div class="av" style="background:${am.cor};width:30px;height:30px;font-size:10px;flex-shrink:0">${ini(am.nome)}</div>
@@ -2440,19 +2456,22 @@ function rEstouro(){
       <div class="est-person-body">
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px">Detalhe</div>
         ${evRows}
-        <div style="display:flex;justify-content:space-between;padding:4px 0 0;margin-top:4px;border-top:1px solid var(--bo);font-size:12px;font-weight:600">
+        <div style="${detailLineStyle};margin-top:4px;border-top:1px solid var(--bo);padding-top:6px">
           <span>Total eventos</span><span>${share.toFixed(2)}€</span>
         </div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--vd);font-weight:600">
-          <span>Pago ao pote</span><span>−${potePago.toFixed(2)}€</span>
+        <div style="${detailLineStyle};color:var(--vd)">
+          <span>Pago do pote</span><span>−${potePago.toFixed(2)}€</span>
         </div>
-        ${eventosPagos>0?`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--vd);font-weight:600">
-          <span>Eventos pagos por si</span><span>−${eventosPagos.toFixed(2)}€</span>
-        </div>`:''}
-        ${creditShare>0?`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:var(--in);font-weight:600">
+        ${creditShare>0?`<div style="${detailLineStyle};color:var(--in)">
           <span>Créditos extra</span><span>−${creditShare.toFixed(2)}€</span>
         </div>`:''}
-        <div style="display:flex;justify-content:space-between;padding:5px 0 0;margin-top:4px;border-top:2px solid var(--bo);font-size:13px;font-weight:700">
+        ${eventosPagos>0?`<div style="${detailLineStyle};color:var(--vd)">
+          <span>Eventos pagos por ti</span><span>−${eventosPagos.toFixed(2)}€</span>
+        </div>`:''}
+        ${poteRecolhido>0?`<div style="${detailLineStyle};color:var(--ou)">
+          <span>Recolha do pote</span><span>+${poteRecolhido.toFixed(2)}€</span>
+        </div>`:''}
+        <div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:2px solid var(--bo);font-size:13px;font-weight:700">
           <span>Saldo</span><span class="${statusCls}">${saldo>0.01?'+':''}${saldo.toFixed(2)}€</span>
         </div>
         <div style="margin-top:10px;text-align:right">${btnHTML}</div>
