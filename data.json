@@ -2335,10 +2335,30 @@
           10
         ]
       },
-      "estouros": [],
+      "estouros": [
+        {
+          "id": 1780215870122,
+          "nome": "Solar dos Presuntos",
+          "data": "2025-05-31",
+          "valor": 1233.8,
+          "participantes": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "pagoPor": 2
+        }
+      ],
       "estouroPagos": [],
       "creditosExtra": [],
-      "poteHolder": null
+      "poteHolder": 2
     }
   }
 }
