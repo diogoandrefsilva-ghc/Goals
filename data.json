@@ -1238,7 +1238,24 @@
         ],
         "1779257023230": []
       },
-      "estouros": []
+      "estouros": [
+        {
+          "id": 1780188140041,
+          "nome": "Lanche Jaquim D'Adelina",
+          "data": "2026-05-30",
+          "valor": 98.8,
+          "participantes": [
+            1,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        }
+      ]
     },
     "2024/25": {
       "amigos": [
