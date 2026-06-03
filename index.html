@@ -567,7 +567,7 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
         </div>
         <div class="fg">
           <label>Caminho do ficheiro</label>
-          <input type="text" id="gh-path" placeholder="data.json" value="data.json">
+          <input type="text" id="gh-path" placeholder="goals-data.json" value="goals-data.json">
         </div>
         <div class="fg">
           <label>Branch</label>
@@ -2091,7 +2091,7 @@ function exportarDividas(){
 
 /* ── GITHUB SYNC ───────────────────────────── */
 
-const GH_DEFAULTS={owner:'diogoandrefsilva-ghc',repo:'Goals',path:'data.json',branch:'main'};
+const GH_DEFAULTS={owner:'diogoandrefsilva-ghc',repo:'AppDataJSON',path:'goals-data.json',branch:'main'};
 
 /* ── SEGURANÇA: TOKEN GITHUB ───────────────────────────────────────────────
    O token de autenticação do GitHub é guardado APENAS em localStorage,
@@ -2119,8 +2119,7 @@ function ghLoadCfg(){
     const c=JSON.parse(s);
     if(c.token)document.getElementById('gh-token').value=c.token;
     if(c.owner)document.getElementById('gh-owner').value=c.owner;
-    if(c.repo)document.getElementById('gh-repo').value=c.repo;
-    if(c.path)document.getElementById('gh-path').value=c.path;
+    // repo/path fixos no repositório de dados — ignorar valores antigos guardados em localStorage
     if(c.branch)document.getElementById('gh-branch').value=c.branch;
   }catch{}
 }
