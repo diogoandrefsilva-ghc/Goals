@@ -12,6 +12,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* Bloqueia pinch-zoom e double-tap zoom (iOS PWA) */
+*{touch-action:manipulation}
+html,body{touch-action:pan-x pan-y}
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --vd:#1a5e2e;--vd2:#2e7d32;--vdp:#e8f5e9;
