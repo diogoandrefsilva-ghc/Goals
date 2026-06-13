@@ -1,4 +1,4 @@
-const CACHE_NAME = 'app-cache-v1';
+const CACHE_NAME = 'app-cache-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -20,7 +20,7 @@ self.addEventListener('fetch', (e) => {
     // Network-first for HTML
     if (url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('/')) {
         e.respondWith(
-            fetch(e.request)
+            fetch(e.request.url, { cache: 'no-store' }) // no-store: nao reusa HTML stale do CDN/browser
                 .then((res) => {
                     if (res && res.status === 200) {
                         const clone = res.clone();
