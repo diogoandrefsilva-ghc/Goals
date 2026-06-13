@@ -830,8 +830,8 @@ function carregar(){
   }
   if(!dbFull.config)dbFull.config={valorPorGolo:1,epocaAtiva:'2025/26'};
   actualizarEpocasOrdem();
-  // Posicionar sempre na época mais recente ao carregar
-  epocaAtiva=epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:(dbFull.config.epocaAtiva||'2025/26');
+  // Posicionar na época onde o utilizador estava (senão a mais recente)
+  epocaAtiva=epocaInicial();
   dbFull.config.epocaAtiva=epocaAtiva;
   sincEpoca();
 }
@@ -844,7 +844,21 @@ function actualizarEpocasOrdem(){
   eps.forEach(e=>epocasOrdem.push(e));
   if(!epocasOrdem.length)epocasOrdem.push('2025/26');
 }
+// Estado de navegação persistido (sobrevive ao reload do PWA no iOS)
+function epocaInicial(){
+  let s=null;try{s=localStorage.getItem('sg_epoca');}catch(e){}
+  if(s&&epocasOrdem.includes(s))return s;
+  return epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:(dbFull.config.epocaAtiva||'2025/26');
+}
+function restaurarTab(){
+  let t=null;try{t=localStorage.getItem('sg_tab');}catch(e){}
+  const valid=['resumo','contas','previsao','jogos','estouro','cfg'];
+  if(!valid.includes(t)||t==='resumo')return; // resumo é o default já renderizado
+  const btn=[...document.querySelectorAll('#s-dash > .itabs .it')].find(b=>(b.getAttribute('onclick')||'').includes("itab('"+t+"'"));
+  if(btn)itab(t,btn,'dash');
+}
 function sincEpoca(){
+  try{localStorage.setItem('sg_epoca',epocaAtiva);}catch(e){}
   const ep=dbFull.epocas[epocaAtiva]||{amigos:[],jogos:[],pagosPorJogo:{},estouros:[]};
   db.amigos=ep.amigos||[];
   db.jogos=ep.jogos||[];
@@ -941,6 +955,7 @@ function nav(id,btn){
   ({dash:rDash})[id]?.();
 }
 function itab(id,btn,parent){
+  if(parent==='dash'){try{localStorage.setItem('sg_tab',id);}catch(e){}}
   const sec=document.getElementById('s-'+parent);
   sec.querySelectorAll(':scope > .tp').forEach(p=>p.classList.remove('on'));
   sec.querySelectorAll(':scope > .itabs .it').forEach(b=>b.classList.remove('on'));
@@ -2243,7 +2258,7 @@ async function ghPull(){
     const d=JSON.parse(text);
     if(d.epocas){
       dbFull=d;
-      actualizarEpocasOrdem();epocaAtiva=epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:'2025/26';dbFull.config.epocaAtiva=epocaAtiva;
+      actualizarEpocasOrdem();epocaAtiva=epocaInicial();dbFull.config.epocaAtiva=epocaAtiva;
       actualizarEpocasOrdem();sincEpoca();
     } else if(d.amigos&&d.jogos){
       dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
@@ -2304,7 +2319,7 @@ async function ghAutoPull(){
 
     if(d.epocas){
       dbFull=d;
-      actualizarEpocasOrdem();epocaAtiva=epocasOrdem.length?epocasOrdem[epocasOrdem.length-1]:'2025/26';dbFull.config.epocaAtiva=epocaAtiva;
+      actualizarEpocasOrdem();epocaAtiva=epocaInicial();dbFull.config.epocaAtiva=epocaAtiva;
       actualizarEpocasOrdem();sincEpoca();
     } else if(d.amigos&&d.jogos){
       dbFull.epocas[epocaAtiva]={amigos:d.amigos,jogos:d.jogos,pagosPorJogo:d.pagosPorJogo||{}};
@@ -2841,6 +2856,7 @@ if(!db.amigos.length){
   salvar();
 }
 rDash();rCfg();renderJogosList();
+restaurarTab();
 ghAutoPull();
 </script>
 
