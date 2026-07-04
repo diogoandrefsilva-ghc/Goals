@@ -106,6 +106,8 @@ tbody tr:hover{background:#fafaf8}
 .jsep{width:1px;height:34px;background:var(--bo);flex-shrink:0}
 .jinfo{flex:1;min-width:0}
 .jadv{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jlogo{width:26px;height:26px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+.jlogo img{max-width:100%;max-height:100%;object-fit:contain}
 .jcomp{font-size:11px;color:var(--mu);margin-top:1px}
 .jres{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);width:44px;text-align:center;flex-shrink:0;margin-top:-5px}
 .jgol{text-align:center;width:40px;flex-shrink:0}
@@ -1570,6 +1572,7 @@ function jogoCardHTML(j,mini=false){
     ${localBadge}
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
+    <span class="jlogo">${(l=>l?`<img src="${l}" alt="" loading="lazy" onerror="this.style.display='none'">`:'')(logoAdv(j.adversario))}</span>
     <div class="jinfo"><div class="jadv">${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}</div></div>
     <div class="jpag-bar">${dotsHTML}</div>
     ${resDisplayHTML}
@@ -2855,9 +2858,27 @@ if(!db.amigos.length){
     .forEach((n,i)=>db.amigos.push({id:i+1,nome:n,cor:CORES[i]}));
   salvar();
 }
+/* ── LOGOS DOS ADVERSÁRIOS ─────────────────── */
+// Lê logos.json do repo AppDataJSON (mesma fonte dos dados) e indexa por nome
+// normalizado (sem acentos/maiúsculas/pontuação), para casar com o texto livre
+// que escreves no adversário. Logo em falta ou que não carregue: fica sem logo.
+let LOGOS={};
+function normNome(s){return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');}
+function logoAdv(nome){return LOGOS[normNome(nome)]||'';}
+async function carregarLogos(){
+  try{
+    const r=await fetch('https://raw.githubusercontent.com/diogoandrefsilva-ghc/AppDataJSON/main/logos.json?t='+Date.now());
+    if(!r.ok)return;
+    const d=await r.json();
+    const m={};for(const k in d)m[normNome(k)]=d[k];
+    LOGOS=m;renderJogosList();
+  }catch(e){/* offline ou ficheiro em falta: segue sem logos */}
+}
+
 rDash();rCfg();renderJogosList();
 restaurarTab();
 ghAutoPull();
+carregarLogos();
 </script>
 
 <script>
