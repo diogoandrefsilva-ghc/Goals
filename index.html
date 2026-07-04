@@ -18,7 +18,7 @@ html,body{touch-action:pan-x pan-y}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --vd:#1a5e2e;--vd2:#2e7d32;--vdp:#e8f5e9;
+  --vd:#047e57;--vd2:#069a68;--vdp:#e4f4ed;
   --ou:#f9a825;--oup:#fffde7;
   --bg:#f4f4f0;--card:#fff;--tx:#1a1a1a;--mu:#666;
   --bo:#e0deda;--dg:#c62828;--dgp:#ffebee;
@@ -27,24 +27,28 @@ html,body{touch-action:pan-x pan-y}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
 
 /* HEADER */
-header{background:var(--vd);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.2)}
+header{background:linear-gradient(160deg,#03432e 0%,var(--vd) 55%,#0aa06f 130%);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.2)}
 .hdr{max-width:1040px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{display:flex;align-items:center;gap:11px}
-.escudo{width:40px;height:40px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.escudo{width:33px;height:47px;display:flex;align-items:center;justify-content:center;flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+.escudo img{width:100%;height:100%;object-fit:contain;display:block}
 .brand h1{font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:.5px;line-height:1}
 .brand p{font-size:11px;opacity:.7;font-weight:300;margin-top:1px}
 .hnav{display:flex;gap:4px;flex-wrap:wrap}
-.hn{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap}
-.hn:hover{background:rgba(255,255,255,.12)}
+.hn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.28);color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap}
+.hn:hover{background:rgba(255,255,255,.16)}
 .hn.on{background:#fff;color:var(--vd);font-weight:600;border-color:#fff}
 
 /* LAYOUT */
 .wrap{max-width:1040px;margin:0 auto;padding:20px 18px}
 .sec{display:none}.sec.on{display:block}
-.itabs{display:flex;margin-bottom:20px;border-bottom:1.5px solid var(--bo)}
-.it{background:none;border:none;padding:8px 10px 10px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--mu);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .15s;font-weight:500;white-space:nowrap}
-.it:hover{color:var(--tx)}
-.it.on{color:var(--vd);border-bottom-color:var(--vd);font-weight:600}
+.itabs{display:flex;gap:4px;margin-bottom:20px;background:#e9e7e0;padding:4px;border-radius:12px;overflow-x:auto;scrollbar-width:none}
+.itabs::-webkit-scrollbar{display:none}
+.it{background:none;border:none;padding:8px 12px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--mu);border-radius:9px;transition:all .15s;font-weight:500;white-space:nowrap;flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
+.it:hover{color:var(--tx);background:rgba(255,255,255,.6)}
+.it.on{color:#fff;background:var(--vd);font-weight:600;box-shadow:0 2px 8px rgba(4,126,87,.3)}
+.it svg{flex-shrink:0}
+@media(max-width:520px){.it{padding:7px 9px;font-size:11.5px}.it svg.ticon{display:none}}
 .tp{display:none}.tp.on{display:block}
 
 /* STAT CARDS */
@@ -87,7 +91,7 @@ tbody tr:hover{background:#fafaf8}
 .nc{display:flex;align-items:center;gap:8px}
 .av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
 .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap}
-.bok{background:var(--vdp);color:#1b5e20}
+.bok{background:var(--vdp);color:#045c40}
 .bdiv{background:var(--dgp);color:var(--dg)}
 .bpar{background:var(--inp);color:var(--in)}
 .bsm{background:var(--vd);color:#fff;border:none;border-radius:6px;padding:4px 11px;font-size:11px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
@@ -188,11 +192,11 @@ input:focus,select:focus{border-color:var(--vd)}
 .modo-icon{font-size:32px;margin-bottom:8px}
 .modo-title{font-weight:700;font-size:14px;margin-bottom:4px}
 .modo-sub{font-size:11px;color:var(--mu);line-height:1.4}
-.modo-card.on .modo-sub{color:#2e7d32}
+.modo-card.on .modo-sub{color:#069a68}
 
 /* STATUS PILL on jcard */
 .jstatus{font-size:10px;font-weight:700;padding:2px 0;border-radius:99px;white-space:nowrap;flex-shrink:0;width:65px;text-align:center;display:inline-block}
-.jstatus.ok{background:var(--vdp);color:#1b5e20}
+.jstatus.ok{background:var(--vdp);color:#045c40}
 .jstatus.div{background:var(--dgp);color:var(--dg)}
 .jstatus.fut{background:#f5f5f5;color:#999;border:1px solid #ddd}
 
@@ -268,8 +272,8 @@ input:focus,select:focus{border-color:var(--vd)}
 .est-detail-grid span:last-child{text-align:right;font-weight:600}
 .est-pchk{display:flex;align-items:center;gap:8px;padding:7px 4px;cursor:pointer;user-select:none}
 .est-pchk input[type=checkbox]{width:18px;height:18px;accent-color:var(--vd)}
-.est-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--vd);color:#fff;border:none;font-size:28px;font-weight:300;cursor:pointer;box-shadow:0 4px 16px rgba(26,94,46,.4);display:flex;align-items:center;justify-content:center;z-index:90;transition:transform .15s,box-shadow .15s;line-height:1}
-.est-fab:hover{transform:scale(1.08);box-shadow:0 6px 24px rgba(26,94,46,.5)}
+.est-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--vd);color:#fff;border:none;font-size:28px;font-weight:300;cursor:pointer;box-shadow:0 4px 16px rgba(4,126,87,.4);display:flex;align-items:center;justify-content:center;z-index:90;transition:transform .15s,box-shadow .15s;line-height:1}
+.est-fab:hover{transform:scale(1.08);box-shadow:0 6px 24px rgba(4,126,87,.5)}
 .est-fab:active{transform:scale(0.95)}
 .est-fab-menu{position:fixed;bottom:90px;right:24px;z-index:89;display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(10px)}
 .est-fab-menu.open{opacity:1;pointer-events:auto;transform:translateY(0)}
@@ -290,7 +294,7 @@ input:focus,select:focus{border-color:var(--vd)}
 .est-paid-btn{border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;transition:all .15s}
 .est-paid-btn.unpaid{background:var(--vd);color:#fff}
 .est-paid-btn.unpaid:hover{background:var(--vd2)}
-.est-paid-btn.paid{background:var(--vdp);color:#1b5e20}
+.est-paid-btn.paid{background:var(--vdp);color:#045c40}
 .est-person-block .est-person-body{display:none}
 .est-person-block.open .est-person-body{display:block}
 .est-person-block.est-settled{opacity:.6}
@@ -301,7 +305,7 @@ input:focus,select:focus{border-color:var(--vd)}
 }
 @media(max-width:380px){
   .brand h1{font-size:14px}
-  .escudo{width:32px;height:32px;font-size:16px}
+  .escudo{width:26px;height:37px}
 }
 @media(max-width:560px){
   .fadd-row1,.fadd-row2{flex-wrap:wrap!important}
@@ -332,8 +336,8 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 <header>
   <div class="hdr">
     <div class="brand">
-      <div class="escudo">🦁</div>
-      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.5px;line-height:1;white-space:nowrap">⚽ Golos do Sporting</h1>
+      <div class="escudo"><img src="escudo.png" alt="SCP"></div>
+      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.5px;line-height:1;white-space:nowrap">Golos do Sporting</h1>
     </div>
     <nav class="hnav">
       <div id="hdr-epoca-nav" style="display:flex;align-items:center;gap:4px">
@@ -350,12 +354,12 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 <!-- ═══ DASHBOARD ═══ -->
 <section id="s-dash" class="sec on">
   <div class="itabs">
-    <button class="it on" onclick="itab('resumo',this,'dash')">Resumo</button>
-    <button class="it" onclick="itab('contas',this,'dash')">Contas</button>
-    <button class="it" onclick="itab('previsao',this,'dash')">Previsão</button>
-    <button class="it" onclick="itab('jogos',this,'dash')">Jogos</button>
-    <button class="it" onclick="itab('estouro',this,'dash')">Estouro</button>
-    <button class="it" onclick="itab('cfg',this,'dash')" title="Configurações"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button class="it on" onclick="itab('resumo',this,'dash')"><svg class="ticon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Resumo</button>
+    <button class="it" onclick="itab('contas',this,'dash')"><svg class="ticon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>Contas</button>
+    <button class="it" onclick="itab('previsao',this,'dash')"><svg class="ticon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Previsão</button>
+    <button class="it" onclick="itab('jogos',this,'dash')"><svg class="ticon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8.5 15.4 11l-1.3 4h-4.2L8.6 11Z"/><path d="M12 8.5V3.6M15.4 11l4.6-1.5M14.1 15l2.9 4M9.9 15l-2.9 4M8.6 11 4 9.5"/></svg>Jogos</button>
+    <button class="it" onclick="itab('estouro',this,'dash')"><svg class="ticon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Estouro</button>
+    <button class="it" onclick="itab('cfg',this,'dash')" title="Configurações" style="flex:0 0 auto"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
   <div id="t-resumo" class="tp on">
     <div class="g4" id="stat-cards"></div>
@@ -376,7 +380,7 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
       <h3 style="margin-bottom:4px">Evolução da previsão ao longo da época</h3>
       <p style="font-size:11px;color:var(--mu);margin-bottom:12px">Cada ponto mostra o pote final previsto se a média de golos se mantivesse até ao fim.</p>
       <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--mu)">
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:22px;height:3px;background:#1a5e2e;border-radius:2px"></span>Média total</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:22px;height:3px;background:#047e57;border-radius:2px"></span>Média total</span>
         <span style="display:flex;align-items:center;gap:5px"><span style="width:22px;height:0;border-top:2.5px dashed #f9a825"></span>Últimos 10 jogos</span>
       </div>
       <div style="position:relative">
@@ -488,9 +492,9 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
           <div class="fg" style="flex-shrink:0">
             <label>Local</label>
             <div id="cal-local-btns" style="display:flex;gap:4px">
-              <button type="button" class="local-btn on" data-val="Casa" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="12,3 2,11 4,11 4,21 10,21 10,15 14,15 14,21 20,21 20,11 22,11" fill="#c8a415" opacity=".85"/><rect x="10" y="15" width="4" height="6" rx="1" fill="#a07800"/><polygon points="12,3 2,11 22,11" fill="#c8a415"/></svg> Casa</button>
-              <button type="button" class="local-btn" data-val="Fora" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg> Fora</button>
-              <button type="button" class="local-btn" data-val="Neutro" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/><path d="M5 6V4h2v2H5zm12 0V4h2v2h-2zm-5-3V1h2v2h-2z" fill="#1565c0"/></svg> Neutro</button>
+              <button type="button" class="local-btn on" data-val="Casa" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7.5L21 10"/><path d="M5 8.8V21h14V8.8"/><path d="M9.5 21v-6.5h5V21"/></svg> Casa</button>
+              <button type="button" class="local-btn" data-val="Fora" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg> Fora</button>
+              <button type="button" class="local-btn" data-val="Neutro" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg> Neutro</button>
             </div>
             <input type="hidden" id="cal-local" value="Casa">
           </div>
@@ -617,9 +621,9 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
           <div class="fg" style="flex:1;min-width:0">
             <label>Local</label>
             <div id="ed-local-btns" style="display:flex;gap:4px">
-              <button type="button" class="local-btn" data-val="Casa" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="12,3 2,11 4,11 4,21 10,21 10,15 14,15 14,21 20,21 20,11 22,11" fill="#c8a415" opacity=".85"/><rect x="10" y="15" width="4" height="6" rx="1" fill="#a07800"/><polygon points="12,3 2,11 22,11" fill="#c8a415"/></svg> Casa</button>
-              <button type="button" class="local-btn" data-val="Fora" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg> Fora</button>
-              <button type="button" class="local-btn" data-val="Neutro" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/><path d="M5 6V4h2v2H5zm12 0V4h2v2h-2zm-5-3V1h2v2h-2z" fill="#1565c0"/></svg> Neutro</button>
+              <button type="button" class="local-btn" data-val="Casa" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7.5L21 10"/><path d="M5 8.8V21h14V8.8"/><path d="M9.5 21v-6.5h5V21"/></svg> Casa</button>
+              <button type="button" class="local-btn" data-val="Fora" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg> Fora</button>
+              <button type="button" class="local-btn" data-val="Neutro" onclick="selLocalEd(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg> Neutro</button>
             </div>
             <input type="hidden" id="ed-local" value="Casa">
           </div>
@@ -753,7 +757,7 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 </div>
 
 <script>
-const CORES=['#1b5e20','#1a237e','#4a148c','#b71c1c','#e65100','#006064','#33691e','#880e4f','#1565c0','#37474f','#f57f17','#3e2723','#004d40','#311b92','#bf360c'];
+const CORES=['#045c40','#1a237e','#4a148c','#b71c1c','#e65100','#006064','#33691e','#880e4f','#1565c0','#37474f','#f57f17','#3e2723','#004d40','#311b92','#bf360c'];
 
 /* ── READ-ONLY CHECK ───────────────────────── */
 const GH_KEY='sg_github_cfg';
@@ -1050,7 +1054,7 @@ function rContas(){
           const gS=isFora?parts[1]:parts[0];
           const gA=isFora?parts[0]:parts[1];
           let bgCor,numCorS,numCorA;
-          if(gS>gA){bgCor='#1b5e20';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
+          if(gS>gA){bgCor='#045c40';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
           else if(gS===gA){bgCor='#e6a700';numCorS='var(--vd)';numCorA='rgba(255,255,255,0.85)';}
           else{bgCor='#c62828';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
           const leftNum=isFora?`<span style="color:${numCorA}">${gA}</span>`:`<span style="color:${numCorS}">${gS}</span>`;
@@ -1228,11 +1232,11 @@ function rPrevisao(){
   smoothLine(prevTotPlot,true);
   ctx.lineTo(px(nP-1),H-PAD_B);ctx.lineTo(px(0),H-PAD_B);ctx.closePath();
   const areaGrad=ctx.createLinearGradient(0,PAD_T,0,H-PAD_B);
-  areaGrad.addColorStop(0,'rgba(26,94,46,0.12)');areaGrad.addColorStop(1,'rgba(26,94,46,0.01)');
+  areaGrad.addColorStop(0,'rgba(4,126,87,0.12)');areaGrad.addColorStop(1,'rgba(4,126,87,0.01)');
   ctx.fillStyle=areaGrad;ctx.fill();ctx.restore();
 
   // Linha verde — média total
-  ctx.strokeStyle='#1a5e2e';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.lineCap='round';ctx.setLineDash([]);
+  ctx.strokeStyle='#047e57';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.lineCap='round';ctx.setLineDash([]);
   smoothLine(prevTotPlot);
 
   // Linha amarela — últimos 10
@@ -1241,7 +1245,7 @@ function rPrevisao(){
   ctx.setLineDash([]);
 
   // Pontos finais
-  [['#1a5e2e',prevTotPlot],['#e6a700',prevUlt10Plot]].forEach(([col,arr])=>{
+  [['#047e57',prevTotPlot],['#e6a700',prevUlt10Plot]].forEach(([col,arr])=>{
     const last=arr[arr.length-1];
     ctx.beginPath();ctx.arc(px(nP-1),py(last),4,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
     ctx.beginPath();ctx.arc(px(nP-1),py(last),6.5,0,Math.PI*2);
@@ -1275,7 +1279,7 @@ function rPrevisao(){
     const vUlt=prevUlt10Plot[closest];
     const diff=vUlt-vTot;const diffStr=diff>=0?'+'+diff.toFixed(0):diff.toFixed(0);
     tooltip.innerHTML=`<div style="font-weight:700;margin-bottom:3px">Jogo ${jNum}${adv?' · '+adv:''}</div>`+
-      `<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#1a5e2e;border-radius:50%;flex-shrink:0"></span>Média total: <strong>${vTot.toFixed(0)}€</strong></div>`+
+      `<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#047e57;border-radius:50%;flex-shrink:0"></span>Média total: <strong>${vTot.toFixed(0)}€</strong></div>`+
       `<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#e6a700;border-radius:50%;flex-shrink:0"></span>Últ. 10: <strong>${vUlt.toFixed(0)}€</strong> <span style="opacity:.6">(${diffStr}€)</span></div>`;
     const pxPos=px(closest)*(rect.width/W);
     const tipW=tooltip.offsetWidth||160;
@@ -1309,7 +1313,7 @@ function rCompEpocas(){
   const STYLES=[
     {cor:'#bbb',width:1.5,dash:[4,4],area:false},    // mais antiga
     {cor:'#7b5e00',width:2,dash:[6,4],area:false},    // intermédia
-    {cor:'#1a5e2e',width:2.5,dash:[],area:true}       // actual
+    {cor:'#047e57',width:2.5,dash:[],area:true}       // actual
   ];
   // Alinhar: se só 2 épocas, usar posições [0] e [2] (skip middle)
   const styleMap=epocasComp.length===2?[STYLES[0],STYLES[2]]
@@ -1411,7 +1415,7 @@ function rCompEpocas(){
       smoothLine2(pts,true);
       ctx.lineTo(cpx(pts.length-1),H-PAD_B);ctx.lineTo(cpx(0),H-PAD_B);ctx.closePath();
       const ag=ctx.createLinearGradient(0,PAD_T,0,H-PAD_B);
-      ag.addColorStop(0,'rgba(26,94,46,0.10)');ag.addColorStop(1,'rgba(26,94,46,0.01)');
+      ag.addColorStop(0,'rgba(4,126,87,0.10)');ag.addColorStop(1,'rgba(4,126,87,0.01)');
       ctx.fillStyle=ag;ctx.fill();ctx.restore();
     }
     // Linha
@@ -1528,13 +1532,9 @@ function jogoCardHTML(j,mini=false){
 
   // Local badge — SVG single-color icons
   const localSVG={
-    'Casa':`<svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <polygon points="12,3 2,11 4,11 4,21 10,21 10,15 14,15 14,21 20,21 20,11 22,11" fill="#c8a415" opacity=".85"/>
-      <rect x="10" y="15" width="4" height="6" rx="1" fill="#a07800"/>
-      <polygon points="12,3 2,11 22,11" fill="#c8a415"/>
-    </svg>`,
-    'Fora':`<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg>`,
-    'Neutro':`<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/><path d="M5 6V4h2v2H5zm12 0V4h2v2h-2zm-5-3V1h2v2h-2z" fill="#1565c0"/></svg>`
+    'Casa':`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8a415" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7.5L21 10"/><path d="M5 8.8V21h14V8.8"/><path d="M9.5 21v-6.5h5V21"/></svg>`,
+    'Fora':`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e65100" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>`,
+    'Neutro':`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1565c0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>`
   };
   const localIcon=localSVG[j.local]||'';
   const localBadge=localIcon?`<span class="jlocal-badge">${localIcon}</span>`:'';
@@ -1551,7 +1551,7 @@ function jogoCardHTML(j,mini=false){
       const gS=j.local==='Fora'?parts[1]:parts[0];
       const gA=j.local==='Fora'?parts[0]:parts[1];
       let bgCor,numCorS,numCorA;
-      if(gS>gA){bgCor='#1b5e20';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
+      if(gS>gA){bgCor='#045c40';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
       else if(gS===gA){bgCor='#e6a700';numCorS='var(--vd)';numCorA='rgba(255,255,255,0.85)';}
       else{bgCor='#c62828';numCorS='var(--ou)';numCorA='rgba(255,255,255,0.7)';}
       // Fora: adversário-Sporting; Casa/Neutro: Sporting-adversário
@@ -1621,7 +1621,7 @@ function voltarLista(){
           // Piscar brevemente para destacar o jogo
           card.style.transition='box-shadow .2s,border-color .2s';
           card.style.borderColor='var(--vd)';
-          card.style.boxShadow='0 0 0 2px rgba(26,94,46,.2)';
+          card.style.boxShadow='0 0 0 2px rgba(4,126,87,.2)';
           setTimeout(()=>{card.style.borderColor='';card.style.boxShadow='';},900);
           break;
         }
@@ -1655,7 +1655,7 @@ function renderDetalhe(jogo){
       const gS=isFora?parts[1]:parts[0];
       const gA=isFora?parts[0]:parts[1];
       let bgCor;
-      if(gS>gA)bgCor='#1b5e20';
+      if(gS>gA)bgCor='#045c40';
       else if(gS===gA)bgCor='#e6a700';
       else bgCor='#c62828';
       const leftNum=isFora?gA:gS;
@@ -2070,7 +2070,7 @@ function exportarDividas(){
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Inter',sans-serif;background:#f4f4f0;color:#1a1a1a;padding:32px 24px;max-width:800px;margin:0 auto}
   @media print{body{background:#fff;padding:16px}}
-  .doc-header{background:#1a5e2e;color:#fff;border-radius:16px;padding:28px 32px;margin-bottom:28px;display:flex;align-items:center;gap:20px}
+  .doc-header{background:#047e57;color:#fff;border-radius:16px;padding:28px 32px;margin-bottom:28px;display:flex;align-items:center;gap:20px}
   .doc-icon{font-size:48px;line-height:1}
   .doc-title{font-size:28px;font-weight:800;letter-spacing:-.3px}
   .doc-sub{font-size:14px;opacity:.75;margin-top:4px}
@@ -2089,7 +2089,7 @@ function exportarDividas(){
   .jogos-table tbody tr:hover{background:#fafaf7}
   .jogos-table tfoot td{padding:10px 14px;background:#fafaf7;border-top:2px solid #e0deda}
   .num{text-align:right}
-  .money{font-weight:700;color:#1a5e2e;font-variant-numeric:tabular-nums}
+  .money{font-weight:700;color:#047e57;font-variant-numeric:tabular-nums}
   .total-row{color:#c62828 !important;font-size:15px}
   .footer{text-align:center;font-size:11px;color:#aaa;margin-top:28px;padding-top:16px;border-top:1px solid #e8e8e4}
 </style>
