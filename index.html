@@ -186,9 +186,12 @@ input:focus,select:focus{border-color:var(--vd)}
 .fbtn:hover{border-color:#aaa;color:var(--tx)}
 .fbtn.on{background:var(--vd);color:#fff;border-color:var(--vd);font-weight:600}
 .fbtn.on-dv{background:var(--dg);color:#fff;border-color:var(--dg);font-weight:600}
-.sbtn{background:var(--bg);border:1px solid var(--bo);border-radius:7px;padding:6px 10px;font-size:12px;font-family:'Inter',sans-serif;font-weight:500;cursor:pointer;color:var(--mu);transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
-.sbtn:hover{border-color:#aaa;color:var(--tx)}
-.sbtn .sico{font-size:13px;line-height:1;font-weight:700;color:var(--vd)}
+/* ordenação dos jogos — segmented control (largura fixa, não salta de linha) */
+.sortgrp{display:inline-flex;border:1px solid var(--bo);border-radius:7px;overflow:hidden;background:var(--bg);flex-shrink:0}
+.sbtn{background:transparent;border:0;padding:6px 11px;font-size:14px;line-height:1;font-family:'Inter',sans-serif;font-weight:700;cursor:pointer;color:var(--mu);transition:all .15s}
+.sbtn+.sbtn{border-left:1px solid var(--bo)}
+.sbtn:hover{color:var(--tx)}
+.sbtn.on{background:var(--vd);color:#fff}
 
 /* MODO CARDS */
 .modo-card{background:var(--card);border:2px solid var(--bo);border-radius:var(--r);padding:20px 18px;cursor:pointer;transition:all .2s;text-align:center}
@@ -409,10 +412,13 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
     <!-- lista -->
     <div id="t-jlista" style="display:block">
       <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:13px">
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <select id="f-comp" onchange="renderJogosList()" style="min-width:120px;max-width:180px"><option value="">Todas competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
-          <select id="f-local" onchange="renderJogosList()" style="min-width:80px;max-width:120px"><option value="">Local</option><option value="Casa">Casa</option><option value="Fora">Fora</option><option value="Neutro">Neutro</option></select>
-          <button id="f-ordem" class="sbtn" onclick="toggleOrdemJogos()" title="Ordenar por data" style="margin-left:auto"><span class="sico" id="f-ordem-ico">↓</span><span id="f-ordem-txt">Recentes</span></button>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap">
+          <select id="f-comp" onchange="renderJogosList()" style="min-width:100px;max-width:180px"><option value="">Todas competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
+          <select id="f-local" onchange="renderJogosList()" style="min-width:72px;max-width:120px"><option value="">Local</option><option value="Casa">Casa</option><option value="Fora">Fora</option><option value="Neutro">Neutro</option></select>
+          <div class="sortgrp" style="margin-left:auto">
+            <button id="f-ord-desc" class="sbtn on" onclick="setOrdemJogos('desc')" title="Mais recentes primeiro" aria-label="Ordenar do mais recente para o mais antigo">↓</button>
+            <button id="f-ord-asc" class="sbtn" onclick="setOrdemJogos('asc')" title="Mais antigos primeiro" aria-label="Ordenar do mais antigo para o mais recente">↑</button>
+          </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center">
           <button id="f-btn-todos" class="fbtn on" onclick="setFiltPag('todos',this)">Todos</button>
@@ -1588,11 +1594,10 @@ function jogoCardHTML(j,mini=false){
 
 // 'desc' = mais recentes primeiro (defeito) · 'asc' = mais antigos primeiro
 let ordemJogos='desc';
-function toggleOrdemJogos(){
-  ordemJogos=ordemJogos==='desc'?'asc':'desc';
-  const ico=document.getElementById('f-ordem-ico'),txt=document.getElementById('f-ordem-txt');
-  if(ico)ico.textContent=ordemJogos==='desc'?'↓':'↑';
-  if(txt)txt.textContent=ordemJogos==='desc'?'Recentes':'Antigos';
+function setOrdemJogos(o){
+  ordemJogos=o;
+  document.getElementById('f-ord-desc')?.classList.toggle('on',o==='desc');
+  document.getElementById('f-ord-asc')?.classList.toggle('on',o==='asc');
   renderJogosList();
 }
 
