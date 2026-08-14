@@ -358,6 +358,7 @@ function rResumo(){
     ${hasEstouros?`<div class="sc cr"><div class="sc-l">Estouro</div><div class="sc-v">${estTotalEv.toFixed(0)}€</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>`:''}
     ${hasEstouros&&estPorReceber>0.01?`<div class="sc" style="border-left:3px solid var(--ou)"><div class="sc-l">Por receber (estouro)</div><div class="sc-v">${estPorReceber.toFixed(0)}€</div><div class="sc-s">em falta para acertar</div></div>`:''}
   `;
+  renderMeuPedidoBox();
   renderPedidosPagamentoAdmin();
   document.getElementById('pct-l').textContent=pct+'%';
   document.getElementById('prog-b').style.width=pct+'%';
@@ -380,6 +381,7 @@ function rResumo(){
   }
 }
 function rContas(){
+  renderMeuPedidoBox();
   // Jogos por liquidar por amigo
   const jogosOrdenados=[...db.jogos]
     .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
@@ -952,7 +954,6 @@ function renderJogosList(){
   if(filtPag==='divida') jogos=jogos.filter(j=>(j.golos!==null&&j.golos!==undefined&&j.golos!=='')&&(j.golos||0)>0&&jogoTemDivida(j));
   if(filtPag==='pago')   jogos=jogos.filter(j=>(j.golos!==null&&j.golos!==undefined&&j.golos!=='')&&(j.golos||0)>0&&!jogoTemDivida(j));
   document.getElementById('j-list').innerHTML=jogos.length?jogos.map(j=>jogoCardHTML(j)).join(''):'<div class="empty"><em>⚽</em>Sem jogos</div>';
-  renderMeuPedidoBox();
 }
 
 let _lastViewedJogoId=null;
@@ -1208,12 +1209,12 @@ async function rejeitarPedidoPagamento(id){
   toast('Pedido rejeitado');
 }
 
-// ── Lado do membro: bloco no topo dos Jogos ──
+// ── Lado do membro: bloco no Resumo (debaixo dos cards) e nas Contas ──
 function renderMeuPedidoBox(){
-  const el=document.getElementById('meu-pedido-box');
-  if(!el)return;
+  const els=document.querySelectorAll('.meu-pedido-mount');
+  if(!els.length)return;
   const meu=isAdmin()?null:meuAmigoNaEpoca();
-  if(!meu){el.innerHTML='';return;}
+  if(!meu){els.forEach(el=>el.innerHTML='');return;}
 
   const golosVal=db.config.valorPorGolo;
   const jogosPorPagar=db.jogos.filter(j=>{
@@ -1230,7 +1231,7 @@ function renderMeuPedidoBox(){
     html+='<p>Estás em dia — sem jogos por pagar.</p>';
   }else{
     html+='<p>Marca os que já pagaste e pede confirmação ao admin.</p>';
-    html+='<div id="meu-pedido-lista">'+jogosPorPagar.map(j=>{
+    html+='<div class="mp-lista">'+jogosPorPagar.map(j=>{
       const d=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
       const val=(gJ(j)*golosVal).toFixed(2);
       return`<label class="meu-pag-jogo">
@@ -1254,12 +1255,12 @@ function renderMeuPedidoBox(){
     }).join('');
   }
   html+='</div>';
-  el.innerHTML=html;
+  els.forEach(el=>el.innerHTML=html);
 }
 
 async function submeterPedidoPagamento(){
   const meu=meuAmigoNaEpoca();if(!meu)return;
-  const ids=[...document.querySelectorAll('#meu-pedido-lista .mp-chk:checked')].map(cb=>parseInt(cb.value));
+  const ids=[...document.querySelectorAll('.mp-lista .mp-chk:checked')].map(cb=>parseInt(cb.value));
   if(!ids.length)return toast('Seleciona pelo menos um jogo',1);
   const valor=ids.reduce((a,id)=>{const j=db.jogos.find(x=>x.id===id);return a+(j?gJ(j)*db.config.valorPorGolo:0);},0);
   try{

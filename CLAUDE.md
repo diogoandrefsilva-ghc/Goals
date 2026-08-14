@@ -90,7 +90,9 @@ Mesmo padrão do `pagamentos_pendentes` do FestasBV: **pendente não é
 dinheiro**. Um amigo (ligado a um login) marca os jogos que já pagou e cria
 UM pedido com a lista de `jogo_ids`; fica `pendente` e **não mexe em
 `pagosPorJogo`** enquanto o admin não decidir.
-- **Lado do membro**: bloco no topo da lista de Jogos (`#meu-pedido-box`,
+- **Lado do membro**: bloco debaixo dos cards, em Resumo e em Contas
+  (`.meu-pedido-mount` — dois montes, `#meu-pedido-box` no Resumo e
+  `#meu-pedido-box-contas` nas Contas, ambos preenchidos pelo mesmo
   `renderMeuPedidoBox`), só visível a quem não é admin e está ligado a um
   amigo da época ativa. Lista os jogos com dívida em aberto **dele**, com
   checkbox; "Já paguei os selecionados" cria o pedido
