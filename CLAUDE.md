@@ -66,6 +66,25 @@ exatamente a forma de sempre, e `db` continua o "atalho" para a época ativa
 - **Ligar um login a um amigo é manual, pelo admin** (Definições ›
   Utilizadores › "Ligar"), não há auto-associação por nome parecido.
 
+## Password temporária dada pelo admin (Definições › Utilizadores)
+Este projeto Supabase **não tem SMTP próprio configurado**, e sem ele o
+painel não deixa editar templates de email — o "Esqueci-me da password" do
+login fica só com o template genérico do Supabase (sem o código de 6
+dígitos, e vulnerável a scanners de segurança do email a gastar o link).
+Em vez de depender disso, mesma rede de segurança do FestasBV: o admin gera
+uma password, dita-a por telefone, a pessoa troca-a em Definições › Conta
+(`sbAlterarPassword`, reaproveita `sbTrocarPassword`/`sbValidarPass` do
+ecrã de recuperação).
+- **A app nunca escreve em `auth.users`** — a chave é a `anon` pública.
+  Quem faz o trabalho é `goals.admin_pass_temp` (SECURITY DEFINER), por
+  RPC (`admGerarPassTemp`). A verificação é do lado do servidor
+  (`is_admin()`), não da UI.
+- A função recusa: quem não é admin, contas fora de `allowed_users`,
+  passwords com menos de 8, e a conta do próprio admin (essa muda-se no
+  Supabase).
+- Migração: `db/admin_pass_temp.sql`. Tolerante: sem ela, o botão diz que
+  falta correr o ficheiro e mais nada muda.
+
 ## Pedidos de pagamento — "já paguei os jogos A, B, D" (`goals.pedidos_pagamento`)
 Mesmo padrão do `pagamentos_pendentes` do FestasBV: **pendente não é
 dinheiro**. Um amigo (ligado a um login) marca os jogos que já pagou e cria

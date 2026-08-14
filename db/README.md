@@ -19,6 +19,11 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
 2. `functions.sql` — `is_admin`, `is_allowed`, `eh_meu_amigo` + o trigger de
    `pedidos_pagamento`
 3. `policies.sql` — RLS policies (dependem das funções)
+4. `admin_pass_temp.sql` — opcional mas recomendado: dá ao admin uma forma
+   de gerar uma password temporária para alguém sem depender de email
+   nenhum (ver "Recuperação de password" abaixo). Idempotente, tolerante:
+   sem ela, o botão em Definições › Utilizadores diz que falta correr o
+   ficheiro e mais nada muda.
 
 ## Passos manuais (fora do SQL Editor)
 
@@ -31,12 +36,14 @@ Estes não se fazem por SQL — são configuração do projeto Supabase:
    acrescentar o URL onde o Goals fica servido (ex.
    `https://diogoandrefsilva-ghc.github.io/Goals/`). Sem isto o login por
    link/código falha com "requested path is invalid".
-3. **Template de email "Reset Password"**: hoje aponta só para o FestasBV
-   (`{{ .ConfirmationURL }}`/URL fixo). Trocar o link fixo por
-   `{{ .RedirectTo }}` — o Supabase substitui-o pelo `redirect_to` que cada
-   app manda no pedido de recuperação, por isso passa a funcionar para os
-   dois sem quebrar o FestasBV (que continua a mandar o seu próprio URL). O
-   código de 6 dígitos (`{{ .Token }}`) não muda.
+3. **Template de email "Reset Password"**: ⚠️ **não editável neste projeto**
+   sem SMTP próprio configurado (o Supabase bloqueia a edição de templates
+   até se ligar um serviço de SMTP externo) — por isso o "Esqueci-me da
+   password" do login fica com o template genérico do Supabase (sem o
+   código de 6 dígitos) e pode falhar se o scanner de segurança do email do
+   destinatário abrir o link primeiro. **Não é preciso resolver isto**: a
+   app tem a alternativa que já usas no FestasBV — ver "Recuperação de
+   password" abaixo.
 4. **Bootstrap inicial** (uma vez, depois das tabelas criadas):
    ```sql
    INSERT INTO goals.allowed_users (email) VALUES ('diogo.andre.f.silva@gmail.com');
@@ -46,6 +53,24 @@ Estes não se fazem por SQL — são configuração do projeto Supabase:
    `is_admin()` sozinho não chega para entrar na app — `sbAposLogin` exige
    sempre uma linha em `allowed_users`, admin incluído (mesma regra do
    FestasBV).
+
+## Recuperação de password (sem depender de email)
+
+Sem SMTP próprio, o email de recuperação não é fiável — é a mesma
+limitação que o FestasBV já documenta, e a solução é a mesma:
+**Definições › Utilizadores › "Password temporária"**. Escolhes a conta,
+a app gera uma password legível (ex. `sporting-4821`), dita-la-lhe por
+telefone/WhatsApp, e a pessoa entra e troca-a em Definições › Conta
+("Alterar password"). Não passa pelo email em nenhum momento.
+
+- Requer `admin_pass_temp.sql` corrido (passo 4 da ordem de execução).
+- Do lado do servidor: só o admin pode chamar a função
+  (`goals.is_admin()`), só para contas já em `allowed_users`, nunca para
+  a conta do próprio admin (essa muda-se no Supabase). Esconder o botão
+  na UI não seria proteção nenhuma — a função verifica por si.
+- Se um dia ligares SMTP próprio a este projeto, o "Esqueci-me da
+  password" do login passa a funcionar normalmente (com o link+código),
+  sem precisar de tocar em nada disto — as duas vias coexistem.
 
 ## Conteúdo
 
@@ -64,6 +89,9 @@ Estes não se fazem por SQL — são configuração do projeto Supabase:
 - **policies.sql** — leitura para `is_allowed()` em tudo (transparência total
   do pote, como o FestasBV), escrita total só para `is_admin()`, e as regras
   "self" de `pedidos_pagamento` (o amigo só pede/cancela o que é seu).
+- **admin_pass_temp.sql** — `goals.admin_pass_temp(email, password)`
+  (SECURITY DEFINER): a rede de segurança da recuperação de password sem
+  SMTP próprio, ver secção acima. Opcional.
 
 ## Modelo de permissões
 
