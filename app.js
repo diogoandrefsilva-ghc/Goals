@@ -1553,6 +1553,9 @@ function rCfg(){
   rAmCfg();
   const mb=document.getElementById('migracao-box');
   if(mb)mb.style.display=Object.keys(dbFull.epocas||{}).length?'none':'block';
+  // Refresca pedidos/ligações/contas sempre que se entra em Definições — antes só
+  // era feito uma vez, logo após o login, e ficava desatualizado sem recarregar a app.
+  if(isAdmin()){sbRenderPedidos();sbRenderLigacoes();sbRenderPassTemp();}
 }
 async function guardarCfg(){
   if(roGuard())return;
@@ -2616,30 +2619,56 @@ function meuAmigoNaEpoca(){
   return db.amigos.find(a=>a.nome===MEU_AMIGO_NOME)||null;
 }
 
+// Nomes de amigo estáveis (união de todas as épocas) para o combobox de ligação.
+function nomesAmigosGlobal(){
+  const vistos=new Set();
+  Object.values(dbFull.epocas||{}).forEach(ep=>(ep.amigos||[]).forEach(a=>{if(a&&a.nome)vistos.add(a.nome);}));
+  return[...vistos].sort((a,b)=>a.localeCompare(b,'pt'));
+}
+// Preenche os dois combobox do formulário "Ligar" (contas com acesso + amigos conhecidos)
+async function sbPreencherFormLigar(){
+  const selEmail=document.getElementById('ua-email');
+  const selAmigo=document.getElementById('ua-amigo');
+  if(!selEmail||!selAmigo)return;
+  try{
+    const rows=await sbReq('GET','allowed_users?select=email&order=email.asc');
+    const prev=selEmail.value;
+    const opts=(rows||[]).filter(r=>r.email!==ADMIN_EMAIL);
+    selEmail.innerHTML=opts.length
+      ?opts.map(r=>`<option value="${r.email}"${prev===r.email?' selected':''}>${r.email}</option>`).join('')
+      :'<option value="">— sem contas —</option>';
+  }catch(e){}
+  const prevA=selAmigo.value;
+  const nomes=nomesAmigosGlobal();
+  selAmigo.innerHTML=nomes.length
+    ?nomes.map(n=>`<option value="${n}"${prevA===n?' selected':''}>${n}</option>`).join('')
+    :'<option value="">— sem amigos —</option>';
+}
+
 async function sbRenderLigacoes(){
   if(!isAdmin())return;
   const box=document.getElementById('adm-ligacoes-list');
-  if(!box)return;
-  try{
-    const rows=await sbReq('GET','user_amigos?select=email,amigo&order=amigo.asc');
-    if(!rows||!rows.length){box.innerHTML='<div class="note" style="font-size:12px;color:var(--mu)">Nenhum utilizador ligado ainda.</div>';return;}
-    box.innerHTML=rows.map(r=>`
-      <div class="ua-row">
-        <span>${r.email} → <strong>${r.amigo}</strong></span>
-        <button class="jdel" title="Desligar" onclick="sbApagarLigacao('${r.email.replace(/'/g,"\\'")}')">✕</button>
-      </div>`).join('');
-  }catch(e){box.innerHTML='<div class="note" style="font-size:12px;color:var(--mu)">Erro a carregar ligações.</div>';}
+  if(box){
+    try{
+      const rows=await sbReq('GET','user_amigos?select=email,amigo&order=amigo.asc');
+      if(!rows||!rows.length){box.innerHTML='<div class="note" style="font-size:12px;color:var(--mu)">Nenhum utilizador ligado ainda.</div>';}
+      else box.innerHTML=rows.map(r=>`
+        <div class="ua-row">
+          <span>${r.email} → <strong>${r.amigo}</strong></span>
+          <button class="jdel" title="Desligar" onclick="sbApagarLigacao('${r.email.replace(/'/g,"\\'")}')">✕</button>
+        </div>`).join('');
+    }catch(e){box.innerHTML='<div class="note" style="font-size:12px;color:var(--mu)">Erro a carregar ligações.</div>';}
+  }
+  sbPreencherFormLigar();
 }
 
 async function sbLigarAmigo(){
   if(!isAdmin())return;
   const email=document.getElementById('ua-email').value.trim();
   const amigo=document.getElementById('ua-amigo').value.trim();
-  if(!email||!email.includes('@')||!amigo)return toast('Preenche email e nome do amigo',1);
+  if(!email||!email.includes('@')||!amigo)return toast('Escolhe email e amigo',1);
   try{
     await sbReq('POST','user_amigos',{email,amigo},{Prefer:'resolution=merge-duplicates'});
-    document.getElementById('ua-email').value='';
-    document.getElementById('ua-amigo').value='';
     toast('Ligação criada ✓');
     sbRenderLigacoes();
   }catch(e){toast('Erro: '+e.message,1);}
