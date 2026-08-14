@@ -2517,6 +2517,12 @@ async function sbRegistarEmail(){
     const r=await fetch(`${SB_URL}/auth/v1/signup`,{method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     const d=await r.json();
     if(!r.ok){status.style.color='var(--dg)';status.textContent=d.error_description||d.msg||'Erro ao criar conta.';return;}
+    // Login (auth.users) é partilhado por todo o projeto Supabase — FestasBV, SplitBill e Goals.
+    // Email já registado noutra app: o GoTrue devolve 200 sem enviar confirmação, mas com identities:[].
+    if(d.user&&Array.isArray(d.user.identities)&&d.user.identities.length===0){
+      status.style.color='var(--dg)';status.textContent='Esta conta já existe (ex.: já criaste login no SplitBill ou noutra app). Não é preciso criar de novo — carrega em "Entrar" com o mesmo email e password.';
+      return;
+    }
     status.style.color='var(--vd)';status.textContent='Conta criada! Confirma o email e volta a entrar.';
   }catch(e){status.style.color='var(--dg)';status.textContent='Erro de ligação.';}
 }
