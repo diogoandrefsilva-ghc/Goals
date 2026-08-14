@@ -319,7 +319,18 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
     <div class="fcard">
       <h3>Conta</h3>
       <p style="font-size:12.5px;color:var(--mu);margin:8px 0 12px" id="conta-email"></p>
-      <button class="btn btn-n" onclick="sbLogout()">Terminar sessão</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-n" onclick="toggleAdmPass()">Alterar password</button>
+        <button class="btn btn-n" onclick="sbLogout()">Terminar sessão</button>
+      </div>
+      <div id="adm-pass-box" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--bo)">
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">Nova password</label>
+        <input type="password" id="adm-pass-1" autocomplete="new-password" placeholder="••••••••" style="width:100%;margin-bottom:8px;padding:9px 10px;border:1px solid var(--bo);border-radius:8px">
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">Repetir password</label>
+        <input type="password" id="adm-pass-2" autocomplete="new-password" placeholder="••••••••" style="width:100%;margin-bottom:8px;padding:9px 10px;border:1px solid var(--bo);border-radius:8px">
+        <button class="btn btn-g" onclick="sbAlterarPassword()">Guardar password</button>
+        <p id="adm-pass-status" style="font-size:12px;margin-top:8px"></p>
+      </div>
     </div>
 
     <!-- ═══ UTILIZADORES (admin) ═══ -->
@@ -335,6 +346,13 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
         <input type="text" id="ua-amigo" placeholder="nome do amigo" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--bo);border-radius:8px">
         <button class="btn btn-g" style="font-size:12px;padding:0 12px" onclick="sbLigarAmigo()">Ligar</button>
       </div>
+      <div class="divi"></div>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:9px">Password temporária (sem email a funcionar, dita-a por telefone — a pessoa troca-a depois em Definições › Conta):</p>
+      <div style="display:flex;gap:6px">
+        <select id="adm-pt-email" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--bo);border-radius:8px"></select>
+        <button class="btn" id="adm-pt-btn" style="background:var(--in);color:#fff;font-size:12px;padding:0 12px" onclick="admGerarPassTemp()">Gerar</button>
+      </div>
+      <div id="adm-pt-out"></div>
     </div>
   </div>
 </section>

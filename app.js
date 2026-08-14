@@ -2355,7 +2355,7 @@ async function sbAposLogin(){
     await sbCarregarMinhaLigacao();
   }catch(e){toast('Erro a carregar dados: '+e.message,1);}
   rDash();rCfg();renderJogosList();restaurarTab();
-  if(isAdmin()){sbRenderPedidos();sbRenderLigacoes();}
+  if(isAdmin()){sbRenderPedidos();sbRenderLigacoes();sbRenderPassTemp();}
   if(window.glEsconderSplash)window.glEsconderSplash();
 }
 
@@ -2468,6 +2468,30 @@ async function sbDefinirNovaPassword(){
   document.getElementById('nova-pass-campos').style.display='none';
   document.getElementById('btn-nova-pass-entrar').style.display='';
   sbAuthStatus('nova-pass-status','Password alterada ✓ Se abriste este link fora da app, volta a abrir a app instalada e entra com o email e a password nova.','var(--vd)');
+}
+
+// Definições › Conta — trocar a password já com sessão iniciada (partilha
+// sbTrocarPassword/sbValidarPass com o ecrã de recuperação).
+function toggleAdmPass(){
+  const box=document.getElementById('adm-pass-box');
+  if(!box)return;
+  box.style.display=box.style.display==='none'?'':'none';
+  const st=document.getElementById('adm-pass-status');
+  if(st)st.textContent='';
+}
+async function sbAlterarPassword(){
+  const st=document.getElementById('adm-pass-status');
+  const p1=document.getElementById('adm-pass-1').value;
+  const p2=document.getElementById('adm-pass-2').value;
+  const erro=sbValidarPass(p1,p2);
+  if(erro){st.style.color='var(--dg)';st.textContent=erro;return;}
+  st.style.color='var(--mu)';st.textContent='A guardar…';
+  const falha=await sbTrocarPassword(p1);
+  if(falha){st.style.color='var(--dg)';st.textContent=falha;return;}
+  document.getElementById('adm-pass-1').value='';
+  document.getElementById('adm-pass-2').value='';
+  st.style.color='var(--vd)';st.textContent='Password alterada ✓';
+  toast('Password alterada ✓');
 }
 
 async function sbLoginEmail(){
@@ -2627,6 +2651,65 @@ async function sbApagarLigacao(email){
     toast('Ligação removida');
     sbRenderLigacoes();
   }catch(e){toast('Erro: '+e.message,1);}
+}
+
+/* ── Password temporária dada pelo admin ──
+   Rede de segurança para quando a recuperação por email não serve — o
+   projeto não tem SMTP próprio configurado, o que trava tanto o serviço
+   de defeito do Supabase (poucos emails/hora) como a edição do template
+   "Reset Password". O admin gera aqui uma password, dita-a pelo telefone,
+   e a pessoa troca-a em Definições › Conta (sbAlterarPassword). A app
+   nunca escreve em auth.users — quem faz o trabalho é goals.admin_pass_temp
+   (SECURITY DEFINER), que verifica do lado do servidor que quem chama é
+   o admin. Ver db/admin_pass_temp.sql. Mesmo padrão do FestasBV. */
+function gerarPassTemp(){
+  // Legível ao telefone de propósito: sem maiúsculas, sem símbolos, sem
+  // caracteres que se confundam a ditar. Serve para uma vez.
+  const pal=['leao','alvalade','escudo','sporting','estadio','plantel','epoca','pote','golo','verde'];
+  return pal[Math.floor(Math.random()*pal.length)]+'-'+String(Math.floor(Math.random()*9000)+1000);
+}
+function copiarPassTemp(pass){
+  const done=()=>toast('Password copiada ✓');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(pass).then(done).catch(()=>toast(pass));
+  else toast(pass);
+}
+async function sbRenderPassTemp(){
+  if(!isAdmin())return;
+  const sel=document.getElementById('adm-pt-email');
+  if(!sel)return;
+  try{
+    const rows=await sbReq('GET','allowed_users?select=email&order=email.asc');
+    const prev=sel.value;
+    const opts=(rows||[]).filter(r=>r.email!==ADMIN_EMAIL);
+    sel.innerHTML=opts.length
+      ?opts.map(r=>`<option value="${r.email}"${prev===r.email?' selected':''}>${r.email}</option>`).join('')
+      :'<option value="">— sem contas —</option>';
+  }catch(e){}
+}
+async function admGerarPassTemp(){
+  if(!isAdmin())return;
+  const sel=document.getElementById('adm-pt-email');
+  const out=document.getElementById('adm-pt-out');
+  const btn=document.getElementById('adm-pt-btn');
+  const email=sel?sel.value:'';
+  if(!email)return toast('Escolhe primeiro a conta',1);
+  const pass=gerarPassTemp();
+  const txt=btn.textContent;btn.disabled=true;btn.textContent='A gerar…';
+  try{
+    await sbReq('POST','rpc/admin_pass_temp',{p_email:email,p_password:pass});
+    out.innerHTML=`<div style="margin-top:10px;padding:12px;background:#fafaf8;border:1px solid var(--vd);border-radius:10px">
+      <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px">Password de ${email}</div>
+      <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:20px;font-weight:700;color:var(--tx);letter-spacing:1px;word-break:break-all">${pass}</div>
+      <div style="font-size:11px;color:var(--mu);margin-top:8px">Dita-lha pelo telefone: entra com o email e esta password. A password antiga deixou de funcionar. Isto só aparece aqui uma vez.</div>
+      <button class="btn btn-n" style="margin-top:8px;font-size:12px" onclick="copiarPassTemp('${pass}')">📋 Copiar</button>
+    </div>`;
+    toast('Password gerada ✓');
+  }catch(e){
+    const m=String(e&&e.message||e);
+    out.innerHTML='<div style="font-size:12px;color:var(--dg);margin-top:8px">'+
+      (/PGRST202|could not find|not exist|404/i.test(m)?'Falta correr o db/admin_pass_temp.sql no SQL Editor do Supabase.':('Não deu: '+m))+'</div>';
+  }
+  btn.disabled=false;btn.textContent=txt;
 }
 
 /* ── MIGRAÇÃO DOS DADOS ANTIGOS (JSON → Supabase, uma vez) ─────────────────
