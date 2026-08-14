@@ -342,8 +342,8 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
       <p style="font-size:12px;color:var(--mu);margin-bottom:11px">Ligar um email a um amigo (para poder pedir confirmação de pagamento):</p>
       <div id="adm-ligacoes-list"></div>
       <div style="display:flex;gap:6px;margin-top:8px">
-        <input type="email" id="ua-email" placeholder="email@exemplo.com" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--bo);border-radius:8px">
-        <input type="text" id="ua-amigo" placeholder="nome do amigo" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--bo);border-radius:8px">
+        <select id="ua-email" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--bo);border-radius:8px"></select>
+        <select id="ua-amigo" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--bo);border-radius:8px"></select>
         <button class="btn btn-g" style="font-size:12px;padding:0 12px" onclick="sbLigarAmigo()">Ligar</button>
       </div>
       <div class="divi"></div>
