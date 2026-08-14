@@ -365,15 +365,18 @@ function rResumo(){
   document.getElementById('pl-a').textContent=`${nJogosComRes} jogos realizados`;
   document.getElementById('pl-b').textContent=`Total: ${nJogosTotal} jogos`;
   const hoje=new Date().toISOString().split('T')[0];
-  // jogos com resultado (golos definido) que ainda têm dívidas — independentemente da data
+  // Admin: todos os jogos com resultado que ainda têm alguma dívida em aberto (de qualquer amigo).
+  // Não-admin ligado a um amigo: só os jogos que ELE deve.
+  const meu=isAdmin()?null:meuAmigoNaEpoca();
+  const jogoComResultado=j=>(j.golos!==null&&j.golos!==undefined&&j.golos!=='')&&(j.golos||0)>0;
   const pendentes=[...db.jogos]
-    .filter(j=> (j.golos!==null&&j.golos!==undefined&&j.golos!=='') && (j.golos||0)>0 && jogoTemDivida(j))
+    .filter(j=>jogoComResultado(j)&&(meu?!jogoAmigoPago(j.id,meu.id):jogoTemDivida(j)))
     .sort((a,b)=>new Date(b.data)-new Date(a.data))
     .slice(0,8);
   const ul=document.getElementById('ult-jogos');
   const tit=document.getElementById('ult-jogos-tit');
   if(pendentes.length){
-    if(tit){tit.style.display='';tit.textContent=`Jogos com pagamentos pendentes (${pendentes.length})`;}
+    if(tit){tit.style.display='';tit.textContent=meu?`Jogos que ainda deves (${pendentes.length})`:`Jogos com pagamentos pendentes (${pendentes.length})`;}
     ul.innerHTML=pendentes.map(j=>jogoCardHTML(j,true)).join('');
   } else {
     if(tit)tit.style.display='none';
