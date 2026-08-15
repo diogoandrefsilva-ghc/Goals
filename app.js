@@ -2619,6 +2619,8 @@ async function sbAprovarAcesso(email){
     await sbReq('DELETE',`access_requests?email=eq.${encodeURIComponent(email)}`);
     toast('Acesso aprovado ✓');
     sbRenderPedidos();
+    sbRenderLigacoes();
+    sbRenderPassTemp();
   }catch(e){toast('Erro: '+e.message,1);}
 }
 
@@ -3028,6 +3030,73 @@ async function carregarLogos(){
     const m={};for(const k in d)m[normNome(k)]=d[k];
     LOGOS=m;renderJogosList();
   }catch(e){/* offline ou ficheiro em falta: segue sem logos */}
+}
+
+/* ── PULL-TO-REFRESH ────────────────────────────────────────────────────
+   A app corre em standalone (manifest.json, "display":"standalone"), que
+   não tem o gesto nativo de pull-to-refresh do browser — sem isto, a única
+   forma de ver dados novos (ex: um amigo que acabou de pedir confirmação
+   de pagamento) era fechar e reabrir a app. Reaproveita o mesmo caminho do
+   login/mudarEpoca: carregar() busca tudo do Supabase outra vez, re-liga o
+   amigo do login e volta a renderizar o que já estava visível. */
+const PTR_THRESHOLD=68;
+let _ptrY0=null,_ptrPulling=false,_ptrRefrescando=false;
+function ptrElegivel(target){
+  if(_ptrRefrescando)return false;
+  if(document.getElementById('gl-splash')?.style.display!=='none')return false;
+  if(document.getElementById('page-login').style.display==='flex')return false;
+  if(document.getElementById('page-sem-acesso').style.display==='flex')return false;
+  if(document.getElementById('page-nova-pass').style.display==='flex')return false;
+  if(document.querySelector('.modal-overlay[style*="flex"]'))return false;
+  if((document.scrollingElement||document.documentElement).scrollTop>0)return false;
+  if(target&&target.closest&&target.closest('.tw,.modal-box'))return false; // têm scroll próprio
+  return true;
+}
+function ptrSetPos(px){
+  const el=document.getElementById('ptr-indicator');
+  if(!el)return;
+  const clamped=Math.max(0,Math.min(px,PTR_THRESHOLD*1.6));
+  el.style.transform=`translateY(${clamped-60}px)`;
+  el.classList.toggle('armed',clamped>=PTR_THRESHOLD);
+}
+document.addEventListener('touchstart',e=>{
+  if(!ptrElegivel(e.target)){_ptrY0=null;return;}
+  _ptrY0=e.touches[0].clientY;_ptrPulling=false;
+},{passive:true});
+document.addEventListener('touchmove',e=>{
+  if(_ptrY0===null||_ptrRefrescando)return;
+  const dy=e.touches[0].clientY-_ptrY0;
+  if(dy<=0)return;
+  if(!ptrElegivel(e.target)){_ptrY0=null;return;}
+  _ptrPulling=true;
+  document.getElementById('ptr-indicator')?.classList.add('pulling');
+  ptrSetPos(dy*0.5);
+},{passive:true});
+document.addEventListener('touchend',()=>{
+  if(!_ptrPulling){_ptrY0=null;return;}
+  const el=document.getElementById('ptr-indicator');
+  el?.classList.remove('pulling');
+  const armado=el?.classList.contains('armed');
+  _ptrY0=null;_ptrPulling=false;
+  if(armado)ptrRefrescar();
+  else ptrSetPos(0);
+});
+async function ptrRefrescar(){
+  _ptrRefrescando=true;
+  const el=document.getElementById('ptr-indicator');
+  el?.classList.add('refreshing');
+  ptrSetPos(PTR_THRESHOLD);
+  try{
+    await carregar();
+    await sbCarregarMinhaLigacao();
+    atualizarLabelEpoca();
+    rDash();rCfg();renderJogosList();
+    if(isAdmin()){sbRenderPedidos();sbRenderLigacoes();sbRenderPassTemp();}
+    toast('Atualizado ✓');
+  }catch(e){toast('Erro a atualizar: '+e.message,1);}
+  el?.classList.remove('refreshing');
+  ptrSetPos(0);
+  _ptrRefrescando=false;
 }
 
 /* ── INIT ──────────────────────────────────── */
