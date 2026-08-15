@@ -514,7 +514,7 @@ function rPrevisao(){
   ew.style.display='block';
   const cv=document.getElementById('c-evo');
   const dpr=window.devicePixelRatio||1;
-  const W=ew.clientWidth-40||660,H=260;
+  const W=(ew.clientWidth||700)-40,H=260;
   cv.width=W*dpr;cv.height=H*dpr;
   cv.style.width=W+'px';cv.style.height=H+'px';
   const ctx=cv.getContext('2d');
@@ -715,7 +715,7 @@ function rCompEpocas(){
   // Canvas
   const cv2=document.getElementById('c-comp');
   const dpr=window.devicePixelRatio||1;
-  const W=cw.clientWidth-40||660,H=260;
+  const W=(cw.clientWidth||700)-40,H=260;
   cv2.width=W*dpr;cv2.height=H*dpr;
   cv2.style.width=W+'px';cv2.style.height=H+'px';
   const ctx=cv2.getContext('2d');
@@ -932,7 +932,7 @@ function jogoCardHTML(j,mini=false){
   // resBadge já não é necessário no jadv
   const resBadge='';
 
-  return`<div class="jcard" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
+  return`<div class="jcard" data-futuro="${isFuturo?1:0}" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     ${localBadge}
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
@@ -1157,10 +1157,14 @@ function rJogos(){
   if(ordemJogos==='asc')requestAnimationFrame(scrollJogoMaisRecenteParaVista);
 }
 function scrollJogoMaisRecenteParaVista(){
-  const cards=document.querySelectorAll('#j-list .jcard');
-  const last=cards[cards.length-1];
-  if(!last)return;
-  if(last.getBoundingClientRect().bottom>window.innerHeight)last.scrollIntoView({block:'end'});
+  const cards=[...document.querySelectorAll('#j-list .jcard')];
+  if(!cards.length)return;
+  // alvo = o próximo jogo por realizar (1º sem resultado); se já estiverem
+  // todos realizados, o último da lista. Nunca o último jogo do calendário
+  // da época todo, que pode estar agendado para daqui a meses.
+  const alvo=cards.find(c=>c.dataset.futuro==='1')||cards[cards.length-1];
+  const r=alvo.getBoundingClientRect();
+  if(r.top<0||r.bottom>window.innerHeight)alvo.scrollIntoView({block:'center'});
 }
 
 /* ── PEDIDOS DE PAGAMENTO ("já paguei os jogos A, B, D") ──────────────────
