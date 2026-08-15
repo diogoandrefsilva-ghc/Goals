@@ -27,11 +27,10 @@
 // pedido de acesso a disparar o aviso), por isso aí só se exige um JWT
 // válido.
 //
-// Secrets necessários (Edge Functions -> Secrets), par PRÓPRIO deste app
-// (não partilhar com o VAPID do SplitBill):
-//   VAPID_PUBLIC_KEY   par de chaves só para isto (não é a chave do Supabase)
-//   VAPID_PRIVATE_KEY
-//   VAPID_SUBJECT      (opcional) "mailto:..."; sem ele usa um valor por omissão
+// Secrets: os secrets de Edge Function no Supabase são por PROJETO, não por
+// function — este app está no MESMO projeto do SplitBill, por isso reusa o
+// VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY/VAPID_SUBJECT já configurados lá (Edge
+// Functions -> Secrets). Nada a criar de novo aqui.
 // (SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são injetados automaticamente.)
 //
 // Deploy: supabase functions deploy push-notificar-goals

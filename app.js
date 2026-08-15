@@ -12,9 +12,12 @@ let _sbSession=null;
 let MEU_AMIGO_NOME=null; // nome do amigo (goals.user_amigos) ligado a este login, se algum
 let PUSH_COL=true; // tabela push_subscriptions existe? (verificado em pushCheckColuna, chamado por sbAposLogin)
 
-// Par de chaves só para notificações Web Push (não é a chave do Supabase).
-// A privada vive só como secret da Edge Function push-notificar-goals.
-const VAPID_PUBLIC_KEY='BN4Xl-aAfvCKJ4MI9VdW2ibyWwziCQDX0GeANlw2nPVWmzbNApO3_VgpfrWlhRnwR8ru_2A4X3nnvWXp9VVWc_0';
+// Par de chaves para notificações Web Push (não é a chave do Supabase) —
+// o MESMO par já usado pelo SplitBill: os secrets de Edge Function no
+// Supabase são por PROJETO, não por function, e este app vive no mesmo
+// projeto. A privada vive só como secret do projeto (VAPID_PRIVATE_KEY),
+// partilhada por todas as functions, nunca no repo.
+const VAPID_PUBLIC_KEY='BFiwf_z5NJzkXFP6gzxS_naH9cNC2MfCEmejJf32MID8Y_1i49cb8sGINYhH-aFAZmFQLf3V__2ZyeotQIZYQ0U';
 
 function sbHeaders(extra={}){
   return Object.assign({
