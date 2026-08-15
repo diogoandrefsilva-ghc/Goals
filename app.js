@@ -2645,67 +2645,48 @@ function meuAmigoNaEpoca(){
   return db.amigos.find(a=>a.nome===MEU_AMIGO_NOME)||null;
 }
 
-// Nomes de amigo estáveis (união de todas as épocas) para o combobox de ligação.
+// Nomes de amigo estáveis (união de todas as épocas) para a lista de equivalências.
 function nomesAmigosGlobal(){
   const vistos=new Set();
   Object.values(dbFull.epocas||{}).forEach(ep=>(ep.amigos||[]).forEach(a=>{if(a&&a.nome)vistos.add(a.nome);}));
   return[...vistos].sort((a,b)=>a.localeCompare(b,'pt'));
 }
-// Preenche os dois combobox do formulário "Ligar" (contas com acesso + amigos conhecidos)
-async function sbPreencherFormLigar(){
-  const selEmail=document.getElementById('ua-email');
-  const selAmigo=document.getElementById('ua-amigo');
-  if(!selEmail||!selAmigo)return;
-  try{
-    const rows=await sbReq('GET','allowed_users?select=email&order=email.asc');
-    const prev=selEmail.value;
-    const opts=(rows||[]).filter(r=>r.email!==ADMIN_EMAIL);
-    selEmail.innerHTML=opts.length
-      ?opts.map(r=>`<option value="${r.email}"${prev===r.email?' selected':''}>${r.email}</option>`).join('')
-      :'<option value="">— sem contas —</option>';
-  }catch(e){}
-  const prevA=selAmigo.value;
-  const nomes=nomesAmigosGlobal();
-  selAmigo.innerHTML=nomes.length
-    ?nomes.map(n=>`<option value="${n}"${prevA===n?' selected':''}>${n}</option>`).join('')
-    :'<option value="">— sem amigos —</option>';
-}
 
+// Uma linha por amigo, com um combobox só de contas ainda não atribuídas a
+// outro amigo (mais a que já está ligada a este, se houver).
 async function sbRenderLigacoes(){
   if(!isAdmin())return;
   const box=document.getElementById('adm-ligacoes-list');
-  if(box){
-    try{
-      const rows=await sbReq('GET','user_amigos?select=email,amigo&order=amigo.asc');
-      if(!rows||!rows.length){box.innerHTML='<div class="note" style="font-size:12px;color:var(--mu)">Nenhum utilizador ligado ainda.</div>';}
-      else box.innerHTML=rows.map(r=>`
-        <div class="ua-row">
-          <span>${r.email} → <strong>${r.amigo}</strong></span>
-          <button class="jdel" title="Desligar" onclick="sbApagarLigacao('${r.email.replace(/'/g,"\\'")}')">✕</button>
-        </div>`).join('');
-    }catch(e){box.innerHTML='<div class="note" style="font-size:12px;color:var(--mu)">Erro a carregar ligações.</div>';}
-  }
-  sbPreencherFormLigar();
+  if(!box)return;
+  try{
+    const[emailRows,ligRows]=await Promise.all([
+      sbReq('GET','allowed_users?select=email&order=email.asc'),
+      sbReq('GET','user_amigos?select=email,amigo')
+    ]);
+    const emails=(emailRows||[]).map(r=>r.email).filter(e=>e!==ADMIN_EMAIL);
+    const ligMap={};(ligRows||[]).forEach(r=>{ligMap[r.amigo]=r.email;});
+    const usadas=new Set(Object.values(ligMap));
+    const nomes=nomesAmigosGlobal();
+    if(!nomes.length){box.innerHTML='<div class="note" style="font-size:12px;color:var(--mu)">Ainda não há amigos registados.</div>';return;}
+    box.innerHTML=nomes.map(nome=>{
+      const sel=ligMap[nome]||'';
+      const opts=['<option value="">— sem conta —</option>']
+        .concat(emails.filter(e=>!usadas.has(e)||e===sel).map(e=>`<option value="${e}"${e===sel?' selected':''}>${e}</option>`))
+        .join('');
+      const nomeEsc=nome.replace(/'/g,"\\'");
+      return `<div class="ua-row"><span style="flex:0 0 auto;max-width:42%"><strong>${nome}</strong></span><select style="flex:1;min-width:0" onchange="sbLigarAmigo('${nomeEsc}',this.value)">${opts}</select></div>`;
+    }).join('');
+  }catch(e){box.innerHTML='<div class="note" style="font-size:12px;color:var(--mu)">Erro a carregar equivalências.</div>';}
 }
 
-async function sbLigarAmigo(){
-  if(!isAdmin())return;
-  const email=document.getElementById('ua-email').value.trim();
-  const amigo=document.getElementById('ua-amigo').value.trim();
-  if(!email||!email.includes('@')||!amigo)return toast('Escolhe email e amigo',1);
-  try{
-    await sbReq('POST','user_amigos',{email,amigo},{Prefer:'resolution=merge-duplicates'});
-    toast('Ligação criada ✓');
-    sbRenderLigacoes();
-  }catch(e){toast('Erro: '+e.message,1);}
-}
-async function sbApagarLigacao(email){
+async function sbLigarAmigo(amigo,email){
   if(!isAdmin())return;
   try{
-    await sbReq('DELETE',`user_amigos?email=eq.${encodeURIComponent(email)}`);
-    toast('Ligação removida');
+    await sbReq('DELETE',`user_amigos?amigo=eq.${encodeURIComponent(amigo)}`);
+    if(email)await sbReq('POST','user_amigos',{email,amigo},{Prefer:'resolution=merge-duplicates'});
+    toast(email?'Ligação criada ✓':'Ligação removida');
     sbRenderLigacoes();
-  }catch(e){toast('Erro: '+e.message,1);}
+  }catch(e){toast('Erro: '+e.message,1);sbRenderLigacoes();}
 }
 
 /* ── Password temporária dada pelo admin ──
