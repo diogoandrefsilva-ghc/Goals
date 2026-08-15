@@ -10,6 +10,11 @@ const ADMIN_EMAIL='diogo.andre.f.silva@gmail.com';
 const SESSION_KEY='goals_sb_session';
 let _sbSession=null;
 let MEU_AMIGO_NOME=null; // nome do amigo (goals.user_amigos) ligado a este login, se algum
+let PUSH_COL=true; // tabela push_subscriptions existe? (verificado em pushCheckColuna, chamado por sbAposLogin)
+
+// Par de chaves só para notificações Web Push (não é a chave do Supabase).
+// A privada vive só como secret da Edge Function push-notificar-goals.
+const VAPID_PUBLIC_KEY='BN4Xl-aAfvCKJ4MI9VdW2ibyWwziCQDX0GeANlw2nPVWmzbNApO3_VgpfrWlhRnwR8ru_2A4X3nnvWXp9VVWc_0';
 
 function sbHeaders(extra={}){
   return Object.assign({
@@ -1270,6 +1275,8 @@ async function submeterPedidoPagamento(){
     await sbReq('POST','pedidos_pagamento',{epoca_nome:epocaAtiva,amigo_id:meu.id,jogo_ids:ids,valor});
   }catch(e){toast('Erro ao enviar pedido: '+e.message,1);return;}
   toast('Pedido enviado — aguarda confirmação do admin ✓');
+  const nomes=ids.map(id=>{const j=db.jogos.find(x=>x.id===id);return j?`vs ${j.adversario}`:null;}).filter(Boolean).join(', ');
+  sbNotificarPagamentoDeclarado(meu.nome,valor,nomes); // fire-and-forget, não bloqueia UI
   await recarregarPedidosPagamento();
 }
 async function cancelarPedidoPagamento(id){
@@ -1430,7 +1437,9 @@ async function guardarEdicao(){
   try{
     await sbReq('PATCH',`jogos?id=eq.${j.id}`,novo);
   }catch(e){toast('Erro ao guardar: '+e.message,1);return;}
+  const fechouAgora=!j.resultado&&novo.resultado; // 1ª vez que este jogo fica com resultado
   Object.assign(j,novo);
+  if(fechouAgora)sbNotificarResultadoJogo(j.adversario,j.resultado,j.golos); // fire-and-forget, não bloqueia UI
   fecharModalEditar();
   // re-render: verificar se estamos no detalhe do jogo (usa style.display, não classes)
   const tJdetalhe=document.getElementById('t-jdetalhe');
@@ -2364,6 +2373,9 @@ async function sbAposLogin(){
   rDash();rCfg();renderJogosList();restaurarTab();
   if(isAdmin()){sbRenderPedidos();sbRenderLigacoes();sbRenderPassTemp();}
   if(window.glEsconderSplash)window.glEsconderSplash();
+  await pushCheckColuna();
+  pushRenderStatus();
+  pushSugerirAtivacao();
 }
 
 async function sbLoginGoogle(){
@@ -2551,6 +2563,7 @@ async function sbSolicitarAcesso(){
       status.textContent=r.status===409?'✓ O pedido já estava registado. Aguarda aprovação.':'✓ Pedido enviado! Aguarda aprovação.';
       btn.style.display='none';
       btnV.style.display='';
+      if(r.ok)sbNotificarPedidoAcesso(_sbSession.user.email); // só em pedidos novos, não em repetidos
       return;
     }
     let msg='HTTP '+r.status;
@@ -2844,6 +2857,176 @@ async function migrarDadosAntigos(){
   await carregar();
   await sbCarregarMinhaLigacao();
   rDash();rCfg();renderJogosList();
+}
+
+/* ── NOTIFICAÇÕES PUSH (Web Push, sem Telegram) ──────────────────────────
+   Ativado por conta+dispositivo em Definições (pushAtivar/pushDesativar,
+   tabela push_subscriptions — migração db/push-subscriptions.sql). Três
+   momentos avisam a Edge Function push-notificar-goals: pedido de acesso
+   (admin), pagamento declarado (admin) e resultado de jogo fechado (todos).
+   Sem a migração (PUSH_COL=false) os controlos escondem-se e a chamada não
+   sai. */
+
+function pushSuportado(){
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+function _urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+
+async function pushCheckColuna(){
+  try{
+    const r=await sbFetch(`${SB_URL}/rest/v1/push_subscriptions?select=endpoint&limit=1`,{headers:sbHeaders({'Accept':'application/json'})});
+    PUSH_COL=r.ok;
+  }catch(e){PUSH_COL=false;}
+  if(!PUSH_COL)console.warn('[Goals] tabela push_subscriptions ausente — corre db/push-subscriptions.sql para ativar notificações push');
+}
+
+async function pushSubscricaoAtual(){
+  if(!pushSuportado())return null;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    return await reg.pushManager.getSubscription();
+  }catch(e){return null;}
+}
+
+// Atualiza os controlos na caixa .push-toggle-box de Definições › Conta.
+async function pushRenderStatus(){
+  const els=document.querySelectorAll('.push-toggle-box');
+  if(!els.length)return;
+  const suportado=pushSuportado();
+  const email=_sbSession&&_sbSession.user&&_sbSession.user.email;
+  const sub=suportado?await pushSubscricaoAtual():null;
+  const ativo=!!sub;
+  els.forEach(box=>{
+    if(!PUSH_COL||!suportado||!email){box.style.display='none';return;}
+    box.style.display='';
+    const btn=box.querySelector('.push-toggle-btn');
+    const msg=box.querySelector('.push-toggle-msg');
+    if(btn){
+      btn.textContent=ativo?'🔕 Desativar notificações':'🔔 Ativar notificações';
+      btn.onclick=ativo?pushDesativar:pushAtivar;
+    }
+    if(msg)msg.textContent=ativo
+      ?'Notificações ativas neste dispositivo.'
+      :'Avisamos-te de pedidos de acesso, pagamentos declarados e resultados fechados.';
+  });
+}
+
+async function pushAtivar(){
+  if(!pushSuportado()){toast('⚠️ Este browser não suporta notificações push',1);return;}
+  const email=_sbSession&&_sbSession.user&&_sbSession.user.email;
+  if(!email)return;
+  try{
+    const permissao=await Notification.requestPermission();
+    if(permissao!=='granted'){toast('⚠️ Permissão de notificações recusada',1);return;}
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:_urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const json=sub.toJSON();
+    const r=await sbFetch(`${SB_URL}/rest/v1/push_subscriptions`,{
+      method:'POST',
+      headers:sbHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify({endpoint:sub.endpoint,email,p256dh:json.keys.p256dh,auth_key:json.keys.auth})
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    toast('✓ Notificações ativadas neste dispositivo');
+  }catch(e){
+    console.error('Erro ao ativar notificações:',e);
+    toast('⚠️ Não foi possível ativar notificações: '+e.message,1);
+  }
+  pushRenderStatus();
+}
+
+/* Sugestão automática logo a seguir ao login — para ninguém ter de descobrir
+   o botão em Definições. Se a permissão já foi concedida antes, subscreve
+   logo sem mostrar nada; se já foi recusada, não insiste (o browser nem
+   deixava). */
+async function pushSugerirAtivacao(){
+  if(!PUSH_COL||!pushSuportado())return;
+  if(Notification.permission==='denied')return;
+  if(Notification.permission==='granted'){
+    const sub=await pushSubscricaoAtual();
+    if(!sub)await pushAtivar();
+    return;
+  }
+  const overlay=document.getElementById('push-prompt-overlay');
+  if(overlay)overlay.style.display='flex';
+}
+
+function pushPromptAdiar(){
+  const overlay=document.getElementById('push-prompt-overlay');
+  if(overlay)overlay.style.display='none';
+}
+
+async function pushPromptAtivar(){
+  const overlay=document.getElementById('push-prompt-overlay');
+  if(overlay)overlay.style.display='none';
+  await pushAtivar();
+}
+
+async function pushDesativar(){
+  try{
+    const sub=await pushSubscricaoAtual();
+    if(sub){
+      await sbFetch(`${SB_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(sub.endpoint)}`,{method:'DELETE',headers:sbHeaders()});
+      await sub.unsubscribe();
+    }
+    toast('Notificações desativadas neste dispositivo');
+  }catch(e){
+    console.error('Erro ao desativar notificações:',e);
+  }
+  pushRenderStatus();
+}
+
+// Base comum aos 3 momentos — chama a Edge Function push-notificar-goals,
+// que decide o texto pelo `tipo` (nunca vem livre do cliente). Fire-and-
+// forget: nunca bloqueia nem incomoda o utilizador com erro.
+async function sbEnviarPush(body){
+  if(!PUSH_COL||!_sbSession)return null;
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),15000);
+  try{
+    const r=await sbFetch(`${SB_URL}/functions/v1/push-notificar-goals`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY},
+      body:JSON.stringify(body),
+      signal:ctrl.signal
+    });
+    return await r.json().catch(()=>null);
+  }catch(e){
+    console.warn('[Goals] notificação push não enviada:',e.message);
+    return null;
+  }finally{clearTimeout(timer);}
+}
+
+// 1) Avisa o admin quando alguém pede acesso à app pela primeira vez. Corre
+// mesmo para quem AINDA não está em allowed_users — é precisamente essa
+// pessoa que dispara o aviso (a Edge Function só exige sessão válida para
+// este tipo, não pertencer a allowed_users).
+function sbNotificarPedidoAcesso(email){
+  sbEnviarPush({tipo:'pedido_acesso',email});
+}
+
+// 2) Avisa o admin quando um amigo diz que já pagou um conjunto de jogos.
+function sbNotificarPagamentoDeclarado(amigo,valor,jogos){
+  sbEnviarPush({tipo:'pagamento_declarado',amigo,valor,jogos});
+}
+
+// 3) Avisa TODOS os subscritos quando o resultado de um jogo fecha pela
+// primeira vez. Só o admin dispara isto (guardarEdicao() já é admin-only
+// via roGuard) — a Edge Function confirma isso do lado do servidor também.
+function sbNotificarResultadoJogo(adversario,resultado,golos){
+  sbEnviarPush({tipo:'resultado_jogo',adversario,resultado,golos});
 }
 
 /* ── LOGOS DOS ADVERSÁRIOS ─────────────────── */

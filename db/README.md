@@ -24,6 +24,11 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
    nenhum (ver "Recuperação de password" abaixo). Idempotente, tolerante:
    sem ela, o botão em Definições › Utilizadores diz que falta correr o
    ficheiro e mais nada muda.
+5. `push-subscriptions.sql` — opcional: ativa as notificações Web Push
+   (pedido de acesso, pagamento declarado, resultado de jogo fechado — ver
+   `push-notificar-goals.ts` na raiz do repo, deploy à parte no Supabase).
+   Idempotente, tolerante: sem ela, PUSH_COL fica false e o botão "Ativar
+   notificações" em Definições › Conta esconde-se.
 
 ## Passos manuais (fora do SQL Editor)
 

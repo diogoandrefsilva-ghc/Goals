@@ -1,4 +1,4 @@
-const CACHE_NAME = 'app-cache-v11';
+const CACHE_NAME = 'app-cache-v12';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -43,5 +43,35 @@ self.addEventListener('fetch', (e) => {
                 return res;
             })
         )
+    );
+});
+
+// Notificações push (pedido de acesso / pagamento declarado / resultado de
+// jogo fechado) — a Edge Function push-notificar-goals manda um payload
+// {title, body, url}; aqui só se mostra a notificação.
+self.addEventListener('push', (e) => {
+    let data = { title: 'Goals', body: 'Tens uma novidade na app.', url: '/Goals/' };
+    try { Object.assign(data, e.data.json()); } catch (err) { /* payload vazio ou não-JSON */ }
+    e.waitUntil(
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: '/Goals/apple-touch-icon.png',
+            badge: '/Goals/apple-touch-icon.png',
+            data: { url: data.url || '/Goals/' }
+        })
+    );
+});
+
+// Clique na notificação: foca uma janela já aberta da app, ou abre uma nova.
+self.addEventListener('notificationclick', (e) => {
+    e.notification.close();
+    const url = (e.notification.data && e.notification.data.url) || '/Goals/';
+    e.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+            for (const c of clients) {
+                if (c.url.includes('/Goals/') && 'focus' in c) return c.focus();
+            }
+            return self.clients.openWindow(url);
+        })
     );
 });
