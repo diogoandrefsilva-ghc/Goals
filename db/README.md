@@ -15,7 +15,16 @@ depois se cola no SQL Editor do Supabase.
 
 Numa BD limpa (ou pela primeira vez, neste projeto):
 
-1. `schema.sql` — schema `goals`, tabelas, constraints, GRANTs e `ENABLE ROW LEVEL SECURITY`
+1. `schema.sql` — schema `goals`, tabelas, constraints, GRANTs e `ENABLE ROW LEVEL SECURITY`.
+   Inclui o `GRANT USAGE ON SCHEMA goals TO service_role` (+ tabelas/sequences):
+   sem isto a `service_role` (as Edge Functions de push) não consegue ler
+   nem escrever NADA em `goals.*` — falha com "permission denied for
+   schema goals" (42501). **Foi a causa real de as notificações push nunca
+   chegarem** (2026-08-15): a função reportava sucesso (HTTP 200) porque
+   apanhava o erro e seguia em frente com 0 subscrições, sem nunca chegar
+   a mandar nada. RLS bypass (`BYPASSRLS`) só ignora policies — GRANTs
+   continuam a ser precisos à mesma, e só ficam automáticos no schema
+   `public`, nunca num schema à parte como este.
 2. `functions.sql` — `is_admin`, `is_allowed`, `eh_meu_amigo` + o trigger de
    `pedidos_pagamento`
 3. `policies.sql` — RLS policies (dependem das funções)

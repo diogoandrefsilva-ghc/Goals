@@ -16,6 +16,22 @@
 
 CREATE SCHEMA IF NOT EXISTS goals;
 
+-- A `service_role` (as duas Edge Functions de push, e qualquer futuro uso
+-- server-side) NÃO tem acesso a schemas fora de `public` só por ser
+-- service_role — RLS bypass (BYPASSRLS) é só sobre policies, não sobre
+-- GRANTs, e sem isto qualquer pedido feito com a service_role key contra
+-- `goals.*` falha com "permission denied for schema goals" (42501),
+-- silenciosamente, do lado de quem chama (foi o que fez as notificações
+-- push de pedido_acesso/pagamento_declarado parecerem "enviadas com
+-- sucesso" — HTTP 200 — sem nunca lá chegarem: cada leitura interna
+-- falhava, apanhada e ignorada). GRANT explícito, sempre, para qualquer
+-- schema não-`public` neste projeto.
+GRANT USAGE ON SCHEMA goals TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA goals TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA goals TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA goals GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA goals GRANT USAGE, SELECT ON SEQUENCES TO service_role;
+
 -- ---------------------------------------------------------------------
 -- Controlo de acesso
 -- ---------------------------------------------------------------------
