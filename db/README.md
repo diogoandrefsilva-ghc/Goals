@@ -29,6 +29,14 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
    `push-notificar-goals.ts` na raiz do repo, deploy à parte no Supabase).
    Idempotente, tolerante: sem ela, PUSH_COL fica false e o botão "Ativar
    notificações" em Definições › Conta esconde-se.
+6. `push-notificacoes.sql` — opcional (mas recomendado se usares o passo
+   5): outbox das notificações push + retry de 30 em 30 min via pg_cron,
+   para o que falhar da primeira vez (ver `push-retry-goals.ts` na raiz do
+   repo, deploy à parte). Idempotente, tolerante: sem ela, o envio imediato
+   continua a funcionar exatamente como antes, só sem rede de segurança
+   para o que falhar. Requer o passo manual 5 abaixo (secret na Vault) para
+   o retry em si funcionar — sem esse secret o SQL corre à mesma, só o
+   `cron.job` fica sem credenciais válidas até o criares.
 
 ## Passos manuais (fora do SQL Editor)
 
@@ -49,7 +57,14 @@ Estes não se fazem por SQL — são configuração do projeto Supabase:
    destinatário abrir o link primeiro. **Não é preciso resolver isto**: a
    app tem a alternativa que já usas no FestasBV — ver "Recuperação de
    password" abaixo.
-4. **Bootstrap inicial** (uma vez, depois das tabelas criadas):
+4. **Secret na Vault para o retry de notificações** (só se correres
+   `push-notificacoes.sql`): Project Settings → Vault → "New secret" →
+   nome `service_role_key`, valor a tua service_role key (Project
+   Settings → API → service_role). É o que o pg_cron usa para autenticar
+   a chamada à `push-retry-goals` de 30 em 30 min — nunca fica em texto no
+   repo nem em código, só na Vault. Sem este passo o retry não tem efeito
+   (a função responde 403), mas nada mais é afetado.
+5. **Bootstrap inicial** (uma vez, depois das tabelas criadas):
    ```sql
    INSERT INTO goals.allowed_users (email) VALUES ('diogo.andre.f.silva@gmail.com');
    -- opcional, só se quiseres aparecer também como jogador:
@@ -97,6 +112,10 @@ telefone/WhatsApp, e a pessoa entra e troca-a em Definições › Conta
 - **admin_pass_temp.sql** — `goals.admin_pass_temp(email, password)`
   (SECURITY DEFINER): a rede de segurança da recuperação de password sem
   SMTP próprio, ver secção acima. Opcional.
+- **push-subscriptions.sql** / **push-notificacoes.sql** — notificações Web
+  Push (dispositivo ↔ conta) e a outbox+retry do que falhar a enviar.
+  Opcionais, tolerantes. Ver `push-notificar-goals.ts` e
+  `push-retry-goals.ts` na raiz do repo.
 
 ## Modelo de permissões
 
