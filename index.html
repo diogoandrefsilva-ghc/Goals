@@ -320,6 +320,10 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
     <div class="fcard">
       <h3>Conta</h3>
       <p style="font-size:12.5px;color:var(--mu);margin:8px 0 12px" id="conta-email"></p>
+      <div class="push-toggle-box" style="display:none;margin-bottom:12px">
+        <button class="push-toggle-btn btn btn-n" style="width:100%;margin-bottom:6px">🔔 Ativar notificações</button>
+        <p class="push-toggle-msg" style="font-size:11px;color:var(--mu);margin:0;line-height:1.4"></p>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-n" onclick="toggleAdmPass()">Alterar password</button>
         <button class="btn btn-n" onclick="sbLogout()">Terminar sessão</button>
@@ -509,6 +513,23 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
       <button class="btn btn-g" id="modal-credito-save">Criar crédito</button>
       <button class="btn btn-n" onclick="fecharModalCredito()">Cancelar</button>
       <button class="btn" id="modal-credito-del" style="background:var(--dg);color:#fff;margin-left:auto;display:none" onclick="remCreditoFromModal()">Apagar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: sugestão automática de notificações push, logo a seguir ao login -->
+<div class="modal-overlay" id="push-prompt-overlay" style="display:none" onclick="if(event.target===this)pushPromptAdiar()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h3>🔔 Ativar notificações?</h3>
+      <button class="modal-close" onclick="pushPromptAdiar()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13.5px;color:var(--mu);line-height:1.5">Avisamos-te por notificação quando houver um pedido de acesso, um pagamento declarado ou um resultado de jogo fechado — sem teres de andar a verificar a app.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-g" onclick="pushPromptAtivar()">Ativar</button>
+      <button class="btn btn-n" onclick="pushPromptAdiar()">Agora não</button>
     </div>
   </div>
 </div>
