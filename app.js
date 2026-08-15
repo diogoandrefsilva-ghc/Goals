@@ -946,8 +946,8 @@ function jogoCardHTML(j,mini=false){
   </div>`;
 }
 
-// 'desc' = mais recentes primeiro (defeito) · 'asc' = mais antigos primeiro
-let ordemJogos='desc';
+// 'desc' = mais recentes primeiro · 'asc' = mais antigos primeiro (defeito)
+let ordemJogos='asc';
 function setOrdemJogos(o){
   ordemJogos=o;
   document.getElementById('f-ord-desc')?.classList.toggle('on',o==='desc');
@@ -968,15 +968,18 @@ function renderJogosList(){
 }
 
 let _lastViewedJogoId=null;
+let _detalheOrigemTab='jogos'; // separador de onde se abriu o detalhe — o "Voltar" volta para aí
 
 function abrirDetalhe(jogoId){
   const jogo=db.jogos.find(j=>j.id===jogoId);if(!jogo)return;
   _lastViewedJogoId=jogoId;
   const dashSec=document.getElementById('s-dash');
+  const origemP=dashSec.querySelector(':scope > .tp.on');
+  _detalheOrigemTab=origemP?origemP.id.replace('t-',''):'jogos';
   dashSec.querySelectorAll(':scope > .tp').forEach(p=>p.classList.remove('on'));
   dashSec.querySelectorAll(':scope > .itabs .it').forEach(b=>b.classList.remove('on'));
   document.getElementById('t-jogos').classList.add('on');
-  document.querySelector('#s-dash > .itabs .it:nth-child(4)').classList.add('on');
+  document.querySelector('#s-dash > .itabs .it[onclick*="itab(\'jogos\'"]').classList.add('on');
   // mostrar painel detalhe dentro da aba Jogos
   document.getElementById('t-jlista').style.display='none';
   document.getElementById('t-jdetalhe').style.display='block';
@@ -984,6 +987,12 @@ function abrirDetalhe(jogoId){
 }
 
 function voltarLista(){
+  // Se o jogo foi aberto a partir de outro separador (ex.: Resumo), o
+  // "Voltar" leva de volta a esse separador em vez de ficar em Jogos.
+  if(_detalheOrigemTab!=='jogos'){
+    const btn=document.querySelector(`#s-dash > .itabs .it[onclick*="itab('${_detalheOrigemTab}'"]`);
+    if(btn){itab(_detalheOrigemTab,btn,'dash');return;}
+  }
   document.getElementById('t-jlista').style.display='block';
   document.getElementById('t-jdetalhe').style.display='none';
   renderJogosList();
@@ -1143,6 +1152,15 @@ function rJogos(){
   document.getElementById('t-jlista').style.display='block';
   document.getElementById('t-jdetalhe').style.display='none';
   renderJogosList();
+  // Em ordem ascendente o jogo mais recente fica no fim da lista — se não
+  // couber no ecrã, traz-lo já para a vista em vez de obrigar a scroll manual.
+  if(ordemJogos==='asc')requestAnimationFrame(scrollJogoMaisRecenteParaVista);
+}
+function scrollJogoMaisRecenteParaVista(){
+  const cards=document.querySelectorAll('#j-list .jcard');
+  const last=cards[cards.length-1];
+  if(!last)return;
+  if(last.getBoundingClientRect().bottom>window.innerHeight)last.scrollIntoView({block:'end'});
 }
 
 /* ── PEDIDOS DE PAGAMENTO ("já paguei os jogos A, B, D") ──────────────────
@@ -2665,7 +2683,7 @@ async function sbRenderLigacoes(){
       sbReq('GET','allowed_users?select=email&order=email.asc'),
       sbReq('GET','user_amigos?select=email,amigo')
     ]);
-    const emails=(emailRows||[]).map(r=>r.email).filter(e=>e!==ADMIN_EMAIL);
+    const emails=(emailRows||[]).map(r=>r.email);
     const ligMap={};(ligRows||[]).forEach(r=>{ligMap[r.amigo]=r.email;});
     const usadas=new Set(Object.values(ligMap));
     const nomes=nomesAmigosGlobal();
