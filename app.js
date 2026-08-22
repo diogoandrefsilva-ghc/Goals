@@ -417,11 +417,15 @@ function detalheEstouroReceberHTML(){
     .filter(x=>x.s>0.01&&!(db.estouroPagos||[]).includes(x.am.id))
     .sort((a,b)=>b.s-a.s)
     .map(({am,s})=>{
+      // estDeveAQuem() dá a quota BRUTA dos eventos por credor; o saldo já
+      // desconta o que a pessoa meteu no pote/créditos. Repartimos o saldo
+      // pelos credores na mesma proporção para os valores baterem certo.
       const devidas=estDeveAQuem(am.id);
-      const txt=Object.entries(devidas).map(([cId,v])=>{
+      const bruto=Object.values(devidas).reduce((a,v)=>a+v,0);
+      const txt=bruto>0.01?Object.entries(devidas).map(([cId,v])=>{
         const cr=db.amigos.find(a=>a.id===parseInt(cId));
-        return`${cr?cr.nome:'?'} ${v.toFixed(2)}€`;
-      }).join(' · ');
+        return`${cr?cr.nome:'?'} ${(v/bruto*s).toFixed(2)}€`;
+      }).join(' · '):'';
       return detPessoaHTML(am,s.toFixed(2)+'€',txt?`deve a ${txt}`:'');
     }).join('');
   return`<div class="sc-det-tit">Quem ainda deve o estouro</div>${linhas||'<div class="sc-det-vazio">Estouro todo acertado 🎉</div>'}`;
@@ -3211,6 +3215,76 @@ async function ptrRefrescar(){
   ptrSetPos(0);
   _ptrRefrescando=false;
 }
+
+/* ── SWIPE PARA VOLTAR ──────────────────────────────────────────────────
+   No detalhe de um jogo, arrastar para a direita faz o mesmo que o botão
+   "← Voltar". O painel acompanha o dedo e, passado o limiar, sai de vez. */
+const SWB_MIN=70;   // px de arrasto (reais) a partir dos quais volta
+let _swbX0=0,_swbY0=0,_swbDx=0,_swbEl=null,_swbAtivo=false;
+
+function swbElegivel(target){
+  const det=document.getElementById('t-jdetalhe');
+  if(!det||det.style.display==='none')return null;
+  if(document.querySelector('.modal-overlay[style*="flex"]'))return null;
+  const tag=target&&target.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return null;
+  // não roubar o gesto a nada que tenha scroll horizontal próprio
+  for(let n=target;n&&n!==document.body;n=n.parentElement){
+    if(n.scrollWidth>n.clientWidth+4){
+      const ov=getComputedStyle(n).overflowX;
+      if(ov==='auto'||ov==='scroll')return null;
+    }
+  }
+  return det;
+}
+function swbReset(el,voltar){
+  el.style.transition='transform .18s ease,opacity .18s ease';
+  if(voltar){
+    el.style.transform='translateX(55%)';el.style.opacity='0';
+    setTimeout(()=>{el.style.transition='';el.style.transform='';el.style.opacity='';voltarLista();},175);
+  }else{
+    el.style.transform='';el.style.opacity='';
+    setTimeout(()=>{el.style.transition='';},200);
+  }
+}
+
+document.addEventListener('touchstart',e=>{
+  _swbEl=null;_swbAtivo=false;_swbDx=0;
+  if(e.touches.length!==1)return;
+  const det=swbElegivel(e.target);
+  if(!det)return;
+  _swbEl=det;_swbX0=e.touches[0].clientX;_swbY0=e.touches[0].clientY;
+},{passive:true});
+
+document.addEventListener('touchmove',e=>{
+  if(!_swbEl||e.touches.length!==1)return;
+  const dx=e.touches[0].clientX-_swbX0;
+  const dy=e.touches[0].clientY-_swbY0;
+  if(!_swbAtivo){
+    // scroll vertical (ou arrasto para a esquerda) → o gesto não é nosso
+    if(Math.abs(dy)>10&&Math.abs(dy)>=Math.abs(dx)){_swbEl=null;return;}
+    if(dx<14||dx<Math.abs(dy)*1.4)return;
+    _swbAtivo=true;
+    // cancela o pull-to-refresh, caso o dedo tenha descido um pouco antes
+    _ptrY0=null;_ptrPulling=false;
+    document.getElementById('ptr-indicator')?.classList.remove('pulling');
+    ptrSetPos(0);
+    _swbEl.style.transition='none';
+  }
+  e.preventDefault();            // a partir daqui o gesto é o swipe, não scroll
+  _swbDx=Math.max(0,dx);
+  _swbEl.style.transform=`translateX(${_swbDx*0.55}px)`;
+  _swbEl.style.opacity=String(Math.max(.45,1-_swbDx/460));
+},{passive:false});
+
+function swbFim(){
+  if(!_swbEl)return;
+  const el=_swbEl,ativo=_swbAtivo,dx=_swbDx;
+  _swbEl=null;_swbAtivo=false;_swbDx=0;
+  if(ativo)swbReset(el,dx>=SWB_MIN);
+}
+document.addEventListener('touchend',swbFim);
+document.addEventListener('touchcancel',swbFim);
 
 /* ── BARRA DE SEPARADORES FIXA ─────────────────
    A .itabs é sticky por baixo do header; o header tem altura variável
