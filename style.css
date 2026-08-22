@@ -419,7 +419,9 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 .calsug-head strong{font-size:13.5px;color:var(--tx)}
 .calsug-x{background:none;border:none;color:var(--mu);font-size:15px;line-height:1;cursor:pointer;padding:2px 4px}
 .calsug-nota{font-size:11.5px;color:var(--mu);line-height:1.45;margin:0 0 10px}
-.calsug-nota.av{color:#8a6d12;background:var(--oup);border:1px solid #f0e2b0;border-radius:8px;padding:7px 9px}
+/* `aviso` e não `av`: `.av` já é a classe dos avatares dos amigos (círculo
+   28x28) e as caixas herdavam-lhe a largura e o border-radius. */
+.calsug-nota.aviso{color:#8a6d12;background:var(--oup);border:1px solid #f0e2b0;border-radius:8px;padding:7px 9px}
 .calsug-sec{margin-bottom:12px}
 .calsug-sec-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px}
 .calsug-link{background:none;border:none;padding:0;font-size:11px;color:var(--in);cursor:pointer;text-transform:none;letter-spacing:0;font-weight:600}
@@ -429,10 +431,18 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 .calsug-dt.trocada{display:flex;flex-direction:column}
 .calsug-dt s{color:var(--mu);opacity:.8}
 .calsug-dt b{color:var(--vd);font-weight:400}
-.calsug-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.calsug-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .calsug-adv{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.calsug-meta{font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.calsug-tag{flex-shrink:0;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 6px;border-radius:6px;background:var(--oup);color:#8a6d12;border:1px solid #f0e2b0}
+/* A etiqueta vive na MESMA linha da competição, dentro do bloco de informação.
+   Fora dele disputava largura com o nome do clube e partia-se a meio, com o
+   texto a sair da própria caixa. Aqui é a competição que encolhe (ellipsis) e
+   a etiqueta nunca quebra. */
+.calsug-sub{display:flex;flex-wrap:wrap;align-items:center;gap:3px 6px;min-width:0}
+.calsug-meta{flex:0 1 auto;min-width:0;font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Cinzento = contexto ("isto já aconteceu"), não aviso. Só a data por marcar
+   leva o amarelo — é a única que pede desconfiança. */
+.calsug-tag{flex:0 0 auto;white-space:nowrap;font-size:10px;font-weight:600;line-height:1.5;padding:1px 8px;border-radius:999px;background:#efeeea;color:#71706a;border:1px solid #e3e1dc}
+.calsug-tag.aviso{background:var(--oup);color:#8a6d12;border-color:#f0e2b0}
 .calsug-fontes{font-size:10.5px;color:var(--mu);line-height:1.5;margin:2px 0 10px;word-break:break-word}
 .calsug-fontes a{color:var(--in);text-decoration:none}
 .calsug-acoes{display:flex;gap:8px;flex-wrap:wrap}

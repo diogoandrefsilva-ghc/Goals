@@ -1503,10 +1503,12 @@ function _calLinhaNova(o, i) {
     <span class="calsug-dt">${_calEsc(_calDataCurta(s.data))}</span>
     <span class="calsug-info">
       <span class="calsug-adv">${_calEsc(s.adversario)}</span>
-      <span class="calsug-meta">${_calEsc(meta)}</span>
+      <span class="calsug-sub">
+        <span class="calsug-meta">${_calEsc(meta)}</span>
+        ${o.passado ? '<span class="calsug-tag">já passou</span>' : ''}
+        ${s.confirmado === false ? '<span class="calsug-tag aviso">provisória</span>' : ''}
+      </span>
     </span>
-    ${o.passado ? '<span class="calsug-tag av">já passou</span>' : ''}
-    ${s.confirmado === false ? '<span class="calsug-tag av">por confirmar</span>' : ''}
   </label>`;
 }
 function _calLinhaData(o, i) {
@@ -1519,10 +1521,12 @@ function _calLinhaData(o, i) {
     </span>
     <span class="calsug-info">
       <span class="calsug-adv">${_calEsc(o.jogo.adversario)}</span>
-      <span class="calsug-meta">${_calEsc(meta)}</span>
+      <span class="calsug-sub">
+        <span class="calsug-meta">${_calEsc(meta)}</span>
+        ${o.jogado ? '<span class="calsug-tag">jogado</span>' : ''}
+        ${o.sug.confirmado === false ? '<span class="calsug-tag aviso">provisória</span>' : ''}
+      </span>
     </span>
-    ${o.jogado ? '<span class="calsug-tag av">já jogado</span>' : ''}
-    ${o.sug.confirmado === false ? '<span class="calsug-tag av">por confirmar</span>' : ''}
   </label>`;
 }
 
@@ -1543,7 +1547,7 @@ function calRender() {
     box.style.display = 'block';
     box.innerHTML = `<div class="calsug-head"><strong>Não consegui procurar</strong>
         <button class="calsug-x" onclick="calFechar()" title="Fechar">✕</button></div>
-      <p class="calsug-nota av">${_calEsc(_calErro.msg)}</p>
+      <p class="calsug-nota aviso">${_calEsc(_calErro.msg)}</p>
       <p class="calsug-nota" style="margin-bottom:0">${_calEsc(_calErro.quando)} · falhou em: ${_calEsc(_calErro.passo)}
         · ${_calErro.gravado ? 'registado em <code>goals.sync_log</code>' : '<strong>não ficou registado na BD</strong> (falta correr <code>db/sync-log.sql</code>?)'}</p>`;
     return;
@@ -1591,7 +1595,7 @@ function calRender() {
 function _calFontesHTML() {
   const f = (_calSug && _calSug.fontes) || [];
   const semPesquisa = _calSug && _calSug.pesquisa === false
-    ? '<p class="calsug-nota av">⚠️ Sem pesquisa web nesta leitura — as datas futuras podem estar desactualizadas.</p>' : '';
+    ? '<p class="calsug-nota aviso">⚠️ Sem pesquisa web nesta leitura — as datas futuras podem estar desactualizadas.</p>' : '';
   if (!f.length) return semPesquisa;
   return semPesquisa + `<div class="calsug-fontes">Fontes: ${f.map(x =>
     `<a href="${_calEsc(x.url)}" target="_blank" rel="noopener">${_calEsc(x.titulo)}</a>`).join(' · ')}</div>`;
