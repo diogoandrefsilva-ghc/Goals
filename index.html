@@ -243,6 +243,16 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
       </div>
       <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
     </div>
+    <div class="fcard ro-hide" id="cal-sync-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <h3 style="margin:0 0 4px">Calendário do Sporting</h3>
+          <p style="font-size:12px;color:var(--mu);margin:0;line-height:1.45">Procura os jogos oficiais da época activa (todas as competições, casa/fora/neutro) e sugere os que faltam e as datas que mudaram. Só sugere — confirmas tu.</p>
+        </div>
+        <button class="btn btn-n" id="cal-sync-btn" onclick="calSincronizar()" style="white-space:nowrap;flex-shrink:0">🔄 Procurar jogos</button>
+      </div>
+      <div id="cal-sync-box" class="calsug" style="display:none"></div>
+    </div>
     <div class="fadd-card ro-hide" style="margin-bottom:16px">
       <div class="fadd-header">
         <div class="fadd-icon-wrap">⚽</div>
