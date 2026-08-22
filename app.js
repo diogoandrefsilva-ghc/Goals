@@ -11,6 +11,7 @@ const SESSION_KEY='goals_sb_session';
 let _sbSession=null;
 let MEU_AMIGO_NOME=null; // nome do amigo (goals.user_amigos) ligado a este login, se algum
 let PUSH_COL=true; // tabela push_subscriptions existe? (verificado em pushCheckColuna, chamado por sbAposLogin)
+let JOGOS_PD=true; // colunas por_definir/data_ate existem? (db/jogos-por-definir.sql, visto em carregar())
 
 // Par de chaves para notificações Web Push (não é a chave do Supabase) —
 // o MESMO par já usado pelo SplitBill: os secrets de Edge Function no
@@ -148,9 +149,13 @@ async function carregar(){
     const ep=dbFull.epocas[a.epoca_nome];if(!ep)return;
     ep.amigos.push({id:a.id,nome:a.nome,cor:a.cor});
   });
+  // `por_definir`/`data_ate` vêm de uma migração opcional
+  // (db/jogos-por-definir.sql). Se a BD ainda não a tiver, o `select=*` volta
+  // sem essas chaves — é assim que se sabe, sem gastar um pedido só a perguntar.
+  if((jogosRows||[]).length)JOGOS_PD='por_definir' in jogosRows[0];
   (jogosRows||[]).forEach(j=>{
     const ep=dbFull.epocas[j.epoca_nome];if(!ep)return;
-    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado});
+    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado,porDefinir:!!j.por_definir,dataAte:j.data_ate||null});
   });
   const jogoEpoca={};(jogosRows||[]).forEach(j=>jogoEpoca[j.id]=j.epoca_nome);
   (pagosRows||[]).forEach(p=>{
@@ -257,6 +262,22 @@ function mudarEpoca(dir){
 function gJ(j){return j.golos!==null&&j.golos!==undefined&&j.golos!==''?Number(j.golos):0;}
 function totalGolos(){return db.jogos.reduce((a,j)=>a+gJ(j),0);}
 function ini(n){return(n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';}
+
+/* Nome do adversário a mostrar. Um jogo "por definir" está gravado com
+   `adversario` a '' — é certo que se joga (fase de liga da Champions antes do
+   sorteio, a eliminatória da Taça em que a I Liga entra), só falta saber contra
+   quem. Não tem golos, logo não tem dívida: só conta para a Previsão e para a
+   contagem de jogos da época. */
+function advNome(j){return (j&&j.adversario)?j.adversario:'Adversário por definir';}
+// "2026-09-08"+"2026-09-10" → "8–10 set" · meses diferentes → "29 set–1 out"
+function janelaCurta(ini,fim){
+  const a=new Date(ini+'T12:00:00'),b=new Date(fim+'T12:00:00');
+  if(isNaN(a)||isNaN(b))return'';
+  const m=d=>d.toLocaleString('pt-PT',{month:'short'}).replace('.','');
+  return a.getMonth()===b.getMonth()&&a.getFullYear()===b.getFullYear()
+    ?`${a.getDate()}–${b.getDate()} ${m(b)}`
+    :`${a.getDate()} ${m(a)}–${b.getDate()} ${m(b)}`;
+}
 
 // Quanto cada amigo deve NO TOTAL (todos os jogos com golos > 0)
 function deveTotal(){return totalGolos()*db.config.valorPorGolo;}
@@ -961,6 +982,9 @@ function jogoCardHTML(j,mini=false){
   const hoje=new Date().toISOString().split('T')[0];
   const golosJ=gJ(j);
   const isFuturo=(j.golos===null||j.golos===undefined||j.golos==='');
+  // Data ainda dentro de uma janela oficial ("8–10 set"): a caixa da data só
+  // tem espaço para um dia, por isso a janela vai para a linha da competição.
+  const janela=(j.dataAte&&j.dataAte!==j.data)?janelaCurta(j.data,j.dataAte):'';
 
   let dotsHTML='';
   if(!isFuturo && golosJ>0){
@@ -1032,7 +1056,7 @@ function jogoCardHTML(j,mini=false){
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
     <span class="jlogo">${(l=>l?`<img src="${l}" alt="" loading="lazy" onerror="this.style.display='none'">`:'')(logoAdv(j.adversario))}</span>
-    <div class="jinfo"><div class="jadv">${j.adversario}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}</div></div>
+    <div class="jinfo"><div class="jadv${j.porDefinir?' jadv-pd':''}">${advNome(j)}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}${janela?' · '+janela:''}</div></div>
     <div class="jpag-bar">${dotsHTML}</div>
     ${resDisplayHTML}
     ${valHTML}
@@ -1112,7 +1136,11 @@ function voltarLista(){
 
 function renderDetalhe(jogo){
   const pagaram=db.pagosPorJogo[String(jogo.id)]||[];
-  const d=new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
+  // Data ainda por fechar: mostra-se a janela oficial em vez de um dia exacto
+  // que ainda não é verdade ("8–10 set 2026").
+  const d=(jogo.dataAte&&jogo.dataAte!==jogo.data)
+    ?janelaCurta(jogo.data,jogo.dataAte)+' '+new Date(jogo.dataAte+'T12:00:00').getFullYear()
+    :new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
   const golosJogo=gJ(jogo);
   const valorPorPessoa=(golosJogo*db.config.valorPorGolo).toFixed(2);
   const nPag=pagaram.length,nTotal=db.amigos.length;
@@ -1124,8 +1152,8 @@ function renderDetalhe(jogo){
   // Casa/Neutro: Sporting (esq) vs Adversário (dir)
   // Fora: Adversário (esq) vs Sporting (dir)
   const isFora=jogo.local==='Fora';
-  const nomeEsq=isFora?jogo.adversario:'Sporting';
-  const nomeDir=isFora?'Sporting':jogo.adversario;
+  const nomeEsq=isFora?advNome(jogo):'Sporting';
+  const nomeDir=isFora?'Sporting':advNome(jogo);
 
   // Resultado visual — mesma lógica do jogoCardHTML
   let resHeaderHTML='<span style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:#ccc;padding:0 8px">—</span>';
@@ -1281,7 +1309,10 @@ function scrollJogoMaisRecenteParaVista(){
 let _calSug = null;      // resposta crua da última leitura (jogos, fontes, …)
 let _calNovos = [];      // {sug, passado}    — jogos que faltam
 let _calDatas = [];      // {jogo, sug, jogado} — datas diferentes das gravadas
-let _calSel = { novos: new Set(), datas: new Set() };
+let _calPD = [];         // {sug, passado}    — rondas certas ainda sem adversário
+let _calPromo = [];      // {jogo, sug}       — jogo por definir que já tem adversário
+let _calPDsemColuna = 0; // rondas sem adversário que a BD ainda não sabe guardar
+let _calSel = { novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set() };
 let _calALer = false;
 let _calErro = null;     // {msg, passo, quando, gravado} — fica no ecrã até se fechar
 
@@ -1368,6 +1399,56 @@ function _calEmparelhar(sugs, jogos) {
   return map;
 }
 
+/* ── Emparelhamento dos jogos AINDA SEM ADVERSÁRIO ────────────────────────
+   Um jogo gravado "por definir" não tem nome, e o _calPontuar acima começa
+   por exigir semelhança de nome — nunca casaria com nada. Sem um segundo eixo
+   de emparelhamento, no dia a seguir ao sorteio a app sugeria as 8 jornadas da
+   Champions como "jogos em falta" e deixava as 8 linhas antigas para trás:
+   jogos a dobrar, e com eles dívida a dobrar. Aqui o eixo é a RONDA
+   (competição + jornada), que é o que se sabe muito antes do adversário. */
+function _calNormComp(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+const _CAL_ORD = { primeira: '1', segunda: '2', terceira: '3', quarta: '4', quinta: '5', sexta: '6', setima: '7', oitava: '8' };
+// "J1" / "Jornada 1" / "1.ª jornada" → "j1"; "4.ª eliminatória" / "quarta
+// eliminatória" → "4 eliminatoria". O "a"/"o" solto é o resto do "1.ª".
+function _calNormJorn(s) {
+  let t = String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+  t = t.replace(/\b(primeira|segunda|terceira|quarta|quinta|sexta|setima|oitava)\b/g, m => _CAL_ORD[m]);
+  t = t.replace(/\bjornada\s*(\d+)\b/g, 'j$1').replace(/\b(\d+)\s*jornada\b/g, 'j$1');
+  return t.replace(/\b[ao]\b/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function _calChaveRonda(comp, jorn) { return _calNormComp(comp) + '|' + _calNormJorn(jorn); }
+/* Sugestões (já com adversário) → jogos gravados que estão à espera do sorteio.
+   Duas passagens: primeiro tudo o que casa pela ronda, e só depois o que casa
+   pela data. Ao contrário, uma jornada com a grafia trocada podia ficar com a
+   linha que pertencia a outra. */
+function _calEmparelharPendentes(sugs, orfas, pendentes) {
+  const map = new Map(), usados = new Set();
+  if (!pendentes.length) return map;
+  orfas.forEach(si => {
+    const k = _calChaveRonda(sugs[si].competicao, sugs[si].jornada);
+    const alvo = pendentes.find(j => !usados.has(j.id) && _calChaveRonda(j.competicao, j.jornada) === k);
+    if (alvo) { map.set(si, alvo); usados.add(alvo.id); }
+  });
+  orfas.forEach(si => {
+    if (map.has(si)) return;
+    const s = sugs[si];
+    // Rede de segurança para a jornada reescrita à mão ("4.ª eliminatória" →
+    // "4A"): mesma competição e a data a cair na janela que ficou gravada.
+    const alvo = pendentes.find(j => {
+      if (usados.has(j.id)) return false;
+      if (_calNormComp(j.competicao) !== _calNormComp(s.competicao)) return false;
+      if (j.dataAte && s.data >= j.data && s.data <= j.dataAte) return true;
+      return _calDias(s.data, j.data) <= 3;
+    });
+    if (alvo) { map.set(si, alvo); usados.add(alvo.id); }
+  });
+  return map;
+}
+
 function _calHoje() { return new Date().toISOString().split('T')[0]; }
 function _calDataCurta(iso) {
   const d = new Date(iso + 'T12:00:00');
@@ -1441,17 +1522,34 @@ async function calSincronizar() {
   }
 }
 
-// Resposta da função → duas listas de sugestões (jogos em falta, datas mudadas)
+// Resposta da função → quatro listas de sugestões (jogos em falta, adversários
+// sorteados, datas mudadas, rondas ainda sem adversário)
 function calPreparar(d) {
   _calSug = d || {};
   const sugs = Array.isArray(d && d.jogos) ? d.jogos : [];
+  const pdSugs = Array.isArray(d && d.porDefinir) ? d.porDefinir : [];
   const hoje = _calHoje();
-  const map = _calEmparelhar(sugs, db.jogos);
-  _calNovos = []; _calDatas = [];
-  _calSel = { novos: new Set(), datas: new Set() };
+  // Os jogos à espera de sorteio ficam de fora do emparelhamento por nome (não
+  // têm nenhum) e entram no seu, logo a seguir.
+  const pendentes = db.jogos.filter(j => j.porDefinir);
+  const map = _calEmparelhar(sugs, db.jogos.filter(j => !j.porDefinir));
+  _calNovos = []; _calDatas = []; _calPD = []; _calPromo = []; _calPDsemColuna = 0;
+  _calSel = { novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set() };
+  const orfas = [];
+  sugs.forEach((s, i) => { if (!map.get(i)) orfas.push(i); });
+  const mapPD = _calEmparelharPendentes(sugs, orfas, pendentes);
   sugs.forEach((s, i) => {
     const j = map.get(i);
     if (!j) {
+      // O sorteio saiu: este jogo já cá está, só sem nome. Actualiza-se a linha
+      // que existe (o id fica, e com ele os pagamentos que lhe estejam
+      // ligados), nunca se cria outra.
+      const pend = mapPD.get(i);
+      if (pend) {
+        _calPromo.push({ jogo: pend, sug: s });
+        _calSel.promo.add(_calPromo.length - 1);
+        return;
+      }
       // Jogo que falta. Os que já passaram vêm desmarcados: entrar com um jogo
       // antigo sem resultado mexe nas contas e é quase sempre engano.
       const passado = s.data < hoje;
@@ -1466,6 +1564,20 @@ function calPreparar(d) {
     _calDatas.push({ jogo: j, sug: s, jogado });
     if (!jogado) _calSel.datas.add(_calDatas.length - 1);
   });
+  /* Rondas em que o Sporting joga de certeza mas ainda sem adversário sorteado.
+     Só entram as que não estão cá de nenhuma forma — por ronda, não por data:
+     repetir a J1 da Champions a cada carregada no botão era a maneira mais
+     rápida de encher a época de jogos a dobrar. Uma ronda cujo sorteio já saiu
+     veio no array `jogos` e é apanhada acima, não aqui. */
+  const jaLa = new Set(db.jogos.map(j => _calChaveRonda(j.competicao, j.jornada)));
+  pdSugs.forEach(s => {
+    if (!s || !s.competicao || !s.jornada || !s.data_ini) return;
+    if (jaLa.has(_calChaveRonda(s.competicao, s.jornada))) return;
+    if (!JOGOS_PD) { _calPDsemColuna++; return; }   // falta a migração: ver calRender
+    const passado = (s.data_fim || s.data_ini) < hoje;
+    _calPD.push({ sug: s, passado });
+    if (!passado) _calSel.pd.add(_calPD.length - 1);
+  });
   calRender();
   const box = document.getElementById('cal-sync-box');
   if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1477,18 +1589,19 @@ function calToggle(tipo, i, el) {
   calAtualizarBotao();
 }
 function calTodos(tipo, ligar) {
-  const n = tipo === 'novos' ? _calNovos.length : _calDatas.length;
+  const n = ({ novos: _calNovos, datas: _calDatas, pd: _calPD, promo: _calPromo }[tipo] || []).length;
   _calSel[tipo] = new Set();
   if (ligar) for (let i = 0; i < n; i++) _calSel[tipo].add(i);
   calRender();
 }
 function calFechar() {
-  _calSug = null; _calNovos = []; _calDatas = []; _calErro = null;
-  _calSel = { novos: new Set(), datas: new Set() };
+  _calSug = null; _calNovos = []; _calDatas = []; _calPD = []; _calPromo = [];
+  _calPDsemColuna = 0; _calErro = null;
+  _calSel = { novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set() };
   calRender();
 }
 function calAtualizarBotao() {
-  const n = _calSel.novos.size + _calSel.datas.size;
+  const n = _calSel.novos.size + _calSel.datas.size + _calSel.pd.size + _calSel.promo.size;
   const b = document.getElementById('cal-aplicar-btn');
   if (!b) return;
   b.disabled = n === 0;
@@ -1507,6 +1620,46 @@ function _calLinhaNova(o, i) {
         <span class="calsug-meta">${_calEsc(meta)}</span>
         ${o.passado ? '<span class="calsug-tag">já passou</span>' : ''}
         ${s.confirmado === false ? '<span class="calsug-tag aviso">provisória</span>' : ''}
+      </span>
+    </span>
+  </label>`;
+}
+// Ronda certa, adversário ainda por sortear: a data é a janela oficial e o
+// nome fica por preencher até o sorteio sair.
+function _calLinhaPD(o, i) {
+  const s = o.sug;
+  const janela = (s.data_fim && s.data_fim !== s.data_ini)
+    ? janelaCurta(s.data_ini, s.data_fim) : _calDataCurta(s.data_ini);
+  const meta = [s.competicao, s.jornada, s.local].filter(Boolean).join(' · ');
+  return `<label class="calsug-row">
+    <input type="checkbox" ${_calSel.pd.has(i) ? 'checked' : ''} onchange="calToggle('pd',${i},this)">
+    <span class="calsug-dt">${_calEsc(janela)}</span>
+    <span class="calsug-info">
+      <span class="calsug-adv pd">Adversário por definir</span>
+      <span class="calsug-sub">
+        <span class="calsug-meta">${_calEsc(meta)}</span>
+        ${o.passado ? '<span class="calsug-tag">já passou</span>' : ''}
+        ${s.data_fim && s.data_fim !== s.data_ini ? '<span class="calsug-tag aviso">data por confirmar</span>' : ''}
+      </span>
+    </span>
+  </label>`;
+}
+// O sorteio saiu: linha que já cá está, agora com nome (e com a data certa).
+function _calLinhaPromo(o, i) {
+  const meta = [o.sug.competicao, o.sug.jornada, o.sug.local, o.sug.hora].filter(Boolean).join(' · ');
+  const velha = (o.jogo.dataAte && o.jogo.dataAte !== o.jogo.data)
+    ? janelaCurta(o.jogo.data, o.jogo.dataAte) : _calDataCurta(o.jogo.data);
+  const mudou = o.jogo.data !== o.sug.data;
+  return `<label class="calsug-row">
+    <input type="checkbox" ${_calSel.promo.has(i) ? 'checked' : ''} onchange="calToggle('promo',${i},this)">
+    <span class="calsug-dt${mudou ? ' trocada' : ''}">${mudou
+      ? `<s>${_calEsc(velha)}</s><b>${_calEsc(_calDataCurta(o.sug.data))}</b>`
+      : _calEsc(_calDataCurta(o.sug.data))}</span>
+    <span class="calsug-info">
+      <span class="calsug-adv">${_calEsc(o.sug.adversario)}</span>
+      <span class="calsug-sub">
+        <span class="calsug-meta">${_calEsc(meta)}</span>
+        <span class="calsug-tag">estava por definir</span>
       </span>
     </span>
   </label>`;
@@ -1554,12 +1707,13 @@ function calRender() {
   }
   if (!_calSug) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = 'block';
-  if (!_calNovos.length && !_calDatas.length) {
+  if (!_calNovos.length && !_calDatas.length && !_calPD.length && !_calPromo.length) {
     box.innerHTML = `<div class="calsug-head">
         <strong>Calendário conferido</strong>
         <button class="calsug-x" onclick="calFechar()" title="Fechar">✕</button>
       </div>
       <p class="calsug-nota">Os ${(_calSug.jogos || []).length} jogos encontrados para ${_calEsc(_calSug.epoca || epocaAtiva)} já estão todos cá, com as datas certas.</p>
+      ${_calAvisoSemColuna()}
       ${_calFontesHTML()}`;
     return;
   }
@@ -1576,6 +1730,14 @@ function calRender() {
       ${_calNovos.map(_calLinhaNova).join('')}
     </div>`);
   }
+  if (_calPromo.length) {
+    partes.push(`<div class="calsug-sec">
+      <div class="calsug-sec-hd"><span>Já têm adversário (${_calPromo.length})</span>
+        <span><button class="calsug-link" onclick="calTodos('promo',true)">todos</button> · <button class="calsug-link" onclick="calTodos('promo',false)">nenhum</button></span>
+      </div>
+      ${_calPromo.map(_calLinhaPromo).join('')}
+    </div>`);
+  }
   if (_calDatas.length) {
     partes.push(`<div class="calsug-sec">
       <div class="calsug-sec-hd"><span>Datas diferentes (${_calDatas.length})</span>
@@ -1584,6 +1746,16 @@ function calRender() {
       ${_calDatas.map(_calLinhaData).join('')}
     </div>`);
   }
+  if (_calPD.length) {
+    partes.push(`<div class="calsug-sec">
+      <div class="calsug-sec-hd"><span>Ainda sem adversário (${_calPD.length})</span>
+        <span><button class="calsug-link" onclick="calTodos('pd',true)">todos</button> · <button class="calsug-link" onclick="calTodos('pd',false)">nenhum</button></span>
+      </div>
+      <p class="calsug-nota">Jogos que o Sporting joga de certeza — o adversário sai no sorteio. Ficam a contar para a Previsão e o nome preenche-se sozinho na próxima procura.</p>
+      ${_calPD.map(_calLinhaPD).join('')}
+    </div>`);
+  }
+  partes.push(_calAvisoSemColuna());
   partes.push(_calFontesHTML());
   partes.push(`<div class="calsug-acoes">
     <button class="btn btn-g" id="cal-aplicar-btn" onclick="calAplicar()"></button>
@@ -1591,6 +1763,13 @@ function calRender() {
   </div>`);
   box.innerHTML = partes.join('');
   calAtualizarBotao();
+}
+/* A BD ainda não tem as colunas `por_definir`/`data_ate`: em vez de tentar
+   gravar e falhar com um erro do PostgREST, diz-se o que falta correr. Sem a
+   migração o resto do painel funciona exactamente como antes. */
+function _calAvisoSemColuna() {
+  if (!_calPDsemColuna) return '';
+  return `<p class="calsug-nota aviso">⚠️ ${_calPDsemColuna} ronda${_calPDsemColuna === 1 ? '' : 's'} que o Sporting joga de certeza mas ainda sem adversário sorteado ${_calPDsemColuna === 1 ? 'ficou' : 'ficaram'} de fora: falta correr <code>db/jogos-por-definir.sql</code> no Supabase.</p>`;
 }
 function _calFontesHTML() {
   const f = (_calSug && _calSug.fontes) || [];
@@ -1605,10 +1784,12 @@ async function calAplicar() {
   if (roGuard()) return;
   const novos = [..._calSel.novos].sort((a, b) => a - b).map(i => _calNovos[i]).filter(Boolean);
   const datas = [..._calSel.datas].sort((a, b) => a - b).map(i => _calDatas[i]).filter(Boolean);
-  if (!novos.length && !datas.length) return;
+  const pd = [..._calSel.pd].sort((a, b) => a - b).map(i => _calPD[i]).filter(Boolean);
+  const promo = [..._calSel.promo].sort((a, b) => a - b).map(i => _calPromo[i]).filter(Boolean);
+  if (!novos.length && !datas.length && !pd.length && !promo.length) return;
   const btn = document.getElementById('cal-aplicar-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ A gravar…'; }
-  let criados = 0, corrigidos = 0, erros = 0;
+  let criados = 0, corrigidos = 0, erros = 0, criadosPD = 0, promovidos = 0;
   try {
     if (novos.length) {
       const linhas = novos.map(o => ({
@@ -1632,6 +1813,53 @@ async function calAplicar() {
         });
       } catch (e) { erros++; toast('Erro ao criar jogos: ' + e.message, 1); }
     }
+    /* Rondas sem adversário: `adversario` vai a '' (a coluna é NOT NULL) e a
+       `data` leva o primeiro dia da janela, que é o que mantém o jogo ordenado
+       no sítio certo; `data_ate` guarda o último para a UI poder dizer que a
+       data ainda não está fechada. */
+    if (pd.length) {
+      const linhas = pd.map(o => ({
+        epoca_nome: epocaAtiva, data: o.sug.data_ini, adversario: '',
+        competicao: o.sug.competicao || '', jornada: o.sug.jornada || '',
+        local: o.sug.local || null, golos: null, resultado: '',
+        por_definir: true,
+        data_ate: (o.sug.data_fim && o.sug.data_fim !== o.sug.data_ini) ? o.sug.data_fim : null
+      }));
+      try {
+        const ins = await sbReq('POST', 'jogos', linhas, { Prefer: 'return=representation' });
+        (ins || []).forEach((row, k) => {
+          const o = linhas[k];
+          db.jogos.push({
+            id: row.id, data: row.data || o.data, adversario: '', golos: null, resultado: '',
+            competicao: row.competicao || o.competicao, jornada: row.jornada || o.jornada,
+            local: row.local || o.local || null, porDefinir: true,
+            dataAte: row.data_ate || o.data_ate || null
+          });
+          db.pagosPorJogo[String(row.id)] = [];
+          criadosPD++;
+        });
+      } catch (e) { erros++; toast('Erro ao criar jogos por definir: ' + e.message, 1); }
+    }
+    /* Sorteio saiu: actualiza-se a linha que JÁ existe. Nunca apagar e criar
+       outra — o id é o que segura os pagamentos e os pedidos já ligados a
+       este jogo. Um de cada vez, como as datas. */
+    for (const o of promo) {
+      const antes = {
+        adversario: o.jogo.adversario, data: o.jogo.data, local: o.jogo.local,
+        jornada: o.jogo.jornada, porDefinir: o.jogo.porDefinir, dataAte: o.jogo.dataAte
+      };
+      const depois = {
+        adversario: o.sug.adversario, data: o.sug.data,
+        local: o.sug.local || o.jogo.local || 'Casa',
+        jornada: o.sug.jornada || o.jogo.jornada || ''
+      };
+      try {
+        await sbReq('PATCH', `jogos?id=eq.${o.jogo.id}`,
+          Object.assign({}, depois, { por_definir: false, data_ate: null }));
+        Object.assign(o.jogo, depois, { porDefinir: false, dataAte: null });
+        promovidos++;
+      } catch (e) { Object.assign(o.jogo, antes); erros++; }
+    }
     // Uma data de cada vez: se uma falhar, as outras continuam válidas.
     for (const o of datas) {
       const antes = o.jogo.data;
@@ -1648,6 +1876,8 @@ async function calAplicar() {
   }
   const p = [];
   if (criados) p.push(`${criados} jogo${criados === 1 ? '' : 's'} adicionado${criados === 1 ? '' : 's'}`);
+  if (criadosPD) p.push(`${criadosPD} sem adversário`);
+  if (promovidos) p.push(`${promovidos} adversário${promovidos === 1 ? '' : 's'} preenchido${promovidos === 1 ? '' : 's'}`);
   if (corrigidos) p.push(`${corrigidos} data${corrigidos === 1 ? '' : 's'} corrigida${corrigidos === 1 ? '' : 's'}`);
   toast(p.length ? '✓ ' + p.join(' · ') + (erros ? ` (${erros} com erro)` : '') : 'Nada gravado', erros && !p.length ? 1 : 0);
 }
@@ -1944,18 +2174,23 @@ async function guardarEdicao(){
   };
   const gv=document.getElementById('ed-golos').value;
   novo.golos=gv===''?null:parseInt(gv);
+  // Escreveste o adversário de um jogo que estava à espera do sorteio: deixa de
+  // estar por definir e a janela de datas já não interessa.
+  const saiuDeporDefinir=!!(j.porDefinir&&novo.adversario&&JOGOS_PD);
+  if(saiuDeporDefinir){novo.por_definir=false;novo.data_ate=null;}
   try{
     await sbReq('PATCH',`jogos?id=eq.${j.id}`,novo);
   }catch(e){toast('Erro ao guardar: '+e.message,1);return;}
   const fechouAgora=!j.resultado&&novo.resultado; // 1ª vez que este jogo fica com resultado
   Object.assign(j,novo);
-  if(fechouAgora)sbNotificarResultadoJogo(j.adversario,j.resultado,j.golos); // fire-and-forget, não bloqueia UI
+  if(saiuDeporDefinir){delete j.por_definir;delete j.data_ate;j.porDefinir=false;j.dataAte=null;}
+  if(fechouAgora)sbNotificarResultadoJogo(advNome(j),j.resultado,j.golos); // fire-and-forget, não bloqueia UI
   fecharModalEditar();
   // re-render: verificar se estamos no detalhe do jogo (usa style.display, não classes)
   const tJdetalhe=document.getElementById('t-jdetalhe');
   if(tJdetalhe&&tJdetalhe.style.display!=='none'&&tJdetalhe.style.display!==''){renderDetalhe(j);}
   else{rDash();renderJogosList();}
-  toast(`Jogo vs ${j.adversario} actualizado ✓`);
+  toast(`Jogo ${j.adversario?'vs '+j.adversario:'por definir'} actualizado ✓`);
 }
 async function remJogo(id){
   if(roGuard())return;
@@ -2021,7 +2256,7 @@ function rHistPag(){
     const pag=db.pagosPorJogo[String(j.id)]||[];
     const nd=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
     return`<div class="pi" style="flex-wrap:wrap;gap:8px;cursor:pointer" onclick="abrirDetalhe(${j.id})">
-      <div class="pi-info" style="min-width:160px"><div class="pi-nome">${j.adversario}</div><div class="pi-meta">${nd} · ${j.jornada||j.competicao} · ${j.golos||0} golos</div></div>
+      <div class="pi-info" style="min-width:160px"><div class="pi-nome">${advNome(j)}</div><div class="pi-meta">${nd} · ${j.jornada||j.competicao} · ${j.golos||0} golos</div></div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">
         ${db.amigos.map(am=>{const p=pag.includes(am.id);return`<span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${p?am.cor:'#eee'};color:${p?'#fff':'var(--mu)'};font-weight:600">${ini(am.nome)}</span>`;}).join('')}
       </div>

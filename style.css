@@ -117,6 +117,10 @@ tbody tr:hover{background:#fafaf8}
 .jsep{width:1px;height:34px;background:var(--bo);flex-shrink:0}
 .jinfo{flex:1;min-width:0}
 .jadv{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Jogo certo mas ainda sem adversário sorteado: o lugar do nome fica
+   ocupado por "Adversário por definir", que não é um nome — daí o itálico
+   apagado, para não se confundir com um clube. */
+.jadv-pd{color:var(--mu);font-style:italic}
 .jlogo{width:26px;height:26px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
 .jlogo img{max-width:100%;max-height:100%;object-fit:contain}
 .jcomp{font-size:11px;color:var(--mu);margin-top:1px}
@@ -433,6 +437,7 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 .calsug-dt b{color:var(--vd);font-weight:400}
 .calsug-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .calsug-adv{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calsug-adv.pd{color:var(--mu);font-style:italic;font-weight:500}
 /* A etiqueta vive na MESMA linha da competição, dentro do bloco de informação.
    Fora dele disputava largura com o nome do clube e partia-se a meio, com o
    texto a sair da própria caixa. Aqui é a competição que encolhe (ellipsis) e

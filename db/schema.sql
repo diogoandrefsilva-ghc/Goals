@@ -114,7 +114,14 @@ CREATE TABLE IF NOT EXISTS goals.jogos (
   local       text,                                -- 'Casa' | 'Fora' | 'Neutro'
   golos       integer,                              -- null = jogo futuro, sem resultado
   resultado   text,                                 -- ex: '2-1', opcional
-  CONSTRAINT jogos_pkey PRIMARY KEY (id)
+  -- Jogos certos mas ainda por sortear (fase de liga da Champions antes do
+  -- sorteio, eliminatória da Taça em que a I Liga entra): `adversario` fica a
+  -- '' e `data` leva o primeiro dia da janela oficial, com `data_ate` a
+  -- guardar o último. Ver db/jogos-por-definir.sql para o porquê.
+  por_definir boolean NOT NULL DEFAULT false,
+  data_ate    date,
+  CONSTRAINT jogos_pkey PRIMARY KEY (id),
+  CONSTRAINT jogos_data_ate_chk CHECK (data_ate IS NULL OR data_ate >= data)
 );
 CREATE INDEX IF NOT EXISTS jogos_epoca_idx ON goals.jogos (epoca_nome);
 

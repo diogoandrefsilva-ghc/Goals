@@ -46,6 +46,16 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
    para o que falhar. Requer o passo manual 5 abaixo (secret na Vault) para
    o retry em si funcionar — sem esse secret o SQL corre à mesma, só o
    `cron.job` fica sem credenciais válidas até o criares.
+7. `sync-log.sql` — opcional: `goals.sync_log`, o rasto de cada tentativa do
+   botão "Procurar jogos" (browser → Edge Function → Gemini). Idempotente,
+   tolerante: sem ela o botão funciona na mesma, só sem diagnóstico.
+8. `jogos-por-definir.sql` — opcional: as colunas `por_definir`/`data_ate` em
+   `goals.jogos`, que são o que permite gravar os jogos que o Sporting joga de
+   certeza mas ainda sem adversário sorteado (fase de liga da Champions, a
+   eliminatória da Taça em que a I Liga entra). Idempotente, tolerante: sem
+   ela essa secção do painel de sugestões diz que falta correr o ficheiro e
+   nada mais muda. **Numa BD limpa não é preciso** — as colunas já vão no
+   `schema.sql`; isto é só para as BD que já existiam antes.
 
 ## Passos manuais (fora do SQL Editor)
 
