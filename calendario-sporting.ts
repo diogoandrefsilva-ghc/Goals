@@ -25,6 +25,10 @@
 //
 // Só o admin pode chamar (o email é o mesmo nas duas apps).
 //
+// Cada chamada deixa rasto em `goals.sync_log` (ver registar()): é o que
+// permite despistar uma falha depois de acontecer, sem depender de apanhar o
+// erro no ecrã no momento certo.
+//
 // Secrets necessários (Edge Functions -> Secrets):
 //   GEMINI_API_KEY   chave do Google AI Studio
 //   GEMINI_MODEL     (opcional) fixa um modelo; sem ele descobre o melhor flash
@@ -247,24 +251,60 @@ function normalizarJogos(raw: unknown, epoca: string): Record<string, unknown>[]
   return out;
 }
 
+/* Deixa rasto de cada chamada em `goals.sync_log` (migração db/sync-log.sql).
+   Escreve com a SERVICE ROLE, logo passa por cima do RLS e funciona venha o
+   pedido do Goals ou do SplitBill — é aqui que se apanha o que só se passa
+   deste lado: o modelo que respondeu, se a pesquisa Google chegou a ser usada,
+   e o erro exato do Gemini. Do lado do browser vê-se sempre a mesma coisa
+   ("HTTP 502"); a causa está nesta linha.
+   Nunca deita a resposta abaixo: se a tabela não existir, engole e segue. */
+async function registar(
+  estado: string,
+  detalhe: Record<string, unknown>,
+  quem: string | null,
+  app: string,
+): Promise<void> {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/sync_log`, {
+      method: "POST",
+      headers: {
+        apikey: SB_SRV,
+        Authorization: `Bearer ${SB_SRV}`,
+        "Content-Type": "application/json",
+        "Content-Profile": "goals",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ origem: "function", app, acao: "calendario", estado, quem, detalhe }),
+    });
+    if (!r.ok) {
+      console.log("CALENDARIO sync_log falhou:", r.status, (await r.text().catch(() => "")).slice(0, 200));
+    }
+  } catch (e) {
+    console.log("CALENDARIO sync_log erro:", String((e as Error).message).slice(0, 200));
+  }
+}
+
 /* Só o admin. Ao contrário da `fatura-restaurante` (que aceita qualquer
    `allowed_users` do SplitBill), esta função serve duas apps com schemas
    diferentes e escreve calendário — o email do admin é o mesmo nas duas, por
    isso é essa a verificação, feita no servidor e não na UI. */
-async function ehAdmin(auth: string, signal: AbortSignal): Promise<boolean> {
-  if (!auth) return false;
+async function ehAdmin(
+  auth: string,
+  signal: AbortSignal,
+): Promise<{ ok: boolean; email: string | null }> {
+  if (!auth) return { ok: false, email: null };
   const u = await fetch(`${SB_URL}/auth/v1/user`, {
     headers: { apikey: SB_SRV, Authorization: auth },
     signal,
   });
   if (!u.ok) {
     console.log("CALENDARIO /user erro:", u.status, (await u.text().catch(() => "")).slice(0, 200));
-    return false;
+    return { ok: false, email: null };
   }
   const uj = await u.json();
   const email = String(uj.email ?? "").toLowerCase();
   console.log("CALENDARIO email presente:", !!email, "admin:", email === ADMIN_EMAIL);
-  return !!email && email === ADMIN_EMAIL;
+  return { ok: !!email && email === ADMIN_EMAIL, email: email || null };
 }
 
 Deno.serve(async (req) => {
@@ -280,16 +320,25 @@ Deno.serve(async (req) => {
   // pendurada sem nunca responder ao browser.
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  // Preenchidos assim que se souber quem chamou e de onde, para o registo de
+  // erro no fim ter contexto mesmo quando a falha é logo no princípio.
+  let quem: string | null = null;
+  let qualApp = "goals";
 
   try {
     console.log("CALENDARIO start");
-    if (!await ehAdmin(req.headers.get("Authorization") ?? "", ctrl.signal)) {
+    const auth = await ehAdmin(req.headers.get("Authorization") ?? "", ctrl.signal);
+    quem = auth.email;
+    if (!auth.ok) {
+      await registar("erro", { passo: "autorizacao" }, quem, qualApp);
       return json({ error: "não autorizado" }, 403);
     }
 
     const body = await req.json().catch(() => ({}));
+    qualApp = body?.app === "splitbill" ? "splitbill" : "goals";
     const epoca = String(body?.epoca ?? "").trim().slice(0, 12);
     if (!/^\d{4}\s*\/\s*\d{2,4}$/.test(epoca)) {
+      await registar("erro", { passo: "epoca", recebido: String(body?.epoca ?? "") }, quem, qualApp);
       return json({ error: 'época em falta ou inválida (esperado "2025/26")' }, 400);
     }
     const conhecidos = lerConhecidos(body?.conhecidos);
@@ -355,13 +404,20 @@ Deno.serve(async (req) => {
       const status = g?.status ?? 502;
       const detail = g ? await g.text() : "";
       console.error("gemini", model, status, detail.slice(0, 500));
+      let msg = "";
+      try { msg = JSON.parse(detail)?.error?.message ?? ""; } catch (_) { /**/ }
+      // O detalhe do Gemini fica REGISTADO mesmo quando a app só mostra "502":
+      // é a diferença entre saber que a quota da pesquisa acabou e andar a
+      // adivinhar.
+      await registar("erro", {
+        passo: "gemini", status, modelo: model, pesquisa: comPesquisa,
+        erro: (msg || detail).slice(0, 800),
+      }, quem, qualApp);
       if (transitorio(status)) {
         return json({
           error: "o serviço está com muita procura agora — espera um minuto e tenta outra vez",
         }, 503);
       }
-      let msg = "";
-      try { msg = JSON.parse(detail)?.error?.message ?? ""; } catch (_) { /**/ }
       return json({ error: `gemini ${status} (${model})${msg ? ": " + msg.slice(0, 200) : ""}` }, 502);
     }
 
@@ -374,10 +430,17 @@ Deno.serve(async (req) => {
     const parsed: any = extrairJson(texto2);
     if (!parsed) {
       console.error("CALENDARIO resposta ilegível:", texto2.slice(0, 400));
+      await registar("erro", {
+        passo: "json", modelo: model, pesquisa: comPesquisa, amostra: texto2.slice(0, 800),
+      }, quem, qualApp);
       return json({ error: "resposta ilegível do modelo" }, 502);
     }
     const jogos = normalizarJogos(parsed.jogos, epoca);
     if (!jogos.length) {
+      await registar("erro", {
+        passo: "vazio", modelo: model, pesquisa: comPesquisa, epoca,
+        amostra: texto2.slice(0, 800),
+      }, quem, qualApp);
       return json({ error: `não encontrei jogos do Sporting para a época ${epoca}` }, 404);
     }
     // As fontes que o grounding usou — a app mostra-as para o admin poder
@@ -390,6 +453,10 @@ Deno.serve(async (req) => {
       }
     });
     console.log("CALENDARIO jogos:", jogos.length, "pesquisa:", comPesquisa, "fontes:", fontes.length);
+    await registar("ok", {
+      epoca, jogos: jogos.length, modelo: model, pesquisa: comPesquisa,
+      fontes: fontes.map((f) => f.url).slice(0, 8),
+    }, quem, qualApp);
     return json({
       epoca,
       jogos,
@@ -400,7 +467,12 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     const err = e as Error;
-    if (err.name === "AbortError") {
+    const timeout = err.name === "AbortError";
+    await registar("erro", {
+      passo: timeout ? "timeout" : "excecao",
+      erro: String(err.message).slice(0, 500),
+    }, quem, qualApp);
+    if (timeout) {
       return json({
         error: "o modelo demorou demasiado a procurar o calendário — tenta outra vez daqui a pouco",
       }, 504);

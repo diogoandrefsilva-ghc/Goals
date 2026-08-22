@@ -1283,6 +1283,33 @@ let _calNovos = [];      // {sug, passado}    — jogos que faltam
 let _calDatas = [];      // {jogo, sug, jogado} — datas diferentes das gravadas
 let _calSel = { novos: new Set(), datas: new Set() };
 let _calALer = false;
+let _calErro = null;     // {msg, passo, quando, gravado} — fica no ecrã até se fechar
+
+/* Regista a tentativa em `goals.sync_log` (migração db/sync-log.sql). O botão
+   atravessa três sítios (browser → Edge Function → Gemini) e um toast que
+   desaparece em 3s não chega para saber onde partiu; isto deixa rasto.
+   TOLERANTE de propósito: se a migração não estiver corrida, desliga-se e a app
+   continua igual — o diagnóstico nunca pode ser o que impede o botão de andar.
+   Devolve se conseguiu gravar, para o painel de erro poder dizer a verdade
+   sobre se ficou ou não registado. */
+let SYNC_LOG = true;
+async function calLog(estado, detalhe) {
+  if (!SYNC_LOG || !_sbSession) return false;
+  try {
+    await sbReq('POST', 'sync_log', {
+      origem: 'app', app: 'goals', acao: 'calendario', estado,
+      quem: (_sbSession.user && _sbSession.user.email) || null,
+      detalhe: detalhe || {}
+    });
+    return true;
+  } catch (e) {
+    // Tabela ainda não existe (42P01/404) ou sem permissão (401/403): nos dois
+    // casos não vale a pena insistir durante esta sessão.
+    console.warn('[Goals] sync_log indisponível:', e.message);
+    SYNC_LOG = false;
+    return false;
+  }
+}
 
 // Nome de clube reduzido ao essencial: sem acentos, sem pontuação e sem as
 // siglas/artigos que cada fonte escreve à sua maneira ("FC Porto"/"Porto",
@@ -1359,7 +1386,12 @@ async function calSincronizar() {
   const btn = document.getElementById('cal-sync-btn');
   const label = btn ? btn.textContent : '';
   _calALer = true;
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ A procurar o calendário…'; }
+  _calErro = null;
+  _calSug = null;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ A procurar…'; }
+  calRender();                       // mostra já "A procurar" no corpo da página
+  calLog('pedido', { epoca: epocaAtiva, jogos_atuais: db.jogos.length });
+  let passo = 'chamada';
   try {
     // Rede de segurança própria: a função tem um limite interno de 55s, mas se
     // o pedido nem lá chegar a responder o botão ficava a "pensar" para sempre.
@@ -1372,6 +1404,7 @@ async function calSincronizar() {
         headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
         body: JSON.stringify({
           epoca: epocaAtiva,
+          app: 'goals',
           // Os adversários já gravados seguem no pedido para o modelo devolver a
           // MESMA grafia — é o que faz o emparelhamento bater certo.
           conhecidos: [...new Set(db.jogos.map(j => j.adversario).filter(Boolean))]
@@ -1379,19 +1412,32 @@ async function calSincronizar() {
         signal: ctrl.signal
       });
     } finally { clearTimeout(timer); }
+    passo = 'resposta (HTTP ' + r.status + ')';
     if (!r.ok) {
       const e = await r.json().catch(() => ({}));
       if (r.status === 404 && !e.error) throw new Error('a função `calendario-sporting` ainda não está publicada no Supabase');
       throw new Error(e.error || ('HTTP ' + r.status));
     }
+    passo = 'leitura';
     calPreparar(await r.json());
   } catch (e) {
     const m = String(e && e.message || e);
     const rede = /load failed|failed to fetch|networkerror|timed? ?out/i.test(m) || (e && e.name === 'AbortError');
-    toast(rede ? '❌ A procura demorou demasiado ou falhou a ligação. Tenta outra vez.' : '❌ ' + m, 1);
+    const msg = rede
+      ? 'A procura demorou demasiado ou falhou a ligação ao servidor. Volta a tentar daqui a pouco.'
+      : m;
+    // O erro FICA no ecrã (ao contrário do toast, que se some em 3s) e vai para
+    // a BD — é isso que permite despistar isto mais tarde, sem ser ao vivo.
+    const gravado = await calLog('erro', { passo, erro: m, nome: (e && e.name) || '', epoca: epocaAtiva });
+    _calErro = {
+      msg, passo, gravado,
+      quando: new Date().toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    };
+    toast('❌ ' + msg.slice(0, 60), 1);
   } finally {
     _calALer = false;
-    if (btn) { btn.disabled = false; btn.textContent = label; }
+    if (btn) { btn.disabled = false; btn.textContent = label || '🔄 Procurar jogos'; }
+    calRender();
   }
 }
 
@@ -1437,7 +1483,7 @@ function calTodos(tipo, ligar) {
   calRender();
 }
 function calFechar() {
-  _calSug = null; _calNovos = []; _calDatas = [];
+  _calSug = null; _calNovos = []; _calDatas = []; _calErro = null;
   _calSel = { novos: new Set(), datas: new Set() };
   calRender();
 }
@@ -1483,6 +1529,25 @@ function _calLinhaData(o, i) {
 function calRender() {
   const box = document.getElementById('cal-sync-box');
   if (!box) return;
+  // "A procurar" vai para o CORPO da página e não só para o botão: no telemóvel
+  // o botão fica muitas vezes fora da vista logo a seguir ao toque, e sem isto
+  // parecia que carregar não fazia nada.
+  if (_calALer) {
+    box.style.display = 'block';
+    box.innerHTML = `<div class="calsug-head"><strong>A procurar o calendário…</strong></div>
+      <p class="calsug-nota">A confirmar as datas oficiais do Sporting para ${_calEsc(epocaAtiva)}. Pode demorar até um minuto.</p>
+      <div class="calsug-barra"><span></span></div>`;
+    return;
+  }
+  if (_calErro) {
+    box.style.display = 'block';
+    box.innerHTML = `<div class="calsug-head"><strong>Não consegui procurar</strong>
+        <button class="calsug-x" onclick="calFechar()" title="Fechar">✕</button></div>
+      <p class="calsug-nota av">${_calEsc(_calErro.msg)}</p>
+      <p class="calsug-nota" style="margin-bottom:0">${_calEsc(_calErro.quando)} · falhou em: ${_calEsc(_calErro.passo)}
+        · ${_calErro.gravado ? 'registado em <code>goals.sync_log</code>' : '<strong>não ficou registado na BD</strong> (falta correr <code>db/sync-log.sql</code>?)'}</p>`;
+    return;
+  }
   if (!_calSug) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = 'block';
   if (!_calNovos.length && !_calDatas.length) {

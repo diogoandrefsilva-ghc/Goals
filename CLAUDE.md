@@ -139,12 +139,24 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   resultado; os passados/jogados aparecem na mesma, desmarcados e etiquetados.
 - Resultados **não** são importados — de propósito. O botão faz duas coisas:
   criar jogos e corrigir datas.
+- **Diagnóstico** (`db/sync-log.sql` → `goals.sync_log`): cada tentativa deixa
+  uma linha. A app grava `pedido` antes de chamar e `erro` se a chamada falhar
+  (apanha o "nem saiu do browser"); a Edge Function grava `ok`/`erro` com a
+  service role, com o modelo, se houve pesquisa Google e o erro exato do Gemini
+  — do lado do browser vê-se sempre "502", a causa está lá. A função regista
+  também as chamadas do SplitBill (campo `app`), que não tem acesso a este
+  schema. O `calLog()` é tolerante: sem a migração desliga-se e a app não muda.
+- O erro **fica no ecrã** (`_calErro`) em vez de um toast que se some em 3s.
 
 ## Regras técnicas (não partir a app)
 - `app.js` carrega como `<script src>` **normal, NÃO module** — há
   `onclick="…"` no HTML, as funções têm de ser **globais**.
 - **PWA/cache:** se mexeres em `app.js`, `style.css` ou `index.html`, **sobe
-  `CACHE_NAME` no `sw.js`** (ex.: `app-cache-v8` → `v9`).
+  `CACHE_NAME` no `sw.js`** (ex.: `app-cache-v8` → `v9`). Os três são
+  **network-first** desde a v20 — antes só o HTML é que era, e num deploy o
+  browser apanhava o `index.html` novo com o `app.js` VELHO da cache: botões
+  novos a chamar funções que ainda não existiam, sem erro visível. Se voltares
+  a pôr o JS em cache-first, este bug volta.
 - **Supabase:** schema `goals`, no mesmo projeto do FestasBV. A chave no
   topo do `app.js` é a **`anon`** (pública, por design), protegida por RLS +
   login. **Não é bug nem risco — não a "corrijas" nem a escondas.**
