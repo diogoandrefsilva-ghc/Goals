@@ -38,7 +38,7 @@ header{background:linear-gradient(160deg,#03432e 0%,var(--vd) 55%,#0aa06f 130%);
 /* LAYOUT */
 .wrap{max-width:1040px;margin:0 auto;padding:20px 18px}
 .sec{display:none}.sec.on{display:block}
-.itabs{display:flex;gap:4px;margin-bottom:20px;background:#e9e7e0;padding:4px;border-radius:12px;overflow-x:auto;scrollbar-width:none}
+.itabs{position:sticky;top:var(--hdr-h,69px);z-index:80;display:flex;gap:4px;margin-bottom:20px;background:#e9e7e0;padding:4px;border-radius:12px;overflow-x:auto;scrollbar-width:none;box-shadow:0 0 0 18px var(--bg)}
 .itabs::-webkit-scrollbar{display:none}
 .it{background:none;border:none;padding:8px 12px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--mu);border-radius:9px;transition:all .15s;font-weight:500;white-space:nowrap;flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
 .it:hover{color:var(--tx);background:rgba(255,255,255,.6)}
@@ -57,6 +57,21 @@ header{background:linear-gradient(160deg,#03432e 0%,var(--vd) 55%,#0aa06f 130%);
 .sc.co{border-left:3px solid var(--ou)}
 .sc.cr{border-left:3px solid var(--dg)}
 .sc.cb{border-left:3px solid var(--in)}
+
+/* Cards expansíveis (detalhe por baixo) */
+.sc-click{cursor:pointer;position:relative;-webkit-tap-highlight-color:transparent;transition:box-shadow .15s}
+.sc-click:hover{box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.sc-chev{position:absolute;top:12px;right:13px;font-size:11px;line-height:1;color:var(--mu);transition:transform .18s}
+.sc-click.open .sc-chev{transform:rotate(180deg)}
+.sc-det{grid-column:1/-1;background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:6px 16px 10px}
+.sc-det-tit{font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--mu);padding:8px 0 2px}
+.sc-det-row{padding:8px 0;border-bottom:1px solid var(--bo)}
+.sc-det-row:last-child{border-bottom:none}
+.sc-det-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sc-det-nome{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-det-val{font-family:'Bebas Neue',sans-serif;font-size:18px;line-height:1;color:var(--dg);flex-shrink:0}
+.sc-det-sub{font-size:10.5px;font-style:italic;color:var(--mu);margin-top:4px;line-height:1.6}
+.sc-det-vazio{font-size:12px;font-style:italic;color:var(--mu);text-align:center;padding:10px 0}
 
 /* PROGRESS */
 .prog{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:16px 20px;margin-bottom:16px}

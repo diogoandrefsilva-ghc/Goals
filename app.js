@@ -342,6 +342,91 @@ function rDash(){
   else if(id==='cfg')rCfg();
   else rResumo();
 }
+/* ── Cards expansíveis do Resumo ──────────────
+   Cada card "clicável" tem um painel .sc-det logo a seguir, dentro da mesma
+   grelha (grid-column:1/-1 → ocupa a linha toda por baixo do card). O estado
+   aberto/fechado vive aqui porque rResumo() re-escreve o innerHTML todo. */
+let _detAbertos={};
+function toggleCardDet(id,card){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const abrir=el.style.display==='none';
+  el.style.display=abrir?'block':'none';
+  _detAbertos[id]=abrir;
+  if(card)card.classList.toggle('open',abrir);
+}
+function detCardAttrs(id){
+  return`class="sc-det" id="${id}" style="display:${_detAbertos[id]?'block':'none'}"`;
+}
+function detPessoaHTML(am,valor,sub){
+  return`<div class="sc-det-row">
+    <div class="sc-det-top">
+      <div class="nc" style="gap:7px;min-width:0">
+        <div class="av" style="background:${am.cor};width:22px;height:22px;font-size:9px">${ini(am.nome)}</div>
+        <span class="sc-det-nome">${am.nome}</span>
+      </div>
+      <span class="sc-det-val">${valor}</span>
+    </div>
+    ${sub?`<div class="sc-det-sub">${sub}</div>`:''}
+  </div>`;
+}
+
+// Quem ainda deve ao pote + (a cinza/itálico) os jogos que lhe faltam pagar
+function detalheDividasHTML(){
+  const jogosOrd=[...db.jogos].filter(j=>gJ(j)>0)
+    .sort((a,b)=>new Date(a.data)-new Date(b.data));
+  const linhas=db.amigos.map(am=>({am,d:dividaAmigo(am.id)}))
+    .filter(x=>x.d>0.01)
+    .sort((a,b)=>b.d-a.d)
+    .map(({am,d})=>{
+      const falta=jogosOrd.filter(j=>!jogoAmigoPago(j.id,am.id));
+      const txt=falta.map(j=>{
+        const dt=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
+        return`${j.adversario} (${dt}) ${(gJ(j)*db.config.valorPorGolo).toFixed(2)}€`;
+      }).join(' · ');
+      const cab=`${falta.length} jogo${falta.length!==1?'s':''} em falta`;
+      return detPessoaHTML(am,d.toFixed(2)+'€',txt?`${cab}: ${txt}`:cab);
+    }).join('');
+  return`<div class="sc-det-tit">Dívidas por pessoa</div>${linhas||'<div class="sc-det-vazio">Está tudo pago 🎉</div>'}`;
+}
+
+// Detalhe dos eventos do estouro
+function detalheEstouroHTML(){
+  const evs=[...(db.estouros||[])].sort((a,b)=>new Date(b.data||0)-new Date(a.data||0));
+  const linhas=evs.map(ev=>{
+    const d=ev.data?new Date(ev.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'}):'';
+    const nP=(ev.participantes||[]).length;
+    const perPerson=nP>0?((ev.valor||0)/nP).toFixed(2):'0.00';
+    const pagador=ev.pagoPor?db.amigos.find(a=>a.id===ev.pagoPor):null;
+    const meta=[d,pagador?'pago por '+pagador.nome:'',`${nP} pessoa${nP!==1?'s':''} · ${perPerson}€/pessoa`]
+      .filter(Boolean).join(' · ');
+    return`<div class="sc-det-row">
+      <div class="sc-det-top">
+        <span class="sc-det-nome">${ev.nome||'Evento'}</span>
+        <span class="sc-det-val">${(ev.valor||0).toFixed(2)}€</span>
+      </div>
+      <div class="sc-det-sub">${meta}</div>
+    </div>`;
+  }).join('');
+  return`<div class="sc-det-tit">Eventos do estouro</div>${linhas||'<div class="sc-det-vazio">Sem eventos</div>'}`;
+}
+
+// Quem ainda não acertou o estouro + a quem deve
+function detalheEstouroReceberHTML(){
+  const linhas=db.amigos.map(am=>({am,s:estSaldoPessoa(am.id)}))
+    .filter(x=>x.s>0.01&&!(db.estouroPagos||[]).includes(x.am.id))
+    .sort((a,b)=>b.s-a.s)
+    .map(({am,s})=>{
+      const devidas=estDeveAQuem(am.id);
+      const txt=Object.entries(devidas).map(([cId,v])=>{
+        const cr=db.amigos.find(a=>a.id===parseInt(cId));
+        return`${cr?cr.nome:'?'} ${v.toFixed(2)}€`;
+      }).join(' · ');
+      return detPessoaHTML(am,s.toFixed(2)+'€',txt?`deve a ${txt}`:'');
+    }).join('');
+  return`<div class="sc-det-tit">Quem ainda deve o estouro</div>${linhas||'<div class="sc-det-vazio">Estouro todo acertado 🎉</div>'}`;
+}
+
 function rResumo(){
   const g=totalGolos(),n=db.amigos.length,vt=deveTotal();
   const tp=totalPago()*db.amigos.length; // não — totalPago() já é por pessoa
@@ -358,13 +443,19 @@ function rResumo(){
     const s=estSaldoPessoa(am.id);return s>0?a+s:a;
   },0):0;
 
+  const porReceber=totalDividas();
+  const jaRecebido=potePago;
+  const chev='<span class="sc-chev">▾</span>';
   document.getElementById('stat-cards').innerHTML=`
     <div class="sc cg"><div class="sc-l">Golos marcados</div><div class="sc-v">${g}</div><div class="sc-s">${nJogosComRes} jogos realizados</div></div>
     <div class="sc cb"><div class="sc-l">Média de golos</div><div class="sc-v">${nJogosComRes>0?(g/nJogosComRes).toFixed(2):'-'}</div><div class="sc-s">por jogo realizado</div></div>
     <div class="sc co"><div class="sc-l">Pote acumulado</div><div class="sc-v">${(g*n*db.config.valorPorGolo).toFixed(0)}€</div><div class="sc-s">${n} pessoas × ${vt.toFixed(0)}€</div></div>
-    <div class="sc cr"><div class="sc-l">Por receber</div><div class="sc-v">${totalDividas().toFixed(0)}€</div><div class="sc-s">dívida total em aberto</div></div>
-    ${hasEstouros?`<div class="sc cr"><div class="sc-l">Estouro</div><div class="sc-v">${estTotalEv.toFixed(0)}€</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>`:''}
-    ${hasEstouros&&estPorReceber>0.01?`<div class="sc" style="border-left:3px solid var(--ou)"><div class="sc-l">Por receber (estouro)</div><div class="sc-v">${estPorReceber.toFixed(0)}€</div><div class="sc-s">em falta para acertar</div></div>`:''}
+    <div class="sc cr${porReceber>0.01?' sc-click'+(_detAbertos['det-receber']?' open':''):''}"${porReceber>0.01?` onclick="toggleCardDet('det-receber',this)"`:''}>${porReceber>0.01?chev:''}<div class="sc-l">Por receber</div><div class="sc-v">${porReceber.toFixed(0)}€</div><div class="sc-s">já recebido: <b>${jaRecebido.toFixed(0)}€</b></div></div>
+    ${porReceber>0.01?`<div ${detCardAttrs('det-receber')}>${detalheDividasHTML()}</div>`:''}
+    ${hasEstouros?`<div class="sc cr sc-click${_detAbertos['det-estouro']?' open':''}" onclick="toggleCardDet('det-estouro',this)">${chev}<div class="sc-l">Estouro</div><div class="sc-v">${estTotalEv.toFixed(0)}€</div><div class="sc-s">${db.estouros.length} evento${db.estouros.length!==1?'s':''}</div></div>`:''}
+    ${hasEstouros&&estPorReceber>0.01?`<div class="sc sc-click${_detAbertos['det-estouro-receber']?' open':''}" style="border-left:3px solid var(--ou)" onclick="toggleCardDet('det-estouro-receber',this)">${chev}<div class="sc-l">Por receber (estouro)</div><div class="sc-v">${estPorReceber.toFixed(0)}€</div><div class="sc-s">em falta para acertar</div></div>`:''}
+    ${hasEstouros?`<div ${detCardAttrs('det-estouro')}>${detalheEstouroHTML()}</div>`:''}
+    ${hasEstouros&&estPorReceber>0.01?`<div ${detCardAttrs('det-estouro-receber')}>${detalheEstouroReceberHTML()}</div>`:''}
   `;
   renderMeuPedidoBox();
   renderPedidosPagamentoAdmin();
@@ -3120,6 +3211,24 @@ async function ptrRefrescar(){
   ptrSetPos(0);
   _ptrRefrescando=false;
 }
+
+/* ── BARRA DE SEPARADORES FIXA ─────────────────
+   A .itabs é sticky por baixo do header; o header tem altura variável
+   (fontes, época, largura), por isso o offset vem de --hdr-h. */
+function ajustarHdrH(){
+  const h=document.querySelector('header');
+  if(!h)return;
+  const alt=Math.round(h.getBoundingClientRect().height);
+  if(alt>0)document.documentElement.style.setProperty('--hdr-h',alt+'px');
+}
+(function(){
+  const h=document.querySelector('header');
+  if(h&&window.ResizeObserver)new ResizeObserver(ajustarHdrH).observe(h);
+  window.addEventListener('resize',ajustarHdrH);
+  window.addEventListener('orientationchange',ajustarHdrH);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(ajustarHdrH).catch(()=>{});
+  ajustarHdrH();
+})();
 
 /* ── INIT ──────────────────────────────────── */
 carregarLogos();
