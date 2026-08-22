@@ -137,8 +137,33 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   está com outra grafia ou com a data velha.
 - Por omissão vêm marcados só os jogos futuros e as datas de jogos ainda sem
   resultado; os passados/jogados aparecem na mesma, desmarcados e etiquetados.
-- Resultados **não** são importados — de propósito. O botão faz duas coisas:
-  criar jogos e corrigir datas.
+- Resultados **não** são importados — de propósito. O botão faz três coisas:
+  criar jogos, preencher adversários sorteados e corrigir datas.
+
+### Jogos certos mas ainda sem adversário (`jogos.por_definir`)
+Há jogos que o Sporting joga de certeza muito antes de se saber contra quem: as
+8 jornadas da fase de liga da Champions (o sorteio é no fim de agosto) e a
+eliminatória da Taça de Portugal em que os clubes da I Liga entram. Sem eles a
+época fica curta e a **Previsão mente** — `rPrevisao()` projeta a partir de
+`db.jogos.length`. A Edge Function devolve-os num array **`porDefinir`** à parte
+(aditivo: o SplitBill ignora-o e não muda nada), e a app grava-os com
+`adversario` a `''`, `por_definir=true` e `data` no **primeiro dia da janela**,
+com `data_ate` a guardar o último. Migração: `db/jogos-por-definir.sql`
+(tolerante: sem ela essa secção do painel diz o que falta correr).
+- **Só rondas com presença garantida.** Nada que dependa de ganhar a
+  eliminatória anterior ou da classificação final — um jogo que o Sporting não
+  chega a jogar inflaciona a previsão e depois tem de ser apagado à mão.
+- **O sorteio preenche a linha que já existe**, nunca cria outra: `_calPontuar`
+  emparelha por NOME e um jogo sem nome nunca casaria, por isso há um segundo
+  eixo, `_calEmparelharPendentes` — competição + jornada (`_calNormJorn`, que
+  põe "J1"/"Jornada 1"/"1.ª jornada" na mesma forma), com a janela de datas como
+  rede de segurança. Sem isto, no dia a seguir ao sorteio ficavam 8 jogos novos
+  **e** os 8 antigos: jogos a dobrar e dívida a dobrar. O `PATCH` mantém o `id`,
+  e com ele os `pagos_jogo`/`pedidos_pagamento` já ligados.
+- Um jogo assim é **financeiramente inerte** (`golos` a null → `gJ()` e
+  `jogoTemDivida()` já o ignoram): só conta para a Previsão e para a contagem
+  da época. Escrever o adversário à mão no modal de editar também limpa o
+  `por_definir`.
 - **Diagnóstico** (`db/sync-log.sql` → `goals.sync_log`): cada tentativa deixa
   uma linha. A app grava `pedido` antes de chamar e `erro` se a chamada falhar
   (apanha o "nem saiu do browser"); a Edge Function grava `ok`/`erro` com a
