@@ -110,6 +110,36 @@ UM pedido com a lista de `jogo_ids`; fica `pendente` e **não mexe em
 - Se acrescentares outro sítio que também marca jogos como pagos, os
   pedidos pendentes não têm de aparecer lá — só estes dois blocos.
 
+## Calendário do Sporting sugerido por IA (Config › Calendário do Sporting)
+Botão só do admin que vai buscar o calendário oficial da época activa e **sugere**
+(1) jogos que faltam e (2) datas que mudaram. **Nada é gravado sem confirmação
+linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
+- Quem procura é a Edge Function **`calendario-sporting`** (ficheiro
+  `calendario-sporting.ts`, na raiz deste repo; deploy à parte com
+  `supabase functions deploy calendario-sporting`). É irmã da
+  `fatura-restaurante` do SplitBill — mesmo projeto Supabase, mesma descoberta
+  de modelo e mesmos fallbacks — com duas diferenças: usa **grounding com
+  pesquisa Google** (`tools:[{google_search:{}}]`; sem isso o modelo inventa
+  datas futuras de memória) e, por causa disso, a API recusa
+  `response_mime_type: json`, pelo que o JSON vem em texto e é extraído na
+  função (`extrairJson`).
+- **A mesma função serve o SplitBill** (que só quer os jogos em Alvalade). Ela
+  devolve SEMPRE a época inteira, sem filtrar por local nem competição — quem
+  filtra é cada app. Se mexeres no contrato, mexe nos dois lados.
+- Só o admin pode chamar: a função compara o email do JWT com `ADMIN_EMAIL`
+  (secret opcional, por omissão o mesmo email das duas apps). É verificação do
+  servidor, não da UI.
+- No `app.js`, secção `SINCRONIZAR CALENDÁRIO`. O que interessa lá é o
+  emparelhamento sugestão ↔ jogo já gravado (`_calPontuar`): mesma data conta
+  quase tudo; fora disso exige o mesmo adversário (`_calSim`, tolerante a
+  "FC Porto"/"Porto") **e** o mesmo local, com janela apertada quando a
+  competição difere. É isso que evita sugerir como "novo" um jogo que já lá
+  está com outra grafia ou com a data velha.
+- Por omissão vêm marcados só os jogos futuros e as datas de jogos ainda sem
+  resultado; os passados/jogados aparecem na mesma, desmarcados e etiquetados.
+- Resultados **não** são importados — de propósito. O botão faz duas coisas:
+  criar jogos e corrigir datas.
+
 ## Regras técnicas (não partir a app)
 - `app.js` carrega como `<script src>` **normal, NÃO module** — há
   `onclick="…"` no HTML, as funções têm de ser **globais**.

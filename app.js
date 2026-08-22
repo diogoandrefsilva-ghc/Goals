@@ -1262,6 +1262,327 @@ function scrollJogoMaisRecenteParaVista(){
   if(r.top<0||r.bottom>window.innerHeight)alvo.scrollIntoView({block:'center'});
 }
 
+/* ── SINCRONIZAR CALENDÁRIO (Edge Function `calendario-sporting` + Gemini) ──
+   Um botão em Config → "Calendário do Sporting" vai buscar o calendário oficial
+   da época activa e SUGERE duas coisas: jogos que faltam e datas que mudaram
+   (adiamentos, remarcações da TV). Nada é gravado sem o admin confirmar linha a
+   linha — as datas aqui mexem em dinheiro e o calendário vem de uma leitura por
+   IA, que acerta na maioria mas não sempre.
+
+   A mesma Edge Function serve o SplitBill (que só quer os jogos em Alvalade);
+   o ficheiro da função vive neste repo, em `calendario-sporting.ts`. Devolve a
+   época inteira, sem filtrar — quem filtra é cada app. Aqui interessa tudo:
+   todas as competições oficiais, em casa, fora ou em campo neutro.
+
+   O emparelhamento sugestão ↔ jogo já gravado é o que evita sugerir como
+   "novo" um jogo que já lá está com outra grafia ("FC Porto"/"Porto") ou com a
+   data velha — ver _calPontuar(). */
+
+let _calSug = null;      // resposta crua da última leitura (jogos, fontes, …)
+let _calNovos = [];      // {sug, passado}    — jogos que faltam
+let _calDatas = [];      // {jogo, sug, jogado} — datas diferentes das gravadas
+let _calSel = { novos: new Set(), datas: new Set() };
+let _calALer = false;
+
+// Nome de clube reduzido ao essencial: sem acentos, sem pontuação e sem as
+// siglas/artigos que cada fonte escreve à sua maneira ("FC Porto"/"Porto",
+// "Vitória SC"/"Vitória de Guimarães").
+function _calNorm(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(sporting|clube|club|de|do|da|dos|das|futebol|fc|sc|cf|sl|cd|ac|as|rc|ss|us|afc|cp|sad)\b/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+// Semelhança 0..1 entre dois nomes de clube. As duas direções contam, mas a
+// melhor pesa mais: as fontes ora encurtam ora alongam o mesmo nome.
+function _calSim(a, b) {
+  const A = _calNorm(a), B = _calNorm(b);
+  if (!A || !B) return 0;
+  if (A === B) return 1;
+  const ta = A.split(' ').filter(Boolean), tb = B.split(' ').filter(Boolean);
+  if (!ta.length || !tb.length) return 0;
+  const igual = (t, u) => t === u || (t.length >= 4 && u.startsWith(t)) || (u.length >= 4 && t.startsWith(u));
+  const hit = (x, y) => x.filter(t => y.some(u => igual(t, u))).length;
+  const d1 = hit(ta, tb) / ta.length, d2 = hit(tb, ta) / tb.length;
+  return Math.max(d1, d2) * 0.6 + Math.min(d1, d2) * 0.4;
+}
+function _calDias(a, b) {
+  return Math.abs((new Date(a + 'T12:00:00') - new Date(b + 'T12:00:00')) / 86400000);
+}
+/* Quão provável é esta sugestão ser ESTE jogo já gravado? 0 = não é.
+   Mesma data conta quase tudo. Fora disso é preciso o mesmo adversário E o
+   mesmo local — uma equipa joga duas vezes com a mesma na Liga, mas nunca duas
+   vezes em casa; e sem a mesma competição a janela aperta, para não confundir
+   um Sporting–Benfica da Liga com um da Taça três semanas depois. */
+function _calPontuar(sug, j) {
+  const nome = _calSim(sug.adversario, j.adversario);
+  if (nome < 0.55) return 0;
+  const dias = _calDias(sug.data, j.data);
+  if (dias <= 1) return 100 + nome;
+  if ((j.local || 'Casa') !== sug.local) return 0;
+  const mesmaComp = (j.competicao || '') === sug.competicao;
+  if (dias > (mesmaComp ? 45 : 10)) return 0;
+  return 50 + nome * 10 + (mesmaComp ? 5 : 0) - dias / 10;
+}
+// Emparelhamento guloso: calcula todos os pares plausíveis, ordena pela
+// pontuação e vai fechando — cada sugestão e cada jogo só entram num par.
+function _calEmparelhar(sugs, jogos) {
+  const pares = [];
+  sugs.forEach((s, si) => jogos.forEach((j, ji) => {
+    const p = _calPontuar(s, j);
+    if (p > 0) pares.push({ si, ji, p });
+  }));
+  pares.sort((a, b) => b.p - a.p);
+  const sUsada = new Set(), jUsado = new Set(), map = new Map();
+  pares.forEach(pr => {
+    if (sUsada.has(pr.si) || jUsado.has(pr.ji)) return;
+    sUsada.add(pr.si); jUsado.add(pr.ji); map.set(pr.si, jogos[pr.ji]);
+  });
+  return map;
+}
+
+function _calHoje() { return new Date().toISOString().split('T')[0]; }
+function _calDataCurta(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  if (isNaN(d)) return iso;
+  return d.getDate().toString().padStart(2, '0') + ' ' +
+    d.toLocaleString('pt-PT', { month: 'short' }).replace('.', '').toUpperCase();
+}
+function _calEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+async function calSincronizar() {
+  if (roGuard()) return;
+  if (_calALer) return;
+  if (!_sbSession) { toast('Inicia sessão primeiro', 1); return; }
+  const btn = document.getElementById('cal-sync-btn');
+  const label = btn ? btn.textContent : '';
+  _calALer = true;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ A procurar o calendário…'; }
+  try {
+    // Rede de segurança própria: a função tem um limite interno de 55s, mas se
+    // o pedido nem lá chegar a responder o botão ficava a "pensar" para sempre.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 70000);
+    let r;
+    try {
+      r = await sbFetch(`${SB_URL}/functions/v1/calendario-sporting`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
+        body: JSON.stringify({
+          epoca: epocaAtiva,
+          // Os adversários já gravados seguem no pedido para o modelo devolver a
+          // MESMA grafia — é o que faz o emparelhamento bater certo.
+          conhecidos: [...new Set(db.jogos.map(j => j.adversario).filter(Boolean))]
+        }),
+        signal: ctrl.signal
+      });
+    } finally { clearTimeout(timer); }
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      if (r.status === 404 && !e.error) throw new Error('a função `calendario-sporting` ainda não está publicada no Supabase');
+      throw new Error(e.error || ('HTTP ' + r.status));
+    }
+    calPreparar(await r.json());
+  } catch (e) {
+    const m = String(e && e.message || e);
+    const rede = /load failed|failed to fetch|networkerror|timed? ?out/i.test(m) || (e && e.name === 'AbortError');
+    toast(rede ? '❌ A procura demorou demasiado ou falhou a ligação. Tenta outra vez.' : '❌ ' + m, 1);
+  } finally {
+    _calALer = false;
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
+// Resposta da função → duas listas de sugestões (jogos em falta, datas mudadas)
+function calPreparar(d) {
+  _calSug = d || {};
+  const sugs = Array.isArray(d && d.jogos) ? d.jogos : [];
+  const hoje = _calHoje();
+  const map = _calEmparelhar(sugs, db.jogos);
+  _calNovos = []; _calDatas = [];
+  _calSel = { novos: new Set(), datas: new Set() };
+  sugs.forEach((s, i) => {
+    const j = map.get(i);
+    if (!j) {
+      // Jogo que falta. Os que já passaram vêm desmarcados: entrar com um jogo
+      // antigo sem resultado mexe nas contas e é quase sempre engano.
+      const passado = s.data < hoje;
+      _calNovos.push({ sug: s, passado });
+      if (!passado) _calSel.novos.add(_calNovos.length - 1);
+      return;
+    }
+    if (j.data === s.data) return;                       // já está certo
+    // Data diferente. Um jogo com resultado já é história — sugere-se na mesma
+    // (pode ter sido gravado com a data errada) mas desmarcado por omissão.
+    const jogado = !!(j.resultado || (j.golos !== null && j.golos !== undefined && j.golos !== ''));
+    _calDatas.push({ jogo: j, sug: s, jogado });
+    if (!jogado) _calSel.datas.add(_calDatas.length - 1);
+  });
+  calRender();
+  const box = document.getElementById('cal-sync-box');
+  if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function calToggle(tipo, i, el) {
+  const set = _calSel[tipo];
+  if (el.checked) set.add(i); else set.delete(i);
+  calAtualizarBotao();
+}
+function calTodos(tipo, ligar) {
+  const n = tipo === 'novos' ? _calNovos.length : _calDatas.length;
+  _calSel[tipo] = new Set();
+  if (ligar) for (let i = 0; i < n; i++) _calSel[tipo].add(i);
+  calRender();
+}
+function calFechar() {
+  _calSug = null; _calNovos = []; _calDatas = [];
+  _calSel = { novos: new Set(), datas: new Set() };
+  calRender();
+}
+function calAtualizarBotao() {
+  const n = _calSel.novos.size + _calSel.datas.size;
+  const b = document.getElementById('cal-aplicar-btn');
+  if (!b) return;
+  b.disabled = n === 0;
+  b.textContent = n ? `Aplicar ${n} alteraç${n === 1 ? 'ão' : 'ões'}` : 'Nada seleccionado';
+}
+
+function _calLinhaNova(o, i) {
+  const s = o.sug;
+  const meta = [s.competicao, s.jornada, s.local, s.hora].filter(Boolean).join(' · ');
+  return `<label class="calsug-row">
+    <input type="checkbox" ${_calSel.novos.has(i) ? 'checked' : ''} onchange="calToggle('novos',${i},this)">
+    <span class="calsug-dt">${_calEsc(_calDataCurta(s.data))}</span>
+    <span class="calsug-info">
+      <span class="calsug-adv">${_calEsc(s.adversario)}</span>
+      <span class="calsug-meta">${_calEsc(meta)}</span>
+    </span>
+    ${o.passado ? '<span class="calsug-tag av">já passou</span>' : ''}
+    ${s.confirmado === false ? '<span class="calsug-tag av">por confirmar</span>' : ''}
+  </label>`;
+}
+function _calLinhaData(o, i) {
+  const meta = [o.sug.competicao, o.sug.jornada, o.sug.local].filter(Boolean).join(' · ');
+  return `<label class="calsug-row">
+    <input type="checkbox" ${_calSel.datas.has(i) ? 'checked' : ''} onchange="calToggle('datas',${i},this)">
+    <span class="calsug-dt trocada">
+      <s>${_calEsc(_calDataCurta(o.jogo.data))}</s>
+      <b>${_calEsc(_calDataCurta(o.sug.data))}</b>
+    </span>
+    <span class="calsug-info">
+      <span class="calsug-adv">${_calEsc(o.jogo.adversario)}</span>
+      <span class="calsug-meta">${_calEsc(meta)}</span>
+    </span>
+    ${o.jogado ? '<span class="calsug-tag av">já jogado</span>' : ''}
+    ${o.sug.confirmado === false ? '<span class="calsug-tag av">por confirmar</span>' : ''}
+  </label>`;
+}
+
+function calRender() {
+  const box = document.getElementById('cal-sync-box');
+  if (!box) return;
+  if (!_calSug) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'block';
+  if (!_calNovos.length && !_calDatas.length) {
+    box.innerHTML = `<div class="calsug-head">
+        <strong>Calendário conferido</strong>
+        <button class="calsug-x" onclick="calFechar()" title="Fechar">✕</button>
+      </div>
+      <p class="calsug-nota">Os ${(_calSug.jogos || []).length} jogos encontrados para ${_calEsc(_calSug.epoca || epocaAtiva)} já estão todos cá, com as datas certas.</p>
+      ${_calFontesHTML()}`;
+    return;
+  }
+  const partes = [`<div class="calsug-head">
+      <strong>Sugestões do calendário</strong>
+      <button class="calsug-x" onclick="calFechar()" title="Fechar">✕</button>
+    </div>
+    <p class="calsug-nota">Lido por IA a partir de fontes públicas — <strong>confere antes de aplicar</strong>. Nada é gravado até carregares em Aplicar.</p>`];
+  if (_calNovos.length) {
+    partes.push(`<div class="calsug-sec">
+      <div class="calsug-sec-hd"><span>Jogos em falta (${_calNovos.length})</span>
+        <span><button class="calsug-link" onclick="calTodos('novos',true)">todos</button> · <button class="calsug-link" onclick="calTodos('novos',false)">nenhum</button></span>
+      </div>
+      ${_calNovos.map(_calLinhaNova).join('')}
+    </div>`);
+  }
+  if (_calDatas.length) {
+    partes.push(`<div class="calsug-sec">
+      <div class="calsug-sec-hd"><span>Datas diferentes (${_calDatas.length})</span>
+        <span><button class="calsug-link" onclick="calTodos('datas',true)">todas</button> · <button class="calsug-link" onclick="calTodos('datas',false)">nenhuma</button></span>
+      </div>
+      ${_calDatas.map(_calLinhaData).join('')}
+    </div>`);
+  }
+  partes.push(_calFontesHTML());
+  partes.push(`<div class="calsug-acoes">
+    <button class="btn btn-g" id="cal-aplicar-btn" onclick="calAplicar()"></button>
+    <button class="btn btn-n" onclick="calFechar()">Descartar</button>
+  </div>`);
+  box.innerHTML = partes.join('');
+  calAtualizarBotao();
+}
+function _calFontesHTML() {
+  const f = (_calSug && _calSug.fontes) || [];
+  const semPesquisa = _calSug && _calSug.pesquisa === false
+    ? '<p class="calsug-nota av">⚠️ Sem pesquisa web nesta leitura — as datas futuras podem estar desactualizadas.</p>' : '';
+  if (!f.length) return semPesquisa;
+  return semPesquisa + `<div class="calsug-fontes">Fontes: ${f.map(x =>
+    `<a href="${_calEsc(x.url)}" target="_blank" rel="noopener">${_calEsc(x.titulo)}</a>`).join(' · ')}</div>`;
+}
+
+async function calAplicar() {
+  if (roGuard()) return;
+  const novos = [..._calSel.novos].sort((a, b) => a - b).map(i => _calNovos[i]).filter(Boolean);
+  const datas = [..._calSel.datas].sort((a, b) => a - b).map(i => _calDatas[i]).filter(Boolean);
+  if (!novos.length && !datas.length) return;
+  const btn = document.getElementById('cal-aplicar-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ A gravar…'; }
+  let criados = 0, corrigidos = 0, erros = 0;
+  try {
+    if (novos.length) {
+      const linhas = novos.map(o => ({
+        epoca_nome: epocaAtiva, data: o.sug.data, adversario: o.sug.adversario,
+        competicao: o.sug.competicao || '', jornada: o.sug.jornada || '',
+        local: o.sug.local || 'Casa', golos: null, resultado: ''
+      }));
+      try {
+        // Insere em bloco e lê os ids reais de volta — os ids são da BD, nunca
+        // inventados do lado do cliente (ver CLAUDE.md).
+        const ins = await sbReq('POST', 'jogos', linhas, { Prefer: 'return=representation' });
+        (ins || []).forEach((row, k) => {
+          const o = linhas[k];
+          db.jogos.push({
+            id: row.id, data: row.data || o.data, adversario: row.adversario || o.adversario,
+            golos: null, resultado: '', competicao: row.competicao || o.competicao,
+            jornada: row.jornada || o.jornada, local: row.local || o.local
+          });
+          db.pagosPorJogo[String(row.id)] = [];
+          criados++;
+        });
+      } catch (e) { erros++; toast('Erro ao criar jogos: ' + e.message, 1); }
+    }
+    // Uma data de cada vez: se uma falhar, as outras continuam válidas.
+    for (const o of datas) {
+      const antes = o.jogo.data;
+      try {
+        await sbReq('PATCH', `jogos?id=eq.${o.jogo.id}`, { data: o.sug.data });
+        o.jogo.data = o.sug.data;
+        corrigidos++;
+      } catch (e) { o.jogo.data = antes; erros++; }
+    }
+  } finally {
+    calFechar();
+    rDash();
+    renderJogosList();
+  }
+  const p = [];
+  if (criados) p.push(`${criados} jogo${criados === 1 ? '' : 's'} adicionado${criados === 1 ? '' : 's'}`);
+  if (corrigidos) p.push(`${corrigidos} data${corrigidos === 1 ? '' : 's'} corrigida${corrigidos === 1 ? '' : 's'}`);
+  toast(p.length ? '✓ ' + p.join(' · ') + (erros ? ` (${erros} com erro)` : '') : 'Nada gravado', erros && !p.length ? 1 : 0);
+}
+
 /* ── PEDIDOS DE PAGAMENTO ("já paguei os jogos A, B, D") ──────────────────
    Um amigo (ligado a um login via goals.user_amigos) declara que já pagou
    um conjunto de jogos; fica 'pendente' em goals.pedidos_pagamento — NADA

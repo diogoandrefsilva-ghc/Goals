@@ -412,3 +412,27 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 .ua-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fafaf8;border:1px solid var(--bo);border-radius:9px;margin-bottom:6px}
 .ua-row span{flex:1;font-size:12.5px;color:var(--tx);word-break:break-all}
 .ua-row select,.ua-row input{font-size:12px;padding:5px 7px;border:1px solid var(--bo);border-radius:6px;font-family:'Inter',sans-serif}
+
+/* ── SUGESTÕES DO CALENDÁRIO (calSincronizar) ──── */
+.calsug{margin-top:14px;padding-top:14px;border-top:1px solid var(--bo)}
+.calsug-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.calsug-head strong{font-size:13.5px;color:var(--tx)}
+.calsug-x{background:none;border:none;color:var(--mu);font-size:15px;line-height:1;cursor:pointer;padding:2px 4px}
+.calsug-nota{font-size:11.5px;color:var(--mu);line-height:1.45;margin:0 0 10px}
+.calsug-nota.av{color:#8a6d12;background:var(--oup);border:1px solid #f0e2b0;border-radius:8px;padding:7px 9px}
+.calsug-sec{margin-bottom:12px}
+.calsug-sec-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px}
+.calsug-link{background:none;border:none;padding:0;font-size:11px;color:var(--in);cursor:pointer;text-transform:none;letter-spacing:0;font-weight:600}
+.calsug-row{display:flex;align-items:center;gap:9px;padding:8px 9px;background:#fafaf8;border:1px solid var(--bo);border-radius:9px;margin-bottom:5px;cursor:pointer}
+.calsug-row input{flex-shrink:0;width:17px;height:17px;accent-color:var(--vd)}
+.calsug-dt{flex-shrink:0;min-width:58px;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.04em;color:var(--vd);line-height:1.15}
+.calsug-dt.trocada{display:flex;flex-direction:column}
+.calsug-dt s{color:var(--mu);opacity:.8}
+.calsug-dt b{color:var(--vd);font-weight:400}
+.calsug-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.calsug-adv{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calsug-meta{font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calsug-tag{flex-shrink:0;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 6px;border-radius:6px;background:var(--oup);color:#8a6d12;border:1px solid #f0e2b0}
+.calsug-fontes{font-size:10.5px;color:var(--mu);line-height:1.5;margin:2px 0 10px;word-break:break-word}
+.calsug-fontes a{color:var(--in);text-decoration:none}
+.calsug-acoes{display:flex;gap:8px;flex-wrap:wrap}
