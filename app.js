@@ -581,6 +581,10 @@ async function marcarPagoRapido(jogoId,amigoId){
   toast(`${am?.nome} marcado como pago ✓`);
 }
 function rPrevisao(){
+  // Corre já, antes dos "return" antecipados abaixo (época sem jogos feitos,
+  // ou com poucos para o gráfico de evolução) — senão fica com o que tiver
+  // sido desenhado da última vez que uma época com mais dados esteve aberta.
+  rCompEpocas();
   // Só contar jogos com resultado real (golos não nulo)
   const jogosOrd=[...db.jogos]
     .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
@@ -775,8 +779,6 @@ function rPrevisao(){
   cv.onmousemove=handleChartHover;cv.ontouchmove=handleChartHover;
   cv.onmouseleave=function(){tooltip.style.display='none';crosshair.style.display='none';};
 
-  // Gráfico comparativo com épocas anteriores
-  rCompEpocas();
 }
 
 function rCompEpocas(){
