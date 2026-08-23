@@ -307,14 +307,19 @@ async function pjSet(jogoId,amigoId,pago){
   if(!db.pagosPorJogo[k])db.pagosPorJogo[k]=[];
   const jaEstava=db.pagosPorJogo[k].includes(amigoId);
   if(pago===jaEstava)return;
+  let ok=true;
   if(pago){
     db.pagosPorJogo[k].push(amigoId);
     try{await sbReq('POST','pagos_jogo',{jogo_id:jogoId,amigo_id:amigoId});}
-    catch(e){db.pagosPorJogo[k]=db.pagosPorJogo[k].filter(id=>id!==amigoId);toast('Erro: '+e.message,1);}
+    catch(e){db.pagosPorJogo[k]=db.pagosPorJogo[k].filter(id=>id!==amigoId);toast('Erro: '+e.message,1);ok=false;}
   }else{
     db.pagosPorJogo[k]=db.pagosPorJogo[k].filter(id=>id!==amigoId);
     try{await sbReq('DELETE',`pagos_jogo?jogo_id=eq.${jogoId}&amigo_id=eq.${amigoId}`);}
-    catch(e){db.pagosPorJogo[k].push(amigoId);toast('Erro: '+e.message,1);}
+    catch(e){db.pagosPorJogo[k].push(amigoId);toast('Erro: '+e.message,1);ok=false;}
+  }
+  if(ok){
+    const jogo=db.jogos.find(j=>j.id===jogoId);
+    if(jogo)_pagBatchAdd(amigoId,'jogo',{jogoId,adversario:jogo.adversario,pago});
   }
 }
 async function togglePagamento(jogoId,amigoId){
@@ -1258,7 +1263,9 @@ async function marcarTodos(jogoId){
     await sbReq('DELETE',`pagos_jogo?jogo_id=eq.${jogoId}`);
     if(db.amigos.length)await sbReq('POST','pagos_jogo',db.amigos.map(a=>({jogo_id:jogoId,amigo_id:a.id})));
   }catch(e){db.pagosPorJogo[String(jogoId)]=antes;toast('Erro: '+e.message,1);return;}
-  const jogo=db.jogos.find(j=>j.id===jogoId);renderDetalhe(jogo);
+  const jogo=db.jogos.find(j=>j.id===jogoId);
+  if(jogo)db.amigos.forEach(a=>{if(!antes.includes(a.id))_pagBatchAdd(a.id,'jogo',{jogoId,adversario:jogo.adversario,pago:true});});
+  renderDetalhe(jogo);
   toast('Todos marcados como pagos ✓');
 }
 async function desmarcarTodos(jogoId){
@@ -1267,7 +1274,9 @@ async function desmarcarTodos(jogoId){
   db.pagosPorJogo[String(jogoId)]=[];
   try{await sbReq('DELETE',`pagos_jogo?jogo_id=eq.${jogoId}`);}
   catch(e){db.pagosPorJogo[String(jogoId)]=antes;toast('Erro: '+e.message,1);return;}
-  const jogo=db.jogos.find(j=>j.id===jogoId);renderDetalhe(jogo);
+  const jogo=db.jogos.find(j=>j.id===jogoId);
+  if(jogo)antes.forEach(amigoId=>_pagBatchAdd(amigoId,'jogo',{jogoId,adversario:jogo.adversario,pago:false}));
+  renderDetalhe(jogo);
   toast('Todos desmarcados');
 }
 
@@ -2725,6 +2734,7 @@ async function toggleEstouroPago(amigoId){
     if(jaEstava)db.estouroPagos.push(amigoId);else db.estouroPagos=db.estouroPagos.filter(id=>id!==amigoId);
     toast('Erro: '+e.message,1);return;
   }
+  _pagBatchAdd(amigoId,'estouro',{pago:!jaEstava});
   rEstouro();
   const am=db.amigos.find(a=>a.id===amigoId);
   toast(`${am?.nome} ${db.estouroPagos.includes(amigoId)?'marcado como acertado ✓':'reaberto'}`);
@@ -3774,6 +3784,36 @@ function sbNotificarResultadoJogo(adversario,resultado,golos){
 // servidor também.
 function sbNotificarPagamentoAprovado(email,amigo,valor,jogos){
   sbEnviarPush({tipo:'pagamento_aprovado',email,amigo,valor,jogos});
+}
+
+// 5) Avisa o amigo quando o admin marca/desmarca um pagamento DIRETAMENTE
+// (golos ou estouro), sem passar por um pedido de pagamento dele — ex.:
+// marcarPagoRapido, marcarTodos/desmarcarTodos, toggleEstouroPago.
+// NÃO cobre aprovarPedidoPagamento(): esse caminho não passa por pjSet nem
+// por toggleEstouroPago, já manda o seu próprio 'pagamento_aprovado' — é
+// assim que se evita a dupla notificação quando o admin aceita um pedido.
+// Débounced em lote (3s de silêncio) porque o admin costuma marcar vários
+// amigos seguidos ("de rajada") — sem isto seria um push por clique.
+let _pagBatch={};
+let _pagBatchTimer=null;
+function _pagBatchAdd(amigoId,tipo,info){
+  const am=db.amigos.find(a=>a.id===amigoId);
+  if(!am)return;
+  if(!_pagBatch[amigoId])_pagBatch[amigoId]={nome:am.nome,jogos:{},estouro:null};
+  if(tipo==='jogo')_pagBatch[amigoId].jogos[info.jogoId]={adversario:info.adversario,pago:info.pago};
+  else _pagBatch[amigoId].estouro=info.pago;
+  clearTimeout(_pagBatchTimer);
+  _pagBatchTimer=setTimeout(_pagBatchFlush,3000);
+}
+function _pagBatchFlush(){
+  const mudancas=Object.values(_pagBatch).map(v=>({
+    amigo:v.nome,
+    jogosPagos:Object.values(v.jogos).filter(j=>j.pago).map(j=>j.adversario),
+    jogosDespagos:Object.values(v.jogos).filter(j=>!j.pago).map(j=>j.adversario),
+    estouro:v.estouro
+  })).filter(m=>m.jogosPagos.length||m.jogosDespagos.length||m.estouro!==null);
+  _pagBatch={};_pagBatchTimer=null;
+  if(mudancas.length)sbEnviarPush({tipo:'pagamento_marcado',mudancas}); // fire-and-forget
 }
 
 /* ── LOGOS DOS ADVERSÁRIOS ─────────────────── */

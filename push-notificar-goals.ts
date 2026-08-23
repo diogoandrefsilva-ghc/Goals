@@ -1,6 +1,6 @@
 // supabase/functions/push-notificar-goals/index.ts
 // Goals — Envia notificações Web Push (Notification/Push API, sem Telegram).
-// Quatro momentos, todos chamados pela app:
+// Cinco momentos, todos chamados pela app:
 //   'pedido_acesso'       sbSolicitarAcesso() → avisa o ADMIN_EMAIL quando
 //                          alguém pede acesso à app pela primeira vez
 //                          (fire-and-forget)
@@ -13,6 +13,15 @@
 //   'resultado_jogo'      guardarEdicao() → avisa TODOS os dispositivos
 //                          subscritos quando o resultado de um jogo fecha
 //                          pela primeira vez (fire-and-forget)
+//   'pagamento_marcado'   pjSet()/marcarTodos()/desmarcarTodos()/
+//                          toggleEstouroPago() → avisa cada amigo quando o
+//                          admin marca/desmarca um pagamento DIRETAMENTE
+//                          (golos ou estouro), sem pedido dele. Vem em lote
+//                          (`mudancas`, um item por amigo — o cliente já
+//                          debounça vários amigos marcados seguidos numa
+//                          chamada só) e o email de cada um resolve-se aqui
+//                          por `goals.user_amigos` (o cliente só conhece o
+//                          NOME do amigo, que é a identidade estável).
 //
 // Nome diferente de `push-notificar` (SplitBill) DE PROPÓSITO: vivem no
 // MESMO projeto Supabase (gjweqwfbnkgnibhajldc), cada Edge Function precisa
@@ -118,6 +127,34 @@ async function emailDoToken(auth: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+// Resolve o email ligado a um amigo (por NOME — a identidade estável entre
+// épocas, ver goals.user_amigos). O cliente só manda o nome, nunca o email,
+// para 'pagamento_marcado' — quem sabe a ligação é o servidor.
+async function emailDoAmigo(amigo: string): Promise<string | null> {
+  try {
+    const r = await fetchComRetry(
+      `${SB_URL}/rest/v1/user_amigos?amigo=eq.${encodeURIComponent(amigo)}&select=email`,
+      { headers: sbHeaders },
+    );
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return (rows?.[0]?.email ?? "").toLowerCase() || null;
+  } catch {
+    return null;
+  }
+}
+
+// Frase para uma mudança de pagamento de UM amigo (golos e/ou estouro,
+// marcado e/ou desmarcado — junta tudo o que mudou no mesmo lote/debounce).
+function corpoMudancaPagamento(m: Mudanca): string | null {
+  const partes: string[] = [];
+  if (m.jogosPagos?.length) partes.push(`marcado como pago: ${m.jogosPagos.map((a) => `vs ${a}`).join(", ")}`);
+  if (m.jogosDespagos?.length) partes.push(`desmarcado como pago: ${m.jogosDespagos.map((a) => `vs ${a}`).join(", ")}`);
+  if (m.estouro === true) partes.push("estouro dos golos marcado como acertado");
+  if (m.estouro === false) partes.push("estouro dos golos reaberto");
+  return partes.length ? partes.join(" · ") : null;
 }
 
 async function estaAutorizado(email: string): Promise<boolean> {
@@ -229,7 +266,19 @@ async function marcarEnviado(id: number | null) {
   }).catch(() => {});
 }
 
-type Tipo = "pedido_acesso" | "pagamento_declarado" | "pagamento_aprovado" | "resultado_jogo";
+type Tipo =
+  | "pedido_acesso"
+  | "pagamento_declarado"
+  | "pagamento_aprovado"
+  | "resultado_jogo"
+  | "pagamento_marcado";
+
+type Mudanca = {
+  amigo?: string;
+  jogosPagos?: string[];
+  jogosDespagos?: string[];
+  estouro?: boolean | null;
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -244,7 +293,7 @@ Deno.serve(async (req) => {
     const emailChamador = await emailDoToken(auth);
     if (!emailChamador) return json({ error: "não autorizado" }, 403);
 
-    const { tipo, email, amigo, valor, jogos, adversario, resultado, golos } =
+    const { tipo, email, amigo, valor, jogos, adversario, resultado, golos, mudancas } =
       (await req.json()) as {
         tipo?: Tipo;
         email?: string;
@@ -254,6 +303,7 @@ Deno.serve(async (req) => {
         adversario?: string;
         resultado?: string;
         golos?: number;
+        mudancas?: Mudanca[];
       };
 
     // 'pedido_acesso': único caso em que NÃO se exige allowed_users — é
@@ -321,6 +371,30 @@ Deno.serve(async (req) => {
       const res = await enviarParaSubs(subs, JSON.stringify(payload));
       if (res.enviados > 0) await marcarEnviado(notifId);
       return json(res);
+    }
+
+    if (tipo === "pagamento_marcado") {
+      // só o admin marca pagamentos diretamente — se chegar aqui de outra conta, ignora-se
+      if (emailChamador !== ADMIN_EMAIL) return json({ error: "não autorizado" }, 403);
+      let enviados = 0;
+      let falhados = 0;
+      for (const m of Array.isArray(mudancas) ? mudancas : []) {
+        const nomeAmigo = m?.amigo;
+        if (!nomeAmigo) continue;
+        const corpo = corpoMudancaPagamento(m);
+        if (!corpo) continue;
+        // amigo sem conta ligada (goals.user_amigos): nada a notificar, não é erro
+        const emailAlvo = await emailDoAmigo(nomeAmigo);
+        if (!emailAlvo) continue;
+        const payload = { title: "Pagamento atualizado", body: corpo, url: "/Goals/", emailAlvo };
+        const notifId = await registarNotificacao("pagamento_marcado", "amigo", payload);
+        const subs = await subscriptionsDe([emailAlvo]);
+        const res = await enviarParaSubs(subs, JSON.stringify(payload));
+        if (res.enviados > 0) await marcarEnviado(notifId);
+        enviados += res.enviados;
+        falhados += res.falhados;
+      }
+      return json({ enviados, falhados });
     }
 
     return json({ enviados: 0, falhados: 0 });
