@@ -282,6 +282,18 @@ function advNome(j){
 // `potencial` ficam de fora até o admin os confirmar (promoção ou remoção
 // pela sincronização do calendário) — ver db/jogos-potenciais.sql.
 function jogosContam(){return db.jogos.filter(j=>!j.potencial);}
+// Jogos por jogar: o mínimo é o que falta dos jogos certos; o máximo soma
+// também os potenciais, que só contam se vierem a confirmar-se.
+function restantesInfo(){
+  const feitos=db.jogos.filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='').length;
+  const min=Math.max(0,jogosContam().length-feitos);
+  const nPot=db.jogos.filter(j=>j.potencial).length;
+  return{min,max:min+nPot,nPot};
+}
+function restantesTxt(){
+  const r=restantesInfo();
+  return r.nPot?`entre ${r.min} e ${r.max} jogos restantes`:`${r.min} jogos restantes`;
+}
 // "2026-09-08"+"2026-09-10" → "8–10 set" · meses diferentes → "29 set–1 out"
 function janelaCurta(ini,fim){
   const a=new Date(ini+'T12:00:00'),b=new Date(fim+'T12:00:00');
@@ -634,17 +646,18 @@ function rPrevisao(){
   const gppUlt10=gUlt10/ult10.length;
   const prevGolUlt=totalG+Math.round(nRestantes*gppUlt10);
   const prevPoteUlt=prevGolUlt*vg*n;
+  const restTxt=restantesTxt();
 
   document.getElementById('prev-cards').innerHTML=`
     <div class="sc cg">
       <div class="sc-l">Média total</div>
       <div class="sc-v">${prevPoteTot.toFixed(0)}€</div>
-      <div class="sc-s">${prevGolTot} golos · ${gppTotal.toFixed(2)}/jogo · ${nRestantes} jogos restantes</div>
+      <div class="sc-s">${prevGolTot} golos · ${gppTotal.toFixed(2)}/jogo · ${restTxt}</div>
     </div>
     <div class="sc co">
       <div class="sc-l">Últimos 10 jogos</div>
       <div class="sc-v">${prevPoteUlt.toFixed(0)}€</div>
-      <div class="sc-s">${prevGolUlt} golos · ${gppUlt10.toFixed(2)}/jogo · ${nRestantes} jogos restantes</div>
+      <div class="sc-s">${prevGolUlt} golos · ${gppUlt10.toFixed(2)}/jogo · ${restTxt}</div>
     </div>
   `;
 
@@ -986,14 +999,6 @@ function jogoTemDivida(j){
   return pag.length<db.amigos.length;
 }
 
-let filtPag='todos';
-function setFiltPag(modo,btn){
-  filtPag=modo;
-  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('on','on-dv'));
-  btn.classList.add(modo==='divida'?'on-dv':'on');
-  renderJogosList();
-}
-
 function jogoCardHTML(j,mini=false){
   const d=new Date(j.data+'T12:00:00');
   const dia=d.getDate().toString().padStart(2,'0');
@@ -1098,13 +1103,12 @@ function setOrdemJogos(o){
 function renderJogosList(){
   const filtro=document.getElementById('f-comp').value;
   const filtroLocal=document.getElementById('f-local').value;
-  const hoje=new Date().toISOString().split('T')[0];
   let jogos=[...db.jogos].sort((a,b)=>ordemJogos==='asc'?new Date(a.data)-new Date(b.data):new Date(b.data)-new Date(a.data));
   if(filtro)jogos=jogos.filter(j=>j.competicao===filtro);
   if(filtroLocal)jogos=jogos.filter(j=>j.local===filtroLocal);
-  if(filtPag==='divida') jogos=jogos.filter(j=>(j.golos!==null&&j.golos!==undefined&&j.golos!=='')&&(j.golos||0)>0&&jogoTemDivida(j));
-  if(filtPag==='pago')   jogos=jogos.filter(j=>(j.golos!==null&&j.golos!==undefined&&j.golos!=='')&&(j.golos||0)>0&&!jogoTemDivida(j));
   document.getElementById('j-list').innerHTML=jogos.length?jogos.map(j=>jogoCardHTML(j)).join(''):'<div class="empty"><em>⚽</em>Sem jogos</div>';
+  const mini=document.getElementById('j-restantes-mini');
+  if(mini)mini.textContent=restantesTxt();
 }
 
 let _lastViewedJogoId=null;

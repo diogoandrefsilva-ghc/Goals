@@ -177,10 +177,8 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
             <button id="f-ord-asc" class="sbtn on" onclick="setOrdemJogos('asc')" title="Mais antigos primeiro" aria-label="Ordenar do mais antigo para o mais recente">↑</button>
           </div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button id="f-btn-todos" class="fbtn on" onclick="setFiltPag('todos',this)">Todos</button>
-          <button id="f-btn-div" class="fbtn" onclick="setFiltPag('divida',this)">Com dívida</button>
-          <button id="f-btn-ok" class="fbtn" onclick="setFiltPag('pago',this)">Pagos</button>
+        <div style="display:flex;justify-content:flex-end">
+          <span id="j-restantes-mini" style="font-size:10px;color:var(--mu)"></span>
         </div>
       </div>
       <div id="j-list"></div>

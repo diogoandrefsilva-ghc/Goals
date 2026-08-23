@@ -128,6 +128,7 @@ tbody tr:hover{background:#fafaf8}
    primeira linha, fase e datas na segunda) já diz o que é preciso saber. */
 .jcard-pot{background:#eceae4;border-style:dashed;border-color:#d2cfc6}
 .jcard-pot:hover{border-color:#bcb9ae}
+.jcard-pot .jadv,.jcard-pot .jdt strong,.jcard-pot .jdt span{color:var(--mu)}
 .jlogo{width:26px;height:26px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
 .jlogo img{max-width:100%;max-height:100%;object-fit:contain}
 .jcomp{font-size:11px;color:var(--mu);margin-top:1px}
@@ -204,10 +205,6 @@ input:focus,select:focus{border-color:var(--vd)}
 .bcb{height:100%;border-radius:99px;transition:width .6s}
 .bcv{font-size:12px;font-weight:600;min-width:50px}
 
-.fbtn{background:var(--bg);border:1px solid var(--bo);border-radius:7px;padding:6px 12px;font-size:12px;font-family:'Inter',sans-serif;font-weight:500;cursor:pointer;color:var(--mu);transition:all .15s;white-space:nowrap}
-.fbtn:hover{border-color:#aaa;color:var(--tx)}
-.fbtn.on{background:var(--vd);color:#fff;border-color:var(--vd);font-weight:600}
-.fbtn.on-dv{background:var(--dg);color:#fff;border-color:var(--dg);font-weight:600}
 /* ordenação dos jogos — segmented control (largura fixa, não salta de linha) */
 .sortgrp{display:inline-flex;border:1px solid var(--bo);border-radius:7px;overflow:hidden;background:var(--bg);flex-shrink:0}
 .sbtn{background:transparent;border:0;padding:6px 11px;font-size:14px;line-height:1;font-family:'Inter',sans-serif;font-weight:700;cursor:pointer;color:var(--mu);transition:all .15s}
