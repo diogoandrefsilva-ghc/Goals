@@ -1072,12 +1072,12 @@ function jogoCardHTML(j,mini=false){
   // resBadge já não é necessário no jadv
   const resBadge='';
 
-  return`<div class="jcard" data-futuro="${isFuturo?1:0}" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
+  return`<div class="jcard${j.potencial?' jcard-pot':''}" data-futuro="${isFuturo?1:0}" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     ${localBadge}
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
     <span class="jlogo">${(l=>l?`<img src="${l}" alt="" loading="lazy" onerror="this.style.display='none'">`:'')(logoAdv(j.adversario))}</span>
-    <div class="jinfo"><div class="jadv${j.porDefinir?' jadv-pd':''}${j.potencial?' jadv-pot':''}">${advNome(j)}${j.potencial?'<span class="jpot-tag" title="'+(j.condicao?j.condicao.replace(/"/g,'&quot;'):'Jogo potencial')+'">potencial</span>':''}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}${janela?' · '+janela:''}${j.potencial&&j.condicao?' · '+j.condicao:''}</div></div>
+    <div class="jinfo"><div class="jadv${j.porDefinir?' jadv-pd':''}">${j.potencial?j.competicao:advNome(j)}</div><div class="jcomp">${j.potencial?[j.jornada,janela].filter(Boolean).join(' · '):`${j.competicao}${j.jornada?' · '+j.jornada:''}${janela?' · '+janela:''}`}</div></div>
     <div class="jpag-bar">${dotsHTML}</div>
     ${resDisplayHTML}
     ${valHTML}
