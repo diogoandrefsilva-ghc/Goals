@@ -121,6 +121,12 @@ tbody tr:hover{background:#fafaf8}
    ocupado por "Adversário por definir", que não é um nome — daí o itálico
    apagado, para não se confundir com um clube. */
 .jadv-pd{color:var(--mu);font-style:italic}
+/* Jogo potencial: pode nem chegar a acontecer (depende de vencer a ronda
+   anterior, ou de não ficar no top 8 da Champions). Sublinhado tracejado +
+   selo pequeno, para não se confundir com o itálico cinzento do "por
+   definir" (esse é certo, só falta o nome). */
+.jadv-pot{border-bottom:1px dashed var(--in);display:inline-flex;align-items:center;gap:5px}
+.jpot-tag{flex-shrink:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;line-height:1.4;padding:1px 6px;border-radius:999px;background:var(--inp);color:var(--in)}
 .jlogo{width:26px;height:26px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
 .jlogo img{max-width:100%;max-height:100%;object-fit:contain}
 .jcomp{font-size:11px;color:var(--mu);margin-top:1px}
@@ -438,6 +444,7 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
 .calsug-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .calsug-adv{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .calsug-adv.pd{color:var(--mu);font-style:italic;font-weight:500}
+.calsug-adv.pot{color:var(--in);font-style:italic;font-weight:500}
 /* A etiqueta vive na MESMA linha da competição, dentro do bloco de informação.
    Fora dele disputava largura com o nome do clube e partia-se a meio, com o
    texto a sair da própria caixa. Aqui é a competição que encolhe (ellipsis) e
@@ -448,6 +455,8 @@ body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!importan
    leva o amarelo — é a única que pede desconfiança. */
 .calsug-tag{flex:0 0 auto;white-space:nowrap;font-size:10px;font-weight:600;line-height:1.5;padding:1px 8px;border-radius:999px;background:#efeeea;color:#71706a;border:1px solid #e3e1dc}
 .calsug-tag.aviso{background:var(--oup);color:#8a6d12;border-color:#f0e2b0}
+.calsug-tag.pot{background:var(--inp);color:var(--in);border-color:#c3ddf5}
+.calsug-tag.perigo{background:var(--dgp);color:var(--dg);border-color:#f3c6c6}
 .calsug-fontes{font-size:10.5px;color:var(--mu);line-height:1.5;margin:2px 0 10px;word-break:break-word}
 .calsug-fontes a{color:var(--in);text-decoration:none}
 .calsug-acoes{display:flex;gap:8px;flex-wrap:wrap}

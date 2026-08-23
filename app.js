@@ -12,6 +12,7 @@ let _sbSession=null;
 let MEU_AMIGO_NOME=null; // nome do amigo (goals.user_amigos) ligado a este login, se algum
 let PUSH_COL=true; // tabela push_subscriptions existe? (verificado em pushCheckColuna, chamado por sbAposLogin)
 let JOGOS_PD=true; // colunas por_definir/data_ate existem? (db/jogos-por-definir.sql, visto em carregar())
+let JOGOS_POT=true; // colunas potencial/condicao existem? (db/jogos-potenciais.sql, visto em carregar())
 
 // Par de chaves para notificações Web Push (não é a chave do Supabase) —
 // o MESMO par já usado pelo SplitBill: os secrets de Edge Function no
@@ -149,13 +150,14 @@ async function carregar(){
     const ep=dbFull.epocas[a.epoca_nome];if(!ep)return;
     ep.amigos.push({id:a.id,nome:a.nome,cor:a.cor});
   });
-  // `por_definir`/`data_ate` vêm de uma migração opcional
-  // (db/jogos-por-definir.sql). Se a BD ainda não a tiver, o `select=*` volta
-  // sem essas chaves — é assim que se sabe, sem gastar um pedido só a perguntar.
-  if((jogosRows||[]).length)JOGOS_PD='por_definir' in jogosRows[0];
+  // `por_definir`/`data_ate` e `potencial`/`condicao` vêm de migrações opcionais
+  // (db/jogos-por-definir.sql, db/jogos-potenciais.sql). Se a BD ainda não as
+  // tiver, o `select=*` volta sem essas chaves — é assim que se sabe, sem
+  // gastar um pedido só a perguntar.
+  if((jogosRows||[]).length){JOGOS_PD='por_definir' in jogosRows[0];JOGOS_POT='potencial' in jogosRows[0];}
   (jogosRows||[]).forEach(j=>{
     const ep=dbFull.epocas[j.epoca_nome];if(!ep)return;
-    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado,porDefinir:!!j.por_definir,dataAte:j.data_ate||null});
+    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado,porDefinir:!!j.por_definir,dataAte:j.data_ate||null,potencial:!!j.potencial,condicao:j.condicao||''});
   });
   const jogoEpoca={};(jogosRows||[]).forEach(j=>jogoEpoca[j.id]=j.epoca_nome);
   (pagosRows||[]).forEach(p=>{
@@ -267,8 +269,19 @@ function ini(n){return(n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpper
    `adversario` a '' — é certo que se joga (fase de liga da Champions antes do
    sorteio, a eliminatória da Taça em que a I Liga entra), só falta saber contra
    quem. Não tem golos, logo não tem dívida: só conta para a Previsão e para a
-   contagem de jogos da época. */
-function advNome(j){return (j&&j.adversario)?j.adversario:'Adversário por definir';}
+   contagem de jogos da época.
+   Um jogo "potencial" também está gravado com `adversario` a '', mas é o
+   OPOSTO: pode nem chegar a acontecer (depende de vencer a ronda anterior, ou
+   de não ficar no top 8 da Champions) — por isso fica de fora da Previsão e
+   da contagem de jogos, ver jogosContam(). */
+function advNome(j){
+  if(j&&j.adversario)return j.adversario;
+  return (j&&j.potencial)?'Jogo potencial':'Adversário por definir';
+}
+// Jogos que contam para a época (Previsão, "Total: N jogos", …). Os
+// `potencial` ficam de fora até o admin os confirmar (promoção ou remoção
+// pela sincronização do calendário) — ver db/jogos-potenciais.sql.
+function jogosContam(){return db.jogos.filter(j=>!j.potencial);}
 // "2026-09-08"+"2026-09-10" → "8–10 set" · meses diferentes → "29 set–1 out"
 function janelaCurta(ini,fim){
   const a=new Date(ini+'T12:00:00'),b=new Date(fim+'T12:00:00');
@@ -328,14 +341,15 @@ async function togglePagamento(jogoId,amigoId){
 }
 
 function calcPrevisao(){
-  const jf=db.jogos.length;if(!jf)return null;
+  const jogos=jogosContam();
+  const jf=jogos.length;if(!jf)return null;
   const gpp=totalGolos()/jf;
-  const pg=Math.round(gpp*db.jogos.length);
+  const pg=Math.round(gpp*jf);
   const pp=pg*db.config.valorPorGolo;
   return{pg,pp,pt:pp*db.amigos.length,gpp};
 }
 function acumulado(){
-  return[...db.jogos].sort((a,b)=>new Date(a.data)-new Date(b.data))
+  return[...jogosContam()].sort((a,b)=>new Date(a.data)-new Date(b.data))
     .reduce((acc,j,i)=>{const v=(acc[i-1]?.v||0)+(j.golos||0)*db.config.valorPorGolo*db.amigos.length;acc.push({v});return acc;},[]);
 }
 
@@ -462,7 +476,7 @@ function rResumo(){
   const tp=totalPago()*db.amigos.length; // não — totalPago() já é por pessoa
   const potePago=db.amigos.reduce((a,am)=>a+pagouAmigo(am.id),0);
   const nJogosComRes=db.jogos.filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='').length;
-  const nJogosTotal=db.jogos.length;
+  const nJogosTotal=jogosContam().length;
   const pct=nJogosTotal>0?Math.min(100,Math.round(nJogosComRes/nJogosTotal*100)):0;
   atualizarLabelEpoca();
   // Estouro cards for resumo
@@ -595,7 +609,7 @@ function rPrevisao(){
     .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
     .sort((a,b)=>new Date(a.data)-new Date(b.data));
   const nJogosFeitos=jogosOrd.length;
-  const nTotal=db.jogos.length;
+  const nTotal=jogosContam().length;
   const nRestantes=Math.max(0,nTotal-nJogosFeitos);
   const n=db.amigos.length||1;
   const vg=db.config.valorPorGolo;
@@ -1063,7 +1077,7 @@ function jogoCardHTML(j,mini=false){
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
     <span class="jlogo">${(l=>l?`<img src="${l}" alt="" loading="lazy" onerror="this.style.display='none'">`:'')(logoAdv(j.adversario))}</span>
-    <div class="jinfo"><div class="jadv${j.porDefinir?' jadv-pd':''}">${advNome(j)}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}${janela?' · '+janela:''}</div></div>
+    <div class="jinfo"><div class="jadv${j.porDefinir?' jadv-pd':''}${j.potencial?' jadv-pot':''}">${advNome(j)}${j.potencial?'<span class="jpot-tag" title="'+(j.condicao?j.condicao.replace(/"/g,'&quot;'):'Jogo potencial')+'">potencial</span>':''}</div><div class="jcomp">${j.competicao}${j.jornada?' · '+j.jornada:''}${janela?' · '+janela:''}${j.potencial&&j.condicao?' · '+j.condicao:''}</div></div>
     <div class="jpag-bar">${dotsHTML}</div>
     ${resDisplayHTML}
     ${valHTML}
@@ -1323,7 +1337,18 @@ let _calDatas = [];      // {jogo, sug, jogado} — datas diferentes das gravada
 let _calPD = [];         // {sug, passado}    — rondas certas ainda sem adversário
 let _calPromo = [];      // {jogo, sug}       — jogo por definir que já tem adversário
 let _calPDsemColuna = 0; // rondas sem adversário que a BD ainda não sabe guardar
-let _calSel = { novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set() };
+// Jogos "potenciais" (dependem de um resultado por decidir — ver
+// db/jogos-potenciais.sql): quatro listas à parte, porque cada uma pede um
+// PATCH/POST/DELETE diferente em calAplicar().
+let _calPot = [];        // {sug, passado}    — ronda condicional nova (a criar)
+let _calPotProm = [];    // {jogo, sug}       — era potencial, já tem adversário sorteado
+let _calPotPD = [];      // {jogo, sug}       — era potencial, Sporting apurado mas sem adversário
+let _calPotRem = [];     // {jogo}            — era potencial, já não aparece em lado nenhum (eliminado)
+let _calPOTsemColuna = 0; // rondas potenciais que a BD ainda não sabe guardar
+let _calSel = {
+  novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set(),
+  pot: new Set(), potProm: new Set(), potPD: new Set(), potRem: new Set()
+};
 let _calALer = false;
 let _calErro = null;     // {msg, passo, quando, gravado} — fica no ecrã até se fechar
 
@@ -1533,32 +1558,40 @@ async function calSincronizar() {
   }
 }
 
-// Resposta da função → quatro listas de sugestões (jogos em falta, adversários
-// sorteados, datas mudadas, rondas ainda sem adversário)
+// Resposta da função → oito listas de sugestões (jogos em falta, adversários
+// sorteados, datas mudadas, rondas ainda sem adversário, e o mesmo trio para
+// jogos "potenciais": novos, promovidos e a remover por eliminação).
 function calPreparar(d) {
   _calSug = d || {};
   const sugs = Array.isArray(d && d.jogos) ? d.jogos : [];
   const pdSugs = Array.isArray(d && d.porDefinir) ? d.porDefinir : [];
+  const potSugs = Array.isArray(d && d.potenciais) ? d.potenciais : [];
   const hoje = _calHoje();
-  // Os jogos à espera de sorteio ficam de fora do emparelhamento por nome (não
-  // têm nenhum) e entram no seu, logo a seguir.
-  const pendentes = db.jogos.filter(j => j.porDefinir);
-  const map = _calEmparelhar(sugs, db.jogos.filter(j => !j.porDefinir));
-  _calNovos = []; _calDatas = []; _calPD = []; _calPromo = []; _calPDsemColuna = 0;
-  _calSel = { novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set() };
+  // Os jogos à espera de sorteio (por_definir OU potencial) ficam de fora do
+  // emparelhamento por nome (não têm nenhum) e entram no seu, logo a seguir.
+  const pendentes = db.jogos.filter(j => j.porDefinir || j.potencial);
+  const map = _calEmparelhar(sugs, db.jogos.filter(j => !j.porDefinir && !j.potencial));
+  _calNovos = []; _calDatas = []; _calPD = []; _calPromo = [];
+  _calPot = []; _calPotProm = []; _calPotPD = []; _calPotRem = [];
+  _calPDsemColuna = 0; _calPOTsemColuna = 0;
+  _calSel = {
+    novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set(),
+    pot: new Set(), potProm: new Set(), potPD: new Set(), potRem: new Set()
+  };
   const orfas = [];
   sugs.forEach((s, i) => { if (!map.get(i)) orfas.push(i); });
-  const mapPD = _calEmparelharPendentes(sugs, orfas, pendentes);
+  const mapPend = _calEmparelharPendentes(sugs, orfas, pendentes);
   sugs.forEach((s, i) => {
     const j = map.get(i);
     if (!j) {
       // O sorteio saiu: este jogo já cá está, só sem nome. Actualiza-se a linha
       // que existe (o id fica, e com ele os pagamentos que lhe estejam
-      // ligados), nunca se cria outra.
-      const pend = mapPD.get(i);
+      // ligados), nunca se cria outra. Uma linha que ERA potencial vai para a
+      // sua própria lista, só para a UI poder dizer "estava potencial".
+      const pend = mapPend.get(i);
       if (pend) {
-        _calPromo.push({ jogo: pend, sug: s });
-        _calSel.promo.add(_calPromo.length - 1);
+        if (pend.potencial) { _calPotProm.push({ jogo: pend, sug: s }); _calSel.potProm.add(_calPotProm.length - 1); }
+        else { _calPromo.push({ jogo: pend, sug: s }); _calSel.promo.add(_calPromo.length - 1); }
         return;
       }
       // Jogo que falta. Os que já passaram vêm desmarcados: entrar com um jogo
@@ -1579,15 +1612,52 @@ function calPreparar(d) {
      Só entram as que não estão cá de nenhuma forma — por ronda, não por data:
      repetir a J1 da Champions a cada carregada no botão era a maneira mais
      rápida de encher a época de jogos a dobrar. Uma ronda cujo sorteio já saiu
-     veio no array `jogos` e é apanhada acima, não aqui. */
-  const jaLa = new Set(db.jogos.map(j => _calChaveRonda(j.competicao, j.jornada)));
+     veio no array `jogos` e é apanhada acima, não aqui. Uma que ERA potencial
+     e passou a garantida (o Sporting apurou-se) vai para _calPotPD — é a
+     mesma linha, sem se apagar e recriar. */
+  const jaLaGarantido = new Set(db.jogos.filter(j => !j.potencial).map(j => _calChaveRonda(j.competicao, j.jornada)));
+  const potPendentes = db.jogos.filter(j => j.potencial);
+  const potUsados = new Set();
   pdSugs.forEach(s => {
     if (!s || !s.competicao || !s.jornada || !s.data_ini) return;
-    if (jaLa.has(_calChaveRonda(s.competicao, s.jornada))) return;
+    const k = _calChaveRonda(s.competicao, s.jornada);
+    if (jaLaGarantido.has(k)) return;
+    const alvo = potPendentes.find(j => !potUsados.has(j.id) && _calChaveRonda(j.competicao, j.jornada) === k);
+    if (alvo) {
+      potUsados.add(alvo.id);
+      if (!JOGOS_PD) { _calPDsemColuna++; return; }
+      _calPotPD.push({ jogo: alvo, sug: s });
+      _calSel.potPD.add(_calPotPD.length - 1);
+      return;
+    }
     if (!JOGOS_PD) { _calPDsemColuna++; return; }   // falta a migração: ver calRender
     const passado = (s.data_fim || s.data_ini) < hoje;
     _calPD.push({ sug: s, passado });
     if (!passado) _calSel.pd.add(_calPD.length - 1);
+  });
+  /* Rondas condicionais novas (o oposto do por_definir): só as que ainda não
+     estão cá de nenhuma forma — nem como jogo real, nem por_definir, nem já
+     potencial. */
+  const jaLaQualquer = new Set(db.jogos.map(j => _calChaveRonda(j.competicao, j.jornada)));
+  potSugs.forEach(s => {
+    if (!s || !s.competicao || !s.jornada || !s.condicao || !s.data_ini) return;
+    if (jaLaQualquer.has(_calChaveRonda(s.competicao, s.jornada))) return;
+    if (!JOGOS_POT) { _calPOTsemColuna++; return; }
+    const passado = (s.data_fim || s.data_ini) < hoje;
+    _calPot.push({ sug: s, passado });
+    if (!passado) _calSel.pot.add(_calPot.length - 1);
+  });
+  /* Jogos potenciais já gravados que esta leitura já não encontra em lado
+     nenhum (nem jogo real, nem por_definir, nem ainda potencial): o Sporting
+     foi eliminado dessa fase. Sugere-se remover — nunca se apaga sozinho. */
+  const mencionadas = new Set([
+    ...sugs.map(s => _calChaveRonda(s.competicao, s.jornada)),
+    ...pdSugs.map(s => _calChaveRonda(s.competicao, s.jornada)),
+    ...potSugs.map(s => _calChaveRonda(s.competicao, s.jornada)),
+  ]);
+  potPendentes.forEach(j => {
+    if (mencionadas.has(_calChaveRonda(j.competicao, j.jornada))) return;
+    _calPotRem.push({ jogo: j });   // por omissão desmarcado — apagar é destrutivo
   });
   calRender();
   const box = document.getElementById('cal-sync-box');
@@ -1600,19 +1670,27 @@ function calToggle(tipo, i, el) {
   calAtualizarBotao();
 }
 function calTodos(tipo, ligar) {
-  const n = ({ novos: _calNovos, datas: _calDatas, pd: _calPD, promo: _calPromo }[tipo] || []).length;
+  const n = ({
+    novos: _calNovos, datas: _calDatas, pd: _calPD, promo: _calPromo,
+    pot: _calPot, potProm: _calPotProm, potPD: _calPotPD, potRem: _calPotRem
+  }[tipo] || []).length;
   _calSel[tipo] = new Set();
   if (ligar) for (let i = 0; i < n; i++) _calSel[tipo].add(i);
   calRender();
 }
 function calFechar() {
   _calSug = null; _calNovos = []; _calDatas = []; _calPD = []; _calPromo = [];
-  _calPDsemColuna = 0; _calErro = null;
-  _calSel = { novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set() };
+  _calPot = []; _calPotProm = []; _calPotPD = []; _calPotRem = [];
+  _calPDsemColuna = 0; _calPOTsemColuna = 0; _calErro = null;
+  _calSel = {
+    novos: new Set(), datas: new Set(), pd: new Set(), promo: new Set(),
+    pot: new Set(), potProm: new Set(), potPD: new Set(), potRem: new Set()
+  };
   calRender();
 }
 function calAtualizarBotao() {
-  const n = _calSel.novos.size + _calSel.datas.size + _calSel.pd.size + _calSel.promo.size;
+  const n = _calSel.novos.size + _calSel.datas.size + _calSel.pd.size + _calSel.promo.size +
+    _calSel.pot.size + _calSel.potProm.size + _calSel.potPD.size + _calSel.potRem.size;
   const b = document.getElementById('cal-aplicar-btn');
   if (!b) return;
   b.disabled = n === 0;
@@ -1693,6 +1771,79 @@ function _calLinhaData(o, i) {
     </span>
   </label>`;
 }
+// Ronda condicional nova: pode nem chegar a acontecer (depende de vencer a
+// anterior, ou de não ficar no top 8 da Champions) — daí a "condicao" à vista.
+function _calLinhaPot(o, i) {
+  const s = o.sug;
+  const janela = (s.data_fim && s.data_fim !== s.data_ini)
+    ? janelaCurta(s.data_ini, s.data_fim) : _calDataCurta(s.data_ini);
+  const meta = [s.competicao, s.jornada, s.local].filter(Boolean).join(' · ');
+  return `<label class="calsug-row">
+    <input type="checkbox" ${_calSel.pot.has(i) ? 'checked' : ''} onchange="calToggle('pot',${i},this)">
+    <span class="calsug-dt">${_calEsc(janela)}</span>
+    <span class="calsug-info">
+      <span class="calsug-adv pot">Jogo potencial</span>
+      <span class="calsug-sub">
+        <span class="calsug-meta">${_calEsc(meta)}</span>
+        <span class="calsug-tag pot">${_calEsc(s.condicao)}</span>
+        ${o.passado ? '<span class="calsug-tag">já passou</span>' : ''}
+      </span>
+    </span>
+  </label>`;
+}
+// Era potencial, o Sporting apurou-se e já se sabe o adversário: sobe a jogo completo.
+function _calLinhaPotProm(o, i) {
+  const meta = [o.sug.competicao, o.sug.jornada, o.sug.local, o.sug.hora].filter(Boolean).join(' · ');
+  return `<label class="calsug-row">
+    <input type="checkbox" ${_calSel.potProm.has(i) ? 'checked' : ''} onchange="calToggle('potProm',${i},this)">
+    <span class="calsug-dt">${_calEsc(_calDataCurta(o.sug.data))}</span>
+    <span class="calsug-info">
+      <span class="calsug-adv">${_calEsc(o.sug.adversario)}</span>
+      <span class="calsug-sub">
+        <span class="calsug-meta">${_calEsc(meta)}</span>
+        <span class="calsug-tag pot">estava potencial</span>
+      </span>
+    </span>
+  </label>`;
+}
+// Era potencial, o Sporting apurou-se mas o adversário ainda não saiu no
+// sorteio: passa a "por definir" (fica a contar a partir daqui).
+function _calLinhaPotPD(o, i) {
+  const s = o.sug;
+  const janela = (s.data_fim && s.data_fim !== s.data_ini)
+    ? janelaCurta(s.data_ini, s.data_fim) : _calDataCurta(s.data_ini);
+  const meta = [s.competicao, s.jornada, s.local].filter(Boolean).join(' · ');
+  return `<label class="calsug-row">
+    <input type="checkbox" ${_calSel.potPD.has(i) ? 'checked' : ''} onchange="calToggle('potPD',${i},this)">
+    <span class="calsug-dt">${_calEsc(janela)}</span>
+    <span class="calsug-info">
+      <span class="calsug-adv pd">Adversário por definir</span>
+      <span class="calsug-sub">
+        <span class="calsug-meta">${_calEsc(meta)}</span>
+        <span class="calsug-tag pot">estava potencial</span>
+      </span>
+    </span>
+  </label>`;
+}
+// O Sporting foi eliminado dessa fase — a ronda já não aparece em lado
+// nenhum na leitura de agora. Por omissão vem DESMARCADO: apagar é
+// destrutivo, o admin tem de confirmar de propósito.
+function _calLinhaPotRem(o, i) {
+  const j = o.jogo;
+  const janela = (j.dataAte && j.dataAte !== j.data) ? janelaCurta(j.data, j.dataAte) : _calDataCurta(j.data);
+  const meta = [j.competicao, j.jornada].filter(Boolean).join(' · ');
+  return `<label class="calsug-row">
+    <input type="checkbox" ${_calSel.potRem.has(i) ? 'checked' : ''} onchange="calToggle('potRem',${i},this)">
+    <span class="calsug-dt">${_calEsc(janela)}</span>
+    <span class="calsug-info">
+      <span class="calsug-adv pot">${_calEsc(j.condicao || 'Jogo potencial')}</span>
+      <span class="calsug-sub">
+        <span class="calsug-meta">${_calEsc(meta)}</span>
+        <span class="calsug-tag perigo">já não é possível — apagar</span>
+      </span>
+    </span>
+  </label>`;
+}
 
 function calRender() {
   const box = document.getElementById('cal-sync-box');
@@ -1718,7 +1869,8 @@ function calRender() {
   }
   if (!_calSug) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = 'block';
-  if (!_calNovos.length && !_calDatas.length && !_calPD.length && !_calPromo.length) {
+  if (!_calNovos.length && !_calDatas.length && !_calPD.length && !_calPromo.length &&
+      !_calPot.length && !_calPotProm.length && !_calPotPD.length && !_calPotRem.length) {
     box.innerHTML = `<div class="calsug-head">
         <strong>Calendário conferido</strong>
         <button class="calsug-x" onclick="calFechar()" title="Fechar">✕</button>
@@ -1749,6 +1901,15 @@ function calRender() {
       ${_calPromo.map(_calLinhaPromo).join('')}
     </div>`);
   }
+  if (_calPotProm.length) {
+    partes.push(`<div class="calsug-sec">
+      <div class="calsug-sec-hd"><span>Potenciais → já têm adversário (${_calPotProm.length})</span>
+        <span><button class="calsug-link" onclick="calTodos('potProm',true)">todos</button> · <button class="calsug-link" onclick="calTodos('potProm',false)">nenhum</button></span>
+      </div>
+      <p class="calsug-nota">Eram jogos potenciais — o Sporting apurou-se e já se sabe o adversário. Passam a contar para a Previsão.</p>
+      ${_calPotProm.map(_calLinhaPotProm).join('')}
+    </div>`);
+  }
   if (_calDatas.length) {
     partes.push(`<div class="calsug-sec">
       <div class="calsug-sec-hd"><span>Datas diferentes (${_calDatas.length})</span>
@@ -1766,6 +1927,33 @@ function calRender() {
       ${_calPD.map(_calLinhaPD).join('')}
     </div>`);
   }
+  if (_calPotPD.length) {
+    partes.push(`<div class="calsug-sec">
+      <div class="calsug-sec-hd"><span>Potenciais → passam a garantidos (${_calPotPD.length})</span>
+        <span><button class="calsug-link" onclick="calTodos('potPD',true)">todos</button> · <button class="calsug-link" onclick="calTodos('potPD',false)">nenhum</button></span>
+      </div>
+      <p class="calsug-nota">Eram jogos potenciais — o Sporting apurou-se para esta ronda, mas o adversário ainda não saiu no sorteio. Passam a "por definir" e a contar para a Previsão.</p>
+      ${_calPotPD.map(_calLinhaPotPD).join('')}
+    </div>`);
+  }
+  if (_calPot.length) {
+    partes.push(`<div class="calsug-sec">
+      <div class="calsug-sec-hd"><span>Jogos potenciais (${_calPot.length})</span>
+        <span><button class="calsug-link" onclick="calTodos('pot',true)">todos</button> · <button class="calsug-link" onclick="calTodos('pot',false)">nenhum</button></span>
+      </div>
+      <p class="calsug-nota">Rondas que o Sporting só chega a jogar dependendo de um resultado ainda por decidir. Ficam marcadas como "potencial" na listagem e NÃO contam para a Previsão nem para o total de jogos da época, até serem confirmadas.</p>
+      ${_calPot.map(_calLinhaPot).join('')}
+    </div>`);
+  }
+  if (_calPotRem.length) {
+    partes.push(`<div class="calsug-sec">
+      <div class="calsug-sec-hd"><span>Jogos potenciais a remover (${_calPotRem.length})</span>
+        <span><button class="calsug-link" onclick="calTodos('potRem',true)">todos</button> · <button class="calsug-link" onclick="calTodos('potRem',false)">nenhum</button></span>
+      </div>
+      <p class="calsug-nota aviso">O Sporting já não pode chegar a estas rondas (eliminado, ou já fora de causa) — a leitura de agora deixou de as encontrar. Por omissão vêm desmarcadas: confirma antes de apagar.</p>
+      ${_calPotRem.map(_calLinhaPotRem).join('')}
+    </div>`);
+  }
   partes.push(_calAvisoSemColuna());
   partes.push(_calFontesHTML());
   partes.push(`<div class="calsug-acoes">
@@ -1775,12 +1963,19 @@ function calRender() {
   box.innerHTML = partes.join('');
   calAtualizarBotao();
 }
-/* A BD ainda não tem as colunas `por_definir`/`data_ate`: em vez de tentar
-   gravar e falhar com um erro do PostgREST, diz-se o que falta correr. Sem a
-   migração o resto do painel funciona exactamente como antes. */
+/* A BD ainda não tem as colunas `por_definir`/`data_ate` (ou `potencial`/
+   `condicao`): em vez de tentar gravar e falhar com um erro do PostgREST,
+   diz-se o que falta correr. Sem a migração o resto do painel funciona
+   exactamente como antes. */
 function _calAvisoSemColuna() {
-  if (!_calPDsemColuna) return '';
-  return `<p class="calsug-nota aviso">⚠️ ${_calPDsemColuna} ronda${_calPDsemColuna === 1 ? '' : 's'} que o Sporting joga de certeza mas ainda sem adversário sorteado ${_calPDsemColuna === 1 ? 'ficou' : 'ficaram'} de fora: falta correr <code>db/jogos-por-definir.sql</code> no Supabase.</p>`;
+  const partes = [];
+  if (_calPDsemColuna) {
+    partes.push(`⚠️ ${_calPDsemColuna} ronda${_calPDsemColuna === 1 ? '' : 's'} que o Sporting joga de certeza mas ainda sem adversário sorteado ${_calPDsemColuna === 1 ? 'ficou' : 'ficaram'} de fora: falta correr <code>db/jogos-por-definir.sql</code> no Supabase.`);
+  }
+  if (_calPOTsemColuna) {
+    partes.push(`⚠️ ${_calPOTsemColuna} ronda${_calPOTsemColuna === 1 ? '' : 's'} potencial${_calPOTsemColuna === 1 ? '' : 'ais'} ${_calPOTsemColuna === 1 ? 'ficou' : 'ficaram'} de fora: falta correr <code>db/jogos-potenciais.sql</code> no Supabase.`);
+  }
+  return partes.map(p => `<p class="calsug-nota aviso">${p}</p>`).join('');
 }
 function _calFontesHTML() {
   const f = (_calSug && _calSug.fontes) || [];
@@ -1797,10 +1992,16 @@ async function calAplicar() {
   const datas = [..._calSel.datas].sort((a, b) => a - b).map(i => _calDatas[i]).filter(Boolean);
   const pd = [..._calSel.pd].sort((a, b) => a - b).map(i => _calPD[i]).filter(Boolean);
   const promo = [..._calSel.promo].sort((a, b) => a - b).map(i => _calPromo[i]).filter(Boolean);
-  if (!novos.length && !datas.length && !pd.length && !promo.length) return;
+  const pot = [..._calSel.pot].sort((a, b) => a - b).map(i => _calPot[i]).filter(Boolean);
+  const potProm = [..._calSel.potProm].sort((a, b) => a - b).map(i => _calPotProm[i]).filter(Boolean);
+  const potPD = [..._calSel.potPD].sort((a, b) => a - b).map(i => _calPotPD[i]).filter(Boolean);
+  const potRem = [..._calSel.potRem].sort((a, b) => a - b).map(i => _calPotRem[i]).filter(Boolean);
+  if (!novos.length && !datas.length && !pd.length && !promo.length &&
+      !pot.length && !potProm.length && !potPD.length && !potRem.length) return;
   const btn = document.getElementById('cal-aplicar-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ A gravar…'; }
   let criados = 0, corrigidos = 0, erros = 0, criadosPD = 0, promovidos = 0;
+  let criadosPot = 0, potProms = 0, potPDs = 0, potRemovidos = 0;
   try {
     if (novos.length) {
       const linhas = novos.map(o => ({
@@ -1851,6 +2052,31 @@ async function calAplicar() {
         });
       } catch (e) { erros++; toast('Erro ao criar jogos por definir: ' + e.message, 1); }
     }
+    /* Rondas condicionais novas: mesmo formato do "por definir", mas com
+       `potencial=true` e a `condicao` que explica o que falta acontecer. */
+    if (pot.length) {
+      const linhas = pot.map(o => ({
+        epoca_nome: epocaAtiva, data: o.sug.data_ini, adversario: '',
+        competicao: o.sug.competicao || '', jornada: o.sug.jornada || '',
+        local: o.sug.local || null, golos: null, resultado: '',
+        potencial: true, condicao: o.sug.condicao || '',
+        data_ate: (o.sug.data_fim && o.sug.data_fim !== o.sug.data_ini) ? o.sug.data_fim : null
+      }));
+      try {
+        const ins = await sbReq('POST', 'jogos', linhas, { Prefer: 'return=representation' });
+        (ins || []).forEach((row, k) => {
+          const o = linhas[k];
+          db.jogos.push({
+            id: row.id, data: row.data || o.data, adversario: '', golos: null, resultado: '',
+            competicao: row.competicao || o.competicao, jornada: row.jornada || o.jornada,
+            local: row.local || o.local || null, potencial: true,
+            condicao: row.condicao || o.condicao || '', dataAte: row.data_ate || o.data_ate || null
+          });
+          db.pagosPorJogo[String(row.id)] = [];
+          criadosPot++;
+        });
+      } catch (e) { erros++; toast('Erro ao criar jogos potenciais: ' + e.message, 1); }
+    }
     /* Sorteio saiu: actualiza-se a linha que JÁ existe. Nunca apagar e criar
        outra — o id é o que segura os pagamentos e os pedidos já ligados a
        este jogo. Um de cada vez, como as datas. */
@@ -1871,6 +2097,45 @@ async function calAplicar() {
         promovidos++;
       } catch (e) { Object.assign(o.jogo, antes); erros++; }
     }
+    /* Era potencial, já tem adversário sorteado: mesma actualização da linha
+       (id fica), mas limpando também `potencial`/`condicao` — deixa de ser
+       hipotético e passa a contar como qualquer outro jogo. */
+    for (const o of potProm) {
+      const antes = {
+        adversario: o.jogo.adversario, data: o.jogo.data, local: o.jogo.local,
+        jornada: o.jogo.jornada, potencial: o.jogo.potencial, condicao: o.jogo.condicao, dataAte: o.jogo.dataAte
+      };
+      const depois = {
+        adversario: o.sug.adversario, data: o.sug.data,
+        local: o.sug.local || o.jogo.local || 'Casa',
+        jornada: o.sug.jornada || o.jogo.jornada || ''
+      };
+      try {
+        await sbReq('PATCH', `jogos?id=eq.${o.jogo.id}`,
+          Object.assign({}, depois, { potencial: false, condicao: null, data_ate: null }));
+        Object.assign(o.jogo, depois, { potencial: false, condicao: '', dataAte: null });
+        potProms++;
+      } catch (e) { Object.assign(o.jogo, antes); erros++; }
+    }
+    /* Era potencial, o Sporting apurou-se mas o adversário ainda não saiu no
+       sorteio: passa a "por definir" (fica a contar a partir daqui). */
+    for (const o of potPD) {
+      const antes = {
+        data: o.jogo.data, competicao: o.jogo.competicao, jornada: o.jogo.jornada, local: o.jogo.local,
+        potencial: o.jogo.potencial, condicao: o.jogo.condicao, porDefinir: o.jogo.porDefinir, dataAte: o.jogo.dataAte
+      };
+      const depois = {
+        data: o.sug.data_ini, competicao: o.sug.competicao || o.jogo.competicao,
+        jornada: o.sug.jornada || o.jogo.jornada, local: o.sug.local || o.jogo.local || null
+      };
+      const dataAte = (o.sug.data_fim && o.sug.data_fim !== o.sug.data_ini) ? o.sug.data_fim : null;
+      try {
+        await sbReq('PATCH', `jogos?id=eq.${o.jogo.id}`,
+          Object.assign({}, depois, { potencial: false, condicao: null, por_definir: true, data_ate: dataAte }));
+        Object.assign(o.jogo, depois, { potencial: false, condicao: '', porDefinir: true, dataAte });
+        potPDs++;
+      } catch (e) { Object.assign(o.jogo, antes); erros++; }
+    }
     // Uma data de cada vez: se uma falhar, as outras continuam válidas.
     for (const o of datas) {
       const antes = o.jogo.data;
@@ -1880,6 +2145,21 @@ async function calAplicar() {
         corrigidos++;
       } catch (e) { o.jogo.data = antes; erros++; }
     }
+    /* Sporting eliminado dessa fase: apaga-se a linha (é financeiramente
+       inerte, nunca teve pagamentos ligados). Optimista, como remJogo(). */
+    for (const o of potRem) {
+      const antesJogos = db.jogos.slice(), antesPag = db.pagosPorJogo[String(o.jogo.id)];
+      db.jogos = db.jogos.filter(j => j.id !== o.jogo.id);
+      delete db.pagosPorJogo[String(o.jogo.id)];
+      try {
+        await sbReq('DELETE', `jogos?id=eq.${o.jogo.id}`);
+        potRemovidos++;
+      } catch (e) {
+        db.jogos = antesJogos;
+        if (antesPag) db.pagosPorJogo[String(o.jogo.id)] = antesPag;
+        erros++;
+      }
+    }
   } finally {
     calFechar();
     rDash();
@@ -1888,8 +2168,12 @@ async function calAplicar() {
   const p = [];
   if (criados) p.push(`${criados} jogo${criados === 1 ? '' : 's'} adicionado${criados === 1 ? '' : 's'}`);
   if (criadosPD) p.push(`${criadosPD} sem adversário`);
+  if (criadosPot) p.push(`${criadosPot} potencial${criadosPot === 1 ? '' : 'ais'}`);
   if (promovidos) p.push(`${promovidos} adversário${promovidos === 1 ? '' : 's'} preenchido${promovidos === 1 ? '' : 's'}`);
+  if (potProms) p.push(`${potProms} potencial${potProms === 1 ? '' : 'ais'} confirmado${potProms === 1 ? '' : 's'}`);
+  if (potPDs) p.push(`${potPDs} potencial${potPDs === 1 ? '' : 'ais'} apurado${potPDs === 1 ? '' : 's'}`);
   if (corrigidos) p.push(`${corrigidos} data${corrigidos === 1 ? '' : 's'} corrigida${corrigidos === 1 ? '' : 's'}`);
+  if (potRemovidos) p.push(`${potRemovidos} potencial${potRemovidos === 1 ? '' : 'ais'} removido${potRemovidos === 1 ? '' : 's'}`);
   toast(p.length ? '✓ ' + p.join(' · ') + (erros ? ` (${erros} com erro)` : '') : 'Nada gravado', erros && !p.length ? 1 : 0);
 }
 
@@ -2196,12 +2480,17 @@ async function guardarEdicao(){
   // estar por definir e a janela de datas já não interessa.
   const saiuDeporDefinir=!!(j.porDefinir&&novo.adversario&&JOGOS_PD);
   if(saiuDeporDefinir){novo.por_definir=false;novo.data_ate=null;}
+  // O mesmo para um jogo potencial: escrever o adversário à mão confirma-o,
+  // deixa de ser hipotético e passa a contar para a Previsão.
+  const saiuDePotencial=!!(j.potencial&&novo.adversario&&JOGOS_POT);
+  if(saiuDePotencial){novo.potencial=false;novo.condicao=null;novo.data_ate=null;}
   try{
     await sbReq('PATCH',`jogos?id=eq.${j.id}`,novo);
   }catch(e){toast('Erro ao guardar: '+e.message,1);return;}
   const fechouAgora=!j.resultado&&novo.resultado; // 1ª vez que este jogo fica com resultado
   Object.assign(j,novo);
   if(saiuDeporDefinir){delete j.por_definir;delete j.data_ate;j.porDefinir=false;j.dataAte=null;}
+  if(saiuDePotencial){delete j.potencial;delete j.condicao;j.potencial=false;j.condicao='';j.dataAte=null;}
   if(fechouAgora)sbNotificarResultadoJogo(advNome(j),j.resultado,j.golos); // fire-and-forget, não bloqueia UI
   fecharModalEditar();
   // re-render: verificar se estamos no detalhe do jogo (usa style.display, não classes)

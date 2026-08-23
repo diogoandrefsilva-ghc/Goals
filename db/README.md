@@ -63,6 +63,14 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
    pagamento correspondente, sem forma de recuperar pela UI. Idempotente,
    tolerante: sem ela, `aprovarPedidoPagamento()` cai no comportamento antigo
    de duas escritas (o mesmo risco de antes, mas nada parte).
+10. `jogos-potenciais.sql` — opcional: as colunas `potencial`/`condicao` em
+    `goals.jogos`, o oposto do `jogos-por-definir.sql` — rondas que o Sporting
+    só chega a jogar SE vencer a anterior ou SE não ficar no top 8 da fase de
+    liga da Champions (play-off de acesso aos oitavos, quartos/meias/final da
+    Taça de Portugal e da Taça da Liga). Ficam de fora da Previsão e do total
+    de jogos da época enquanto `potencial=true`. Idempotente, tolerante: sem
+    ela essa secção do painel de sugestões diz que falta correr o ficheiro e
+    nada mais muda.
 
 ## Passos manuais (fora do SQL Editor)
 

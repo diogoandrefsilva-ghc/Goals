@@ -10,7 +10,7 @@
 // só prompt e uma só resposta para manter, e o SplitBill nunca fica com uma
 // visão diferente da do Goals.
 //
-// A resposta tem DOIS arrays:
+// A resposta tem TRÊS arrays:
 //   · `jogos`      — jogos com adversário conhecido (o que sempre houve)
 //   · `porDefinir` — rondas que o Sporting VAI jogar de certeza mas cujo
 //                    adversário ainda não está sorteado (fase de liga da
@@ -20,6 +20,13 @@
 //                    exactamente o mesmo que via antes. Só entram aqui rondas
 //                    com presença GARANTIDA: nada que dependa de ganhar a
 //                    eliminatória anterior ou da classificação final.
+//   · `potenciais` — o OPOSTO de `porDefinir`: rondas que o Sporting só chega
+//                    a jogar SE vencer a anterior ou SE não ficar entre os 8
+//                    primeiros da fase de liga da Champions (play-off de
+//                    acesso aos oitavos, quartos/meias/final da Taça de
+//                    Portugal e da Taça da Liga). Também aditivo — só o Goals
+//                    usa isto, para mostrar esses jogos marcados como
+//                    "potenciais" na listagem sem contarem para a época.
 //
 // É irmã da `fatura-restaurante` do SplitBill (mesmo projeto Supabase, mesmo
 // padrão de descoberta de modelo e de fallback), mas com duas diferenças
@@ -173,7 +180,10 @@ Devolve APENAS um objeto JSON com esta forma exata:
   "jornada": string|null, "estadio": string|null, "confirmado": true|false}],
  "porDefinir": [{"competicao": string, "jornada": string,
   "data_ini": "YYYY-MM-DD", "data_fim": "YYYY-MM-DD",
-  "local": "Casa"|"Fora"|"Neutro"|null, "certeza": "garantida"}]}
+  "local": "Casa"|"Fora"|"Neutro"|null, "certeza": "garantida"}],
+ "potenciais": [{"competicao": string, "jornada": string, "condicao": string,
+  "data_ini": "YYYY-MM-DD", "data_fim": "YYYY-MM-DD",
+  "local": "Casa"|"Fora"|"Neutro"|null}]}
 
 Regras:
 - "adversario": só o clube adversário, na forma curta usada em Portugal
@@ -214,7 +224,28 @@ cujo adversário ainda não está sorteado:
   liga, "4.ª eliminatória" na Taça). Sem isto a entrada é deitada fora.
 - "local": "Casa"/"Fora" só se já se souber; null antes do sorteio.
 - NÃO repitas aqui nada que já tenha ido para "jogos".
-- Se não houver nenhuma ronda nestas condições, devolve "porDefinir": [].${conhecidos.length ? `
+- Se não houver nenhuma ronda nestas condições, devolve "porDefinir": [].
+
+Sobre "potenciais" — o OPOSTO de "porDefinir": rondas que o Sporting só
+chega a jogar SE vencer a anterior ou SE não ficar entre os 8 primeiros da
+fase de liga da Champions:
+- Inclui: o play-off de acesso aos oitavos da Liga dos Campeões (só se o
+  Sporting ainda não estiver garantido nos oitavos), e as eliminatórias da
+  Taça de Portugal e da Taça da Liga posteriores à primeira em que o
+  Sporting entra (só se ainda dependerem de vencer a ronda anterior).
+- "condicao": frase curta e clara do que falta acontecer ("se ficar fora do
+  top 8 da fase de liga", "se vencer os oitavos-de-final").
+- "data_ini"/"data_fim": a janela oficial já publicada para essa fase da
+  prova (o calendário da competição costuma sair no início da época, mesmo
+  que o jogo em si dependa de resultado). Se não houver NENHUMA data
+  publicada para essa fase, NÃO incluas a entrada — mais vale faltar do que
+  inventar uma janela.
+- "jornada": obrigatório e identifica a fase ("Play-off", "Oitavos-de-final",
+  "Quartos-de-final", "Meia-final", "Final"). Sem isto a entrada é deitada
+  fora.
+- "local": null — ainda não se sabe.
+- NÃO repitas aqui nada que já tenha ido para "jogos" ou "porDefinir".
+- Se não houver nenhuma fase nestas condições, devolve "potenciais": [].${conhecidos.length ? `
 - Se o adversário for um destes clubes já usados na app, copia EXATAMENTE a
   grafia da lista em vez de escrever uma nova:
 ${conhecidos.map((n) => `  · ${n}`).join("\n")}` : ""}
@@ -333,6 +364,56 @@ function normalizarPorDefinir(
     const local = ["Casa", "Fora", "Neutro"].includes(item.local) ? item.local : null;
     out.push({ competicao, jornada, data_ini: ini, data_fim: fim, local, certeza: "garantida" });
     if (out.length >= 20) break;   // uma época não tem mais rondas garantidas que isto
+  }
+  out.sort((a, b) => String(a.data_ini).localeCompare(String(b.data_ini)));
+  return out;
+}
+
+/* Mesma limpeza que `normalizarPorDefinir`, para as rondas que dependem de um
+   resultado ainda por decidir. Não exige `certeza` (o oposto: isto É
+   condicional, de propósito), mas exige `condicao` — sem ela a linha na app
+   ficaria sem explicar porque está lá. Mesmas regras de colisão com `jogos` e
+   `porDefinir`, e o mesmo tecto de 20 entradas. */
+function normalizarPotenciais(
+  raw: unknown,
+  epoca: string,
+  jogos: Record<string, unknown>[],
+  porDefinir: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  if (!Array.isArray(raw)) return [];
+  const j = janelaEpoca(epoca);
+  const chave = (c: unknown, jn: unknown) =>
+    `${String(c ?? "").toLowerCase().trim()}|${
+      String(jn ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")
+    }`;
+  const vistos = new Set([
+    ...jogos.map((g) => chave(g.competicao, g.jornada)),
+    ...porDefinir.map((g) => chave(g.competicao, g.jornada)),
+  ]);
+  const out: Record<string, unknown>[] = [];
+  for (const item of raw as any[]) {
+    if (!item || typeof item !== "object") continue;
+    const competicao = COMPETICOES.includes(item.competicao) ? item.competicao : null;
+    if (!competicao) continue;
+    const jornada = String(item.jornada ?? "").replace(/\s+/g, " ").trim().slice(0, 24);
+    if (!jornada) continue;
+    const condicao = String(item.condicao ?? "").replace(/\s+/g, " ").trim().slice(0, 140);
+    if (!condicao) continue;
+    const ini = String(item.data_ini ?? "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ini)) continue;
+    if (isNaN(new Date(`${ini}T12:00:00Z`).getTime())) continue;
+    if (j && (ini < j.ini || ini > j.fim)) continue;
+    let fim = String(item.data_fim ?? "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fim) || fim < ini) fim = ini;
+    const dias = (new Date(`${fim}T12:00:00Z`).getTime() -
+      new Date(`${ini}T12:00:00Z`).getTime()) / 86400000;
+    if (!isFinite(dias) || dias > 21) fim = ini;
+    const k = chave(competicao, jornada);
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    const local = ["Casa", "Fora", "Neutro"].includes(item.local) ? item.local : null;
+    out.push({ competicao, jornada, condicao, data_ini: ini, data_fim: fim, local });
+    if (out.length >= 20) break;
   }
   out.sort((a, b) => String(a.data_ini).localeCompare(String(b.data_ini)));
   return out;
@@ -524,6 +605,7 @@ Deno.serve(async (req) => {
     }
     const jogos = normalizarJogos(parsed.jogos, epoca);
     const porDefinir = normalizarPorDefinir(parsed.porDefinir, epoca, jogos);
+    const potenciais = normalizarPotenciais(parsed.potenciais, epoca, jogos, porDefinir);
     if (!jogos.length) {
       await registar("erro", {
         passo: "vazio", modelo: model, pesquisa: comPesquisa, epoca,
@@ -542,17 +624,18 @@ Deno.serve(async (req) => {
     });
     console.log(
       "CALENDARIO jogos:", jogos.length, "porDefinir:", porDefinir.length,
-      "pesquisa:", comPesquisa, "fontes:", fontes.length,
+      "potenciais:", potenciais.length, "pesquisa:", comPesquisa, "fontes:", fontes.length,
     );
     await registar("ok", {
       epoca, jogos: jogos.length, por_definir: porDefinir.length,
-      modelo: model, pesquisa: comPesquisa,
+      potenciais: potenciais.length, modelo: model, pesquisa: comPesquisa,
       fontes: fontes.map((f) => f.url).slice(0, 8),
     }, quem, qualApp);
     return json({
       epoca,
       jogos,
       porDefinir,
+      potenciais,
       pesquisa: comPesquisa,
       fontes: fontes.slice(0, 8),
       modelo: model,
