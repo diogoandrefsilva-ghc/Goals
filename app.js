@@ -1943,6 +1943,11 @@ async function aprovarPedidoPagamento(id){
   });
   renderPedidosPagamentoAdmin();rDash();renderJogosList();
   toast('Pedido aprovado ✓');
+  if(p.criadoPorEmail){
+    const am=db.amigos.find(a=>a.id===p.amigoId);
+    const nomes=p.jogoIds.map(jid=>{const j=db.jogos.find(x=>x.id===jid);return j?`vs ${j.adversario}`:null;}).filter(Boolean).join(', ');
+    sbNotificarPagamentoAprovado(p.criadoPorEmail,am?am.nome:'',p.valor,nomes); // fire-and-forget, não bloqueia UI
+  }
 }
 async function rejeitarPedidoPagamento(id){
   if(!isAdmin())return;
@@ -3591,9 +3596,10 @@ async function migrarDadosAntigos(){
 
 /* ── NOTIFICAÇÕES PUSH (Web Push, sem Telegram) ──────────────────────────
    Ativado por conta+dispositivo em Definições (pushAtivar/pushDesativar,
-   tabela push_subscriptions — migração db/push-subscriptions.sql). Três
+   tabela push_subscriptions — migração db/push-subscriptions.sql). Quatro
    momentos avisam a Edge Function push-notificar-goals: pedido de acesso
-   (admin), pagamento declarado (admin) e resultado de jogo fechado (todos).
+   (admin), pagamento declarado (admin), pagamento aprovado (só o amigo que
+   pediu) e resultado de jogo fechado (todos).
    Sem a migração (PUSH_COL=false) os controlos escondem-se e a chamada não
    sai. */
 
@@ -3757,6 +3763,15 @@ function sbNotificarPagamentoDeclarado(amigo,valor,jogos){
 // via roGuard) — a Edge Function confirma isso do lado do servidor também.
 function sbNotificarResultadoJogo(adversario,resultado,golos){
   sbEnviarPush({tipo:'resultado_jogo',adversario,resultado,golos});
+}
+
+// 4) Avisa só o amigo que fez o pedido quando o admin aprova o pagamento
+// dele. `email` é o criadoPorEmail do pedido (guardado na própria linha em
+// pedidos_pagamento). Só o admin dispara isto (aprovarPedidoPagamento() já
+// é admin-only via isAdmin()) — a Edge Function confirma isso do lado do
+// servidor também.
+function sbNotificarPagamentoAprovado(email,amigo,valor,jogos){
+  sbEnviarPush({tipo:'pagamento_aprovado',email,amigo,valor,jogos});
 }
 
 /* ── LOGOS DOS ADVERSÁRIOS ─────────────────── */

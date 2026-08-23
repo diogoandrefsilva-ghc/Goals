@@ -42,7 +42,7 @@ type Sub = { endpoint: string; email: string; p256dh: string; auth_key: string }
 type Pendente = {
   id: number;
   tipo: string;
-  audiencia: "admin" | "todos";
+  audiencia: "admin" | "todos" | "amigo";
   payload: Record<string, unknown>;
   tentativas: number;
 };
@@ -128,7 +128,12 @@ Deno.serve(async (req) => {
   const pendentes = await buscarPendentes();
   let reenviados = 0;
   for (const p of pendentes) {
-    const subs = p.audiencia === "todos" ? await todasAsSubscricoes() : await subscriptionsDe([ADMIN_EMAIL]);
+    const subs =
+      p.audiencia === "todos"
+        ? await todasAsSubscricoes()
+        : p.audiencia === "amigo"
+          ? await subscriptionsDe([String(p.payload?.emailAlvo || "")].filter(Boolean))
+          : await subscriptionsDe([ADMIN_EMAIL]);
     const enviados = await enviarParaSubs(subs, JSON.stringify(p.payload));
     if (enviados > 0) reenviados++;
     await marcarTentativa(p.id, enviados > 0, p.tentativas);

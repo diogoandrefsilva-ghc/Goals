@@ -13,9 +13,11 @@
 -- QUEM ENVIA: a Edge Function `push-notificar-goals` (service role, bypassa
 -- RLS). Nome diferente do `push-notificar` do SplitBill de propósito — vivem
 -- no MESMO projeto Supabase, cada Edge Function precisa de um slug único.
--- Três momentos, todos chamados pela app:
+-- Quatro momentos, todos chamados pela app:
 --   'pedido_acesso'       sbSolicitarAcesso() → avisa o admin
 --   'pagamento_declarado' submeterPedidoPagamento() → avisa o admin
+--   'pagamento_aprovado'  aprovarPedidoPagamento() → avisa só o amigo que
+--                          fez o pedido
 --   'resultado_jogo'      guardarEdicao() → avisa TODOS os subscritos
 --
 -- Sem esta migração a app funciona à mesma: PUSH_COL fica false, o botão
