@@ -1,4 +1,4 @@
-const CACHE_NAME = 'app-cache-v23';
+const CACHE_NAME = 'app-cache-v24';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -54,9 +54,9 @@ self.addEventListener('fetch', (e) => {
     );
 });
 
-// Notificações push (pedido de acesso / pagamento declarado / resultado de
-// jogo fechado) — a Edge Function push-notificar-goals manda um payload
-// {title, body, url}; aqui só se mostra a notificação.
+// Notificações push (pedido de acesso / pagamento declarado / pagamento
+// aprovado / resultado de jogo fechado) — a Edge Function push-notificar-
+// goals manda um payload {title, body, url}; aqui só se mostra a notificação.
 self.addEventListener('push', (e) => {
     let data = { title: 'Goals', body: 'Tens uma novidade na app.', url: '/Goals/' };
     try { Object.assign(data, e.data.json()); } catch (err) { /* payload vazio ou não-JSON */ }

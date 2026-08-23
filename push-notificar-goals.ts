@@ -1,12 +1,15 @@
 // supabase/functions/push-notificar-goals/index.ts
 // Goals — Envia notificações Web Push (Notification/Push API, sem Telegram).
-// Três momentos, todos chamados pela app:
+// Quatro momentos, todos chamados pela app:
 //   'pedido_acesso'       sbSolicitarAcesso() → avisa o ADMIN_EMAIL quando
 //                          alguém pede acesso à app pela primeira vez
 //                          (fire-and-forget)
 //   'pagamento_declarado' submeterPedidoPagamento() → avisa o ADMIN_EMAIL
 //                          quando um amigo diz que já pagou um conjunto de
 //                          jogos (fire-and-forget)
+//   'pagamento_aprovado'  aprovarPedidoPagamento() → avisa só o amigo que
+//                          fez o pedido, quando o admin o aprova
+//                          (fire-and-forget)
 //   'resultado_jogo'      guardarEdicao() → avisa TODOS os dispositivos
 //                          subscritos quando o resultado de um jogo fecha
 //                          pela primeira vez (fire-and-forget)
@@ -15,10 +18,13 @@
 // MESMO projeto Supabase (gjweqwfbnkgnibhajldc), cada Edge Function precisa
 // de um slug único no projeto — não é specific ao schema.
 //
-// 'pagamento_declarado' e 'resultado_jogo' vão sempre para o admin (é quem
-// gere o pote/pagamentos no Goals — não há um "pagador" por evento como no
-// SplitBill). 'resultado_jogo' é o único tipo que sai para todos os
-// subscritos, e só o admin o pode disparar (só o admin fecha jogos).
+// 'pagamento_declarado' vai sempre para o admin (é quem gere o pote/
+// pagamentos no Goals — não há um "pagador" por evento como no SplitBill).
+// 'pagamento_aprovado' é o inverso: sai do admin para UM amigo específico
+// (quem fez o pedido). 'resultado_jogo' é o único tipo que sai para todos os
+// subscritos. 'pagamento_aprovado' e 'resultado_jogo' só podem ser
+// disparados pelo admin — a Edge Function confirma isso do lado do servidor,
+// não confia só no `isAdmin()`/roGuard() da UI.
 //
 // Chamada pelo browser com o JWT do utilizador (verify_jwt fica LIGADO no
 // deploy). Por cima disso confirma-se que o email consta de
@@ -188,7 +194,7 @@ async function enviarParaSubs(subs: Sub[], payload: string) {
   return { enviados, falhados };
 }
 
-type Audiencia = "admin" | "todos";
+type Audiencia = "admin" | "todos" | "amigo";
 
 // Regista a intenção de notificar ANTES de tentar enviar — é o que permite
 // à push-retry-goals reencaminhar isto mais tarde se o envio falhar agora.
@@ -223,7 +229,7 @@ async function marcarEnviado(id: number | null) {
   }).catch(() => {});
 }
 
-type Tipo = "pedido_acesso" | "pagamento_declarado" | "resultado_jogo";
+type Tipo = "pedido_acesso" | "pagamento_declarado" | "pagamento_aprovado" | "resultado_jogo";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -276,6 +282,25 @@ Deno.serve(async (req) => {
       };
       const notifId = await registarNotificacao(tipo, "admin", payload);
       const subs = await subscriptionsDe([ADMIN_EMAIL]);
+      const res = await enviarParaSubs(subs, JSON.stringify(payload));
+      if (res.enviados > 0) await marcarEnviado(notifId);
+      return json(res);
+    }
+
+    if (tipo === "pagamento_aprovado") {
+      // só o admin aprova pedidos — se chegar aqui de outra conta, ignora-se
+      if (emailChamador !== ADMIN_EMAIL) return json({ error: "não autorizado" }, 403);
+      const emailAlvo = (email || "").toLowerCase();
+      if (!emailAlvo) return json({ enviados: 0, falhados: 0 });
+      const val = (Number(valor) || 0).toFixed(2);
+      const payload = {
+        title: "✅ Pagamento confirmado",
+        body: `O admin confirmou o teu pagamento de ${jogos || "uns jogos"} — €${val}`,
+        url: "/Goals/",
+        emailAlvo,
+      };
+      const notifId = await registarNotificacao(tipo, "amigo", payload);
+      const subs = await subscriptionsDe([emailAlvo]);
       const res = await enviarParaSubs(subs, JSON.stringify(payload));
       if (res.enviados > 0) await marcarEnviado(notifId);
       return json(res);
