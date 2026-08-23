@@ -233,16 +233,27 @@ fase de liga da Champions:
   Sporting ainda não estiver garantido nos oitavos), e as eliminatórias da
   Taça de Portugal e da Taça da Liga posteriores à primeira em que o
   Sporting entra (só se ainda dependerem de vencer a ronda anterior).
+- IDA E VOLTA: no formato atual da Liga dos Campeões, o play-off e as
+  eliminatórias até às MEIAS-FINAIS (inclusive) são a DUAS MÃOS — dois jogos
+  distintos, cada um com o seu próprio resultado e a sua própria dívida no
+  pote. Para cada uma dessas fases mete DUAS entradas em "potenciais", uma
+  para "1.ª mão" e outra para "2.ª mão" (mesma "condicao" nas duas, datas
+  diferentes). A FINAL da Liga dos Campeões é jogo único (jogo-só, sem
+  "mão"). Na Taça de Portugal e na Taça da Liga TODAS as eliminatórias são
+  jogo único, incluindo a final — nunca dupliques essas.
 - "condicao": frase curta e clara do que falta acontecer ("se ficar fora do
   top 8 da fase de liga", "se vencer os oitavos-de-final").
 - "data_ini"/"data_fim": a janela oficial já publicada para essa fase da
   prova (o calendário da competição costuma sair no início da época, mesmo
-  que o jogo em si dependa de resultado). Se não houver NENHUMA data
-  publicada para essa fase, NÃO incluas a entrada — mais vale faltar do que
-  inventar uma janela.
-- "jornada": obrigatório e identifica a fase ("Play-off", "Oitavos-de-final",
-  "Quartos-de-final", "Meia-final", "Final"). Sem isto a entrada é deitada
-  fora.
+  que o jogo em si dependa de resultado). Numa fase a duas mãos, cada mão
+  tem a sua própria janela (a 2.ª mão costuma ser cerca de uma semana depois
+  da 1.ª). Se não houver NENHUMA data publicada para essa fase, NÃO incluas
+  a entrada — mais vale faltar do que inventar uma janela.
+- "jornada": obrigatório e identifica a fase. Na Taça de Portugal e na Taça
+  da Liga, um destes: "Play-off", "Oitavos-de-final", "Quartos-de-final",
+  "Meia-final", "Final". Na Liga dos Campeões, para as fases a duas mãos,
+  acrescenta a mão ("Play-off · 1.ª mão", "Oitavos-de-final · 2.ª mão", …);
+  "Final" fica sozinho, sem mão. Sem "jornada" a entrada é deitada fora.
 - "local": null — ainda não se sabe.
 - NÃO repitas aqui nada que já tenha ido para "jogos" ou "porDefinir".
 - Se não houver nenhuma fase nestas condições, devolve "potenciais": [].${conhecidos.length ? `
