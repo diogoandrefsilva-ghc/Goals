@@ -243,12 +243,19 @@ fase de liga da Champions:
   jogo único, incluindo a final — nunca dupliques essas.
 - "condicao": frase curta e clara do que falta acontecer ("se ficar fora do
   top 8 da fase de liga", "se vencer os oitavos-de-final").
-- "data_ini"/"data_fim": a janela oficial já publicada para essa fase da
-  prova (o calendário da competição costuma sair no início da época, mesmo
-  que o jogo em si dependa de resultado). Numa fase a duas mãos, cada mão
+- "data_ini"/"data_fim": na Liga dos Campeões a UEFA publica logo no início
+  da época o calendário completo da fase a eliminar (mesmo antes de se saber
+  quem a disputa) — usa essa janela oficial. Numa fase a duas mãos, cada mão
   tem a sua própria janela (a 2.ª mão costuma ser cerca de uma semana depois
-  da 1.ª). Se não houver NENHUMA data publicada para essa fase, NÃO incluas
-  a entrada — mais vale faltar do que inventar uma janela.
+  da 1.ª).
+  NA TAÇA DE PORTUGAL E NA TAÇA DA LIGA A FPF/LIGA PORTUGAL RARAMENTE
+  PUBLICA A DATA DE OITAVOS/QUARTOS/MEIAS/FINAL COM MESES DE ANTECEDÊNCIA —
+  só costuma fixar-se poucas semanas antes de a ronda anterior acabar. NÃO
+  deixes essas fases de fora só por não haver ainda data oficial: pesquisa
+  em que mês/quinzena essa fase caiu nas últimas 1-2 edições da prova e usa
+  isso como estimativa (janela mais larga, p.ex. um mês inteiro, para
+  refletir a incerteza). Só omites a entrada se não conseguires sequer uma
+  estimativa razoável (nunca aconteceu antes, prova nova, etc.).
 - "jornada": obrigatório e identifica a fase. Na Taça de Portugal e na Taça
   da Liga, um destes: "Play-off", "Oitavos-de-final", "Quartos-de-final",
   "Meia-final", "Final". Na Liga dos Campeões, para as fases a duas mãos,
@@ -384,7 +391,12 @@ function normalizarPorDefinir(
    resultado ainda por decidir. Não exige `certeza` (o oposto: isto É
    condicional, de propósito), mas exige `condicao` — sem ela a linha na app
    ficaria sem explicar porque está lá. Mesmas regras de colisão com `jogos` e
-   `porDefinir`, e o mesmo tecto de 20 entradas. */
+   `porDefinir`, e o mesmo tecto de 20 entradas.
+   A janela aqui é mais LARGA que a do `por_definir` (45 dias em vez de 21):
+   na Liga dos Campeões a data é oficial e certa, mas na Taça de Portugal e na
+   Taça da Liga o modelo está muitas vezes a ESTIMAR pelo padrão de edições
+   anteriores (ver prompt) — apertar demais a janela cortava a estimativa a
+   direito e fazia parecer mais certa do que é. */
 function normalizarPotenciais(
   raw: unknown,
   epoca: string,
@@ -418,7 +430,7 @@ function normalizarPotenciais(
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fim) || fim < ini) fim = ini;
     const dias = (new Date(`${fim}T12:00:00Z`).getTime() -
       new Date(`${ini}T12:00:00Z`).getTime()) / 86400000;
-    if (!isFinite(dias) || dias > 21) fim = ini;
+    if (!isFinite(dias) || dias > 45) fim = ini;
     const k = chave(competicao, jornada);
     if (vistos.has(k)) continue;
     vistos.add(k);
