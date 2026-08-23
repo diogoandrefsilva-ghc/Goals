@@ -1107,8 +1107,8 @@ function renderJogosList(){
   if(filtro)jogos=jogos.filter(j=>j.competicao===filtro);
   if(filtroLocal)jogos=jogos.filter(j=>j.local===filtroLocal);
   document.getElementById('j-list').innerHTML=jogos.length?jogos.map(j=>jogoCardHTML(j)).join(''):'<div class="empty"><em>⚽</em>Sem jogos</div>';
-  const mini=document.getElementById('j-restantes-mini');
-  if(mini)mini.textContent=restantesTxt();
+  const mini=document.getElementById('j-total-mini');
+  if(mini)mini.textContent=`${jogos.length} jogo${jogos.length===1?'':'s'}`;
 }
 
 let _lastViewedJogoId=null;
