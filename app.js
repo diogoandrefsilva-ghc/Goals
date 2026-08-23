@@ -1927,14 +1927,16 @@ async function aprovarPedidoPagamento(id){
   if(!isAdmin())return;
   const p=(db.pedidosPagamento||[]).find(x=>x.id===id);if(!p)return;
   try{
-    // marca primeiro, lança depois — uma falha a meio deixa o pedido pendente,
-    // nunca dinheiro lançado sem o pedido saber (mesma ordem do aprovarPagPend do FestasBV)
-    const upd=await sbReq('PATCH',`pedidos_pagamento?id=eq.${id}&estado=eq.pendente`,
-      {estado:'aprovado',decidido_por:_sbSession.user.email,decidido_em:new Date().toISOString()},
-      {Prefer:'return=representation'});
-    if(!upd||!upd.length){toast('Este pedido já tinha sido decidido.',1);renderPedidosPagamentoAdmin();return;}
-    if(p.jogoIds.length)await sbReq('POST','pagos_jogo',p.jogoIds.map(jogo_id=>({jogo_id,amigo_id:p.amigoId})),{Prefer:'resolution=merge-duplicates'});
-  }catch(e){toast('Erro ao aprovar: '+e.message,1);return;}
+    // marcar 'aprovado' e lançar pagos_jogo é UM RPC só (goals.aprovar_pedido_pagamento),
+    // numa transação: uma queda de rede a meio não deixa o pedido aprovado sem o
+    // pagamento correspondente (bug real: pedido do Alverca do João Hélder, 2026-08-23)
+    await sbReq('POST','rpc/aprovar_pedido_pagamento',{p_id:id});
+  }catch(e){
+    const m=String(e&&e.message||e);
+    if(/já tinha sido decidido/i.test(m)){toast(m,1);renderPedidosPagamentoAdmin();return;}
+    if(/PGRST202|could not find|does not exist|404/i.test(m)){toast('Falta correr o db/aprovar_pedido_pagamento.sql no SQL Editor do Supabase.',1);return;}
+    toast('Erro ao aprovar: '+m,1);return;
+  }
   p.estado='aprovado';
   p.jogoIds.forEach(jogoId=>{
     const k=String(jogoId);

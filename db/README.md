@@ -56,6 +56,13 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
    ela essa secção do painel de sugestões diz que falta correr o ficheiro e
    nada mais muda. **Numa BD limpa não é preciso** — as colunas já vão no
    `schema.sql`; isto é só para as BD que já existiam antes.
+9. `aprovar_pedido_pagamento.sql` — recomendado: `goals.aprovar_pedido_pagamento`,
+   que junta numa função só (uma transação) marcar o pedido como aprovado e
+   lançar o pagamento em `pagos_jogo` — antes eram dois pedidos HTTP
+   separados, e uma queda de rede a meio deixava o pedido "aprovado" sem o
+   pagamento correspondente, sem forma de recuperar pela UI. Idempotente,
+   tolerante: sem ela, `aprovarPedidoPagamento()` cai no comportamento antigo
+   de duas escritas (o mesmo risco de antes, mas nada parte).
 
 ## Passos manuais (fora do SQL Editor)
 
@@ -135,6 +142,10 @@ telefone/WhatsApp, e a pessoa entra e troca-a em Definições › Conta
   Push (dispositivo ↔ conta) e a outbox+retry do que falhar a enviar.
   Opcionais, tolerantes. Ver `push-notificar-goals.ts` e
   `push-retry-goals.ts` na raiz do repo.
+- **aprovar_pedido_pagamento.sql** — `goals.aprovar_pedido_pagamento(id)`:
+  marcar `aprovado` + lançar `pagos_jogo` numa única transação, para uma
+  falha de rede a meio não deixar as duas escritas dessincronizadas.
+  Recomendado, tolerante.
 
 ## Modelo de permissões
 
