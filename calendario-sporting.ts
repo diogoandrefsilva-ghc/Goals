@@ -243,19 +243,22 @@ fase de liga da Champions:
   jogo único, incluindo a final — nunca dupliques essas.
 - "condicao": frase curta e clara do que falta acontecer ("se ficar fora do
   top 8 da fase de liga", "se vencer os oitavos-de-final").
-- "data_ini"/"data_fim": na Liga dos Campeões a UEFA publica logo no início
-  da época o calendário completo da fase a eliminar (mesmo antes de se saber
-  quem a disputa) — usa essa janela oficial. Numa fase a duas mãos, cada mão
-  tem a sua própria janela (a 2.ª mão costuma ser cerca de uma semana depois
-  da 1.ª).
-  NA TAÇA DE PORTUGAL E NA TAÇA DA LIGA A FPF/LIGA PORTUGAL RARAMENTE
-  PUBLICA A DATA DE OITAVOS/QUARTOS/MEIAS/FINAL COM MESES DE ANTECEDÊNCIA —
-  só costuma fixar-se poucas semanas antes de a ronda anterior acabar. NÃO
-  deixes essas fases de fora só por não haver ainda data oficial: pesquisa
-  em que mês/quinzena essa fase caiu nas últimas 1-2 edições da prova e usa
-  isso como estimativa (janela mais larga, p.ex. um mês inteiro, para
-  refletir a incerteza). Só omites a entrada se não conseguires sequer uma
-  estimativa razoável (nunca aconteceu antes, prova nova, etc.).
+- "data_ini"/"data_fim": tanto a UEFA (Liga dos Campeões) como a FPF/Liga
+  Portugal (Taça de Portugal, Taça da Liga) publicam logo no início da época
+  um comunicado com o calendário COMPLETO da prova — incluindo as datas de
+  oitavos/quartos/meias/final — mesmo antes de se saber que clubes as
+  disputam. Na FPF isto costuma sair numa notícia com um título do género
+  "Calendário completo conhecido" (fpf.pt), com um PDF/link "calendário
+  completo" em anexo. PROCURA esse comunicado da época em causa e usa as
+  datas oficiais de lá — não assumas que não existem só porque a ronda ainda
+  está longe. Numa fase a duas mãos (Champions), cada mão tem a sua própria
+  janela (a 2.ª mão costuma ser cerca de uma semana depois da 1.ª); nas
+  meias-finais da Taça de Portugal e da Taça da Liga, aviso: são jogo
+  ÚNICO em campo neutro, não a duas mãos. Só se mesmo assim não encontrares
+  nenhuma data oficial para essa fase (ex.: comunicado da época ainda não
+  saiu) é que estimas pelo padrão das últimas 1-2 edições da prova, com uma
+  janela mais larga para refletir a incerteza — e nunca por isso deixas a
+  fase de fora.
 - "jornada": obrigatório e identifica a fase. Na Taça de Portugal e na Taça
   da Liga, um destes: "Play-off", "Oitavos-de-final", "Quartos-de-final",
   "Meia-final", "Final". Na Liga dos Campeões, para as fases a duas mãos,
@@ -393,10 +396,11 @@ function normalizarPorDefinir(
    ficaria sem explicar porque está lá. Mesmas regras de colisão com `jogos` e
    `porDefinir`, e o mesmo tecto de 20 entradas.
    A janela aqui é mais LARGA que a do `por_definir` (45 dias em vez de 21):
-   na Liga dos Campeões a data é oficial e certa, mas na Taça de Portugal e na
-   Taça da Liga o modelo está muitas vezes a ESTIMAR pelo padrão de edições
-   anteriores (ver prompt) — apertar demais a janela cortava a estimativa a
-   direito e fazia parecer mais certa do que é. */
+   o normal é a data vir do comunicado oficial da época (UEFA ou FPF/Liga
+   Portugal, ver prompt), tão certa como um `por_definir`; a janela larga é
+   só para o caso raro de esse comunicado ainda não ter saído e o modelo
+   estimar pelo padrão de edições anteriores — apertar demais cortava essa
+   estimativa a direito e fazia-a parecer mais certa do que é. */
 function normalizarPotenciais(
   raw: unknown,
   epoca: string,
