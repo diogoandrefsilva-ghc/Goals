@@ -276,8 +276,8 @@ Deno.serve(async (req) => {
     if (tipo === "pagamento_declarado") {
       const val = (Number(valor) || 0).toFixed(2);
       const payload = {
-        title: "✅ Pagamento declarado",
-        body: `${amigo || "Alguém"} diz que já pagou ${jogos || "uns jogos"} — €${val} — confirma na app`,
+        title: "Pagamento declarado",
+        body: `${amigo || "Alguém"} diz que já pagou ${jogos || "uns jogos"} — €${val}`,
         url: "/Goals/",
       };
       const notifId = await registarNotificacao(tipo, "admin", payload);
@@ -294,8 +294,8 @@ Deno.serve(async (req) => {
       if (!emailAlvo) return json({ enviados: 0, falhados: 0 });
       const val = (Number(valor) || 0).toFixed(2);
       const payload = {
-        title: "✅ Pagamento confirmado",
-        body: `O admin confirmou o teu pagamento de ${jogos || "uns jogos"} — €${val}`,
+        title: "Pagamento confirmado",
+        body: `Diogo confirma que já pagaste ${jogos || "uns jogos"} — €${val}`,
         url: "/Goals/",
         emailAlvo,
       };
