@@ -3686,6 +3686,10 @@ async function sbEntrarComoConvidado(){
   try{
     await carregarConvidado();
   }catch(e){toast('Erro a carregar dados: '+e.message,1);}
+  // Normalmente é rResumo() que actualiza a label — o convidado nunca passa
+  // pelo Resumo (vai direto para Jogos), por isso teria de ficar com o texto
+  // estático do index.html ("Época 2025/26") em vez da época real.
+  atualizarLabelEpoca();
   const btnJogos=document.querySelector('#s-dash > .itabs .it[onclick*="itab(\'jogos\'"]');
   if(btnJogos)itab('jogos',btnJogos,'dash');
   if(window.glEsconderSplash)window.glEsconderSplash();
