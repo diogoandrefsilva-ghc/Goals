@@ -146,6 +146,58 @@ tbody tr:hover{background:#fafaf8}
 .jdel{background:none;border:none;color:#ccc;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:6px;transition:all .1s;flex-shrink:0}
 .jdel:hover{color:var(--dg);background:var(--dgp)}
 
+/* CALENDÁRIO DOS JOGOS — vista alternativa à lista (setJView(), app.js) */
+.cal-mes{margin-bottom:26px}
+.cal-mes-tit{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--vd);letter-spacing:.3px;margin-bottom:9px}
+.cal-mes-tit small{font-family:'Inter',sans-serif;font-size:11px;color:var(--mu);font-weight:500;margin-left:6px}
+.cal-semana-cab{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.cal-semana-cab span{display:block;text-align:center;font-size:9.5px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.3px}
+.cal-grelha{display:grid;grid-template-columns:repeat(7,1fr);gap:5px 4px}
+.cal-dia{min-height:80px;border:1.5px solid var(--bo);border-radius:9px;background:var(--card);padding:4px 2px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.cal-dia.cal-pad{visibility:hidden}
+/* jogos por definir/potenciais entram aqui, mesmo tratamento visual que
+   .jcard-pot já dá à lista — dia sem jogo fica esbatido de propósito, para
+   os dias com jogo saltarem mais à vista. */
+.cal-dia.cal-vazio{opacity:.4}
+.cal-daybadge{position:absolute;top:-7px;left:-7px;width:18px;height:18px;border-radius:50%;background:var(--card);border:1.5px solid var(--bo);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:10.5px;color:var(--tx);box-shadow:0 1px 2px rgba(0,0,0,.15);z-index:2}
+.cal-cf{position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:10px;box-shadow:0 1px 2px rgba(0,0,0,.2);z-index:2}
+.cal-cf.cf-casa{background:#c8a415}
+.cal-cf.cf-fora{background:#e65100}
+.cal-cf.cf-neutro{background:#1565c0}
+.cal-simbolos{position:relative;width:27px;height:31px;flex-shrink:0}
+.cal-crest{width:27px;height:31px;display:flex;align-items:center;justify-content:center;background:#ddd;clip-path:polygon(50% 0%,100% 16%,100% 64%,50% 100%,0% 64%,0% 16%);filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.25))}
+.cal-crest img{width:100%;height:100%;object-fit:cover}
+.cal-compbadge{position:absolute;bottom:-3px;right:-5px;width:14px;height:14px;border-radius:4px;background:#fff;border:1px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:1.5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.cal-compbadge img{width:100%;height:100%;object-fit:contain}
+.cal-componly{width:20px;height:20px;border-radius:5px;background:#fff;border:1px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:2px}
+.cal-componly img{width:100%;height:100%;object-fit:contain}
+.cal-potlbl{font-size:6.6px;font-weight:700;color:var(--mu);text-align:center;letter-spacing:.2px;line-height:1.25;padding:0 1px}
+.cal-res{text-align:center}
+.cal-score{font-family:'Bebas Neue',sans-serif;font-size:14px;line-height:1;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:baseline;gap:3px;min-width:32px;justify-content:center}
+.cal-score .cal-tr{font-size:10px;color:rgba(255,255,255,.55)}
+.cal-score .cal-a{color:rgba(255,255,255,.75)}
+.cal-score .cal-s{color:var(--ou)}
+.cal-golos{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--vd)}
+.cal-tbd{font-size:15px;color:#b3afa4;font-weight:700;line-height:1}
+/* rebordo = resultado (não casa/fora, que já vai no selo .cal-cf) */
+.cal-dia.cal-win{border-color:var(--vd);background:var(--vdp)}
+.cal-dia.cal-win .cal-daybadge{border-color:var(--vd)}
+.cal-dia.cal-win .cal-score{background:#045c40}
+.cal-dia.cal-draw{border-color:var(--ou);background:var(--oup)}
+.cal-dia.cal-draw .cal-daybadge{border-color:var(--ou)}
+.cal-dia.cal-draw .cal-score{background:#e6a700}
+.cal-dia.cal-draw .cal-score .cal-s{color:var(--vd)}
+.cal-dia.cal-draw .cal-score .cal-a{color:rgba(255,255,255,.9)}
+.cal-dia.cal-loss{border-color:var(--dg);background:var(--dgp)}
+.cal-dia.cal-loss .cal-daybadge{border-color:var(--dg)}
+.cal-dia.cal-loss .cal-score{background:#c62828}
+.cal-dia.cal-jogado{border-color:var(--vd)}
+.cal-dia.cal-jogado .cal-daybadge{border-color:var(--vd)}
+.cal-dia.cal-fut{border-color:var(--tx)}
+.cal-dia.cal-fut .cal-daybadge{border-color:var(--tx)}
+.cal-dia.cal-pot{border-style:dashed;border-color:#d2cfc6;background:#eceae4}
+.cal-dia.cal-pot .cal-daybadge{border-color:#d2cfc6;color:var(--mu)}
+
 /* DETALHE JOGO */
 .jogo-detalhe{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:20px 22px;margin-bottom:16px}
 .jd-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px}

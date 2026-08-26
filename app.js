@@ -1352,13 +1352,37 @@ function _aplicarOrdemPadraoSeMudouEpoca(){
   document.getElementById('f-ord-asc')?.classList.toggle('on',ordemJogos==='asc');
 }
 
+// 'lista' ou 'calendario' — persistido como sg_epoca/sg_tab, mesmo padrão.
+let jViewMode='lista';
+try{const v=localStorage.getItem('sg_jview');if(v==='calendario')jViewMode=v;}catch(e){}
+// Reflecte jViewMode nos botões/painéis — o HTML estático assume sempre
+// "lista" por omissão, por isso rJogos() também chama isto ao abrir o
+// separador (não só setJView(), quando o utilizador clica no toggle).
+function _sincJView(){
+  document.getElementById('jv-lista')?.classList.toggle('on',jViewMode==='lista');
+  document.getElementById('jv-cal')?.classList.toggle('on',jViewMode==='calendario');
+  document.getElementById('j-list').style.display=jViewMode==='lista'?'block':'none';
+  document.getElementById('j-calendario').style.display=jViewMode==='calendario'?'block':'none';
+  // a ordem ↑↓ não faz sentido no calendário — é sempre cronológico
+  const sg=document.getElementById('f-ord-desc')?.closest('.sortgrp');
+  if(sg)sg.style.display=jViewMode==='calendario'?'none':'inline-flex';
+}
+function setJView(v){
+  jViewMode=v;
+  try{localStorage.setItem('sg_jview',v);}catch(e){}
+  _sincJView();
+  renderJogosList();
+  requestAnimationFrame(_scrollJogosParaVista);
+}
+
 function renderJogosList(){
   const filtro=document.getElementById('f-comp').value;
   const filtroLocal=document.getElementById('f-local').value;
   let jogos=[...db.jogos].sort((a,b)=>ordemJogos==='asc'?new Date(a.data)-new Date(b.data):new Date(b.data)-new Date(a.data));
   if(filtro)jogos=jogos.filter(j=>j.competicao===filtro);
   if(filtroLocal)jogos=jogos.filter(j=>j.local===filtroLocal);
-  document.getElementById('j-list').innerHTML=jogos.length?jogos.map(j=>jogoCardHTML(j)).join(''):'<div class="empty"><em>⚽</em>Sem jogos</div>';
+  if(jViewMode==='calendario')renderCalendario(jogos);
+  else document.getElementById('j-list').innerHTML=jogos.length?jogos.map(j=>jogoCardHTML(j)).join(''):'<div class="empty"><em>⚽</em>Sem jogos</div>';
   const mini=document.getElementById('j-total-mini');
   if(mini){
     const nPot=jogos.filter(j=>j.potencial).length;
@@ -1367,6 +1391,114 @@ function renderJogosList(){
       ?`${jogos.length} jogos (${nConf} confirmado${nConf===1?'':'s'} + ${nPot} ${nPot===1?'potencial':'potenciais'})`
       :`${jogos.length} jogo${jogos.length===1?'':'s'}`;
   }
+}
+
+/* ── VISTA DE CALENDÁRIO ─────────────────────────
+   Recebe o mesmo array já filtrado/ordenado de renderJogosList() — a ordem
+   não importa aqui (a grelha é sempre cronológica), só os filtros de
+   competição/local. Um mês por bloco, de janeiro a dezembro dentro do
+   intervalo mínimo↔máximo das datas presentes (incluindo `dataAte` dos
+   jogos por-definir/potenciais), para a época aparecer contínua ao
+   scrollar — mesmo que um filtro deixe meses "vazios" pelo meio. */
+const MESES_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DIAS_SEM_PT=['2ª','3ª','4ª','5ª','6ª','Sáb','Dom'];
+function renderCalendario(jogos){
+  const cont=document.getElementById('j-calendario');
+  if(!jogos.length){cont.innerHTML='<div class="empty"><em>⚽</em>Sem jogos</div>';return;}
+  const confirmados=jogos.filter(j=>!j.porDefinir&&!j.potencial);
+  const janelas=jogos.filter(j=>j.porDefinir||j.potencial);
+  const datas=[...confirmados.map(j=>j.data)];
+  janelas.forEach(j=>{datas.push(j.data);if(j.dataAte)datas.push(j.dataAte);});
+  datas.sort();
+  let [ano,mes]=datas[0].split('-').map(Number);
+  const [anoFim,mesFim]=datas[datas.length-1].split('-').map(Number);
+  let html='';
+  while(ano<anoFim||(ano===anoFim&&mes<=mesFim)){
+    html+=_mesCalendarioHTML(ano,mes,confirmados,janelas);
+    mes++;if(mes>12){mes=1;ano++;}
+  }
+  cont.innerHTML=html;
+}
+function _mesCalendarioHTML(ano,mes,confirmados,janelas){
+  const offset=(new Date(ano,mes-1,1).getDay()+6)%7; // 0=segunda
+  const numDias=new Date(ano,mes,0).getDate();
+  let cels='';
+  for(let i=0;i<offset;i++)cels+='<div class="cal-dia cal-pad"></div>';
+  for(let d=1;d<=numDias;d++){
+    const dataStr=`${ano}-${String(mes).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const exato=confirmados.find(j=>j.data===dataStr);
+    if(exato){cels+=_diaJogoCalHTML(d,exato);continue;}
+    const jan=janelas.find(j=>dataStr>=j.data&&dataStr<=(j.dataAte||j.data));
+    cels+=jan?_diaJanelaCalHTML(d,jan):_diaVazioCalHTML(d);
+  }
+  const trailing=(7-((offset+numDias)%7))%7;
+  for(let i=0;i<trailing;i++)cels+='<div class="cal-dia cal-pad"></div>';
+  return`<div class="cal-mes" data-ym="${ano}-${String(mes).padStart(2,'0')}">
+    <div class="cal-mes-tit">${MESES_PT[mes-1]}<small>${ano}</small></div>
+    <div class="cal-semana-cab">${DIAS_SEM_PT.map(s=>`<span>${s}</span>`).join('')}</div>
+    <div class="cal-grelha">${cels}</div>
+  </div>`;
+}
+// resultado → estado visual da célula. Sem `resultado` (dados antigos, só
+// `golos`) cai num estado neutro "jogado", mostrando os golos em vez do
+// marcador — mesma tolerância que jogoCardHTML já tem para esse caso.
+function _estadoCalDia(j){
+  if(j.golos===null||j.golos===undefined||j.golos==='')return{estado:'fut'};
+  if(j.resultado){
+    const p=j.resultado.split('-').map(s=>parseInt(s.trim()));
+    if(p.length===2&&!isNaN(p[0])&&!isNaN(p[1])){
+      const gS=j.local==='Fora'?p[1]:p[0],gA=j.local==='Fora'?p[0]:p[1];
+      return{estado:gS>gA?'win':gS===gA?'draw':'loss',p,sIdx:j.local==='Fora'?1:0};
+    }
+  }
+  return{estado:'jogado',golos:gJ(j)};
+}
+function _diaJogoCalHTML(d,j){
+  const est=_estadoCalDia(j);
+  const cfLetra=j.local==='Casa'?'C':j.local==='Fora'?'F':'N';
+  const cfClasse=j.local==='Casa'?'cf-casa':j.local==='Fora'?'cf-fora':'cf-neutro';
+  const compSrc=COMP_LOGOS[j.competicao];
+  const logo=logoAdv(j.adversario);
+  let resHTML;
+  if(est.estado==='fut')resHTML='<div class="cal-res"><span class="cal-tbd">—</span></div>';
+  else if(est.estado==='jogado')resHTML=`<div class="cal-res"><span class="cal-golos">${est.golos}g</span></div>`;
+  else{
+    const cls=i=>i===est.sIdx?'cal-s':'cal-a';
+    resHTML=`<div class="cal-res"><span class="cal-score"><span class="${cls(0)}">${est.p[0]}</span><span class="cal-tr">-</span><span class="${cls(1)}">${est.p[1]}</span></span></div>`;
+  }
+  return`<div class="cal-dia cal-${est.estado}" onclick="abrirDetalhe(${j.id})">
+    <span class="cal-daybadge">${String(d).padStart(2,'0')}</span>
+    <span class="cal-cf ${cfClasse}">${cfLetra}</span>
+    <div class="cal-simbolos"><span class="cal-crest">${logo?`<img src="${logo}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}</span>${compSrc?`<span class="cal-compbadge"><img src="${compSrc}" alt="${j.competicao}" loading="lazy" onerror="this.style.display='none'"></span>`:''}</div>
+    ${resHTML}
+  </div>`;
+}
+// Um jogo por-definir/potencial abrange vários dias (`data` a `dataAte`) —
+// o mesmo aviso aparece em todos, não só no primeiro, para não parecer que
+// só esse dia é que está em aberto.
+function _diaJanelaCalHTML(d,j){
+  const compSrc=COMP_LOGOS[j.competicao];
+  const label=[j.competicao,j.jornada].filter(Boolean).join(' · ');
+  return`<div class="cal-dia cal-pot" onclick="abrirDetalhe(${j.id})">
+    <span class="cal-daybadge">${String(d).padStart(2,'0')}</span>
+    ${compSrc?`<div class="cal-componly"><img src="${compSrc}" alt="${j.competicao}" loading="lazy" onerror="this.style.display='none'"></div>`:''}
+    <div class="cal-potlbl">${label}</div>
+  </div>`;
+}
+function _diaVazioCalHTML(d){
+  return`<div class="cal-dia cal-vazio"><span class="cal-daybadge">${String(d).padStart(2,'0')}</span></div>`;
+}
+function scrollMesAtualParaVista(){
+  const meses=[...document.querySelectorAll('.cal-mes')];
+  if(!meses.length)return;
+  const hojeYM=new Date().toISOString().slice(0,7);
+  const alvo=meses.find(m=>m.dataset.ym>=hojeYM)||meses[meses.length-1];
+  const r=alvo.getBoundingClientRect();
+  if(r.top<0||r.top>window.innerHeight*.3)_scrollSuaveAte(alvo,{block:'start'});
+}
+function _scrollJogosParaVista(){
+  if(jViewMode==='calendario')scrollMesAtualParaVista();
+  else if(ordemJogos==='asc')scrollJogoMaisRecenteParaVista();
 }
 
 let _lastViewedJogoId=null;
@@ -1589,6 +1721,7 @@ function rJogos(){
   if(document.getElementById('cal-data'))document.getElementById('cal-data').value=hoje;
   document.getElementById('t-jlista').style.display='block';
   document.getElementById('t-jdetalhe').style.display='none';
+  _sincJView();
   _aplicarOrdemPadraoSeMudouEpoca();
   renderJogosList();
   // Começar sempre do topo (1º jogo da época) em vez de herdar a posição de
@@ -1597,7 +1730,7 @@ function rJogos(){
   // instantâneo e a partir de um ponto de partida imprevisível (o separador
   // anterior, ou a época anterior), o que dava um ar tosco à transição.
   (document.scrollingElement||document.documentElement).scrollTop=0;
-  if(ordemJogos==='asc')requestAnimationFrame(scrollJogoMaisRecenteParaVista);
+  requestAnimationFrame(_scrollJogosParaVista);
 }
 function scrollJogoMaisRecenteParaVista(){
   const cards=[...document.querySelectorAll('#j-list .jcard')];

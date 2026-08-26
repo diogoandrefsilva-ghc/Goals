@@ -173,6 +173,10 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
     <!-- lista -->
     <div id="t-jlista" style="display:block">
       <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:13px">
+        <div class="sortgrp" style="align-self:flex-start">
+          <button id="jv-lista" class="sbtn on" onclick="setJView('lista')">Lista</button>
+          <button id="jv-cal" class="sbtn" onclick="setJView('calendario')">Calendário</button>
+        </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap">
           <select id="f-comp" onchange="renderJogosList()" style="min-width:100px;max-width:180px"><option value="">Todas competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
           <select id="f-local" onchange="renderJogosList()" style="min-width:72px;max-width:120px"><option value="">Local</option><option value="Casa">Casa</option><option value="Fora">Fora</option><option value="Neutro">Neutro</option></select>
@@ -186,6 +190,7 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
         </div>
       </div>
       <div id="j-list"></div>
+      <div id="j-calendario" style="display:none"></div>
     </div>
     <!-- detalhe jogo (oculto por defeito) -->
     <div id="t-jdetalhe" style="display:none">
