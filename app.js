@@ -1459,17 +1459,18 @@ function _diaJogoCalHTML(d,j){
   const cfClasse=j.local==='Casa'?'cf-casa':j.local==='Fora'?'cf-fora':'cf-neutro';
   const compSrc=COMP_LOGOS[j.competicao];
   const logo=logoAdv(j.adversario);
-  let resHTML;
-  if(est.estado==='fut')resHTML='<div class="cal-res"><span class="cal-tbd">—</span></div>';
-  else if(est.estado==='jogado')resHTML=`<div class="cal-res"><span class="cal-golos">${est.golos}g</span></div>`;
-  else{
+  // Sem resultado ainda: nenhum traço a fingir de marcador — o brasão fica
+  // sozinho no bloco flex e a centragem vertical da célula trata do resto.
+  let resHTML='';
+  if(est.estado==='jogado')resHTML=`<div class="cal-res"><span class="cal-golos">${est.golos}g</span></div>`;
+  else if(est.estado!=='fut'){
     const cls=i=>i===est.sIdx?'cal-s':'cal-a';
     resHTML=`<div class="cal-res"><span class="cal-score"><span class="${cls(0)}">${est.p[0]}</span><span class="cal-tr">-</span><span class="${cls(1)}">${est.p[1]}</span></span></div>`;
   }
   return`<div class="cal-dia cal-${est.estado}" onclick="abrirDetalhe(${j.id})">
     <span class="cal-daybadge">${String(d).padStart(2,'0')}</span>
-    <span class="cal-cf ${cfClasse}">${cfLetra}</span>
-    <div class="cal-simbolos"><span class="cal-crest">${logo?`<img src="${logo}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}</span>${compSrc?`<span class="cal-compbadge"><img src="${compSrc}" alt="${j.competicao}" loading="lazy" onerror="this.style.display='none'"></span>`:''}</div>
+    ${compSrc?`<span class="cal-compcorner"><img src="${compSrc}" alt="${j.competicao}" loading="lazy" onerror="this.style.display='none'"></span>`:''}
+    <div class="cal-simbolos"><span class="cal-crest">${logo?`<img src="${logo}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}</span><span class="cal-cfmini ${cfClasse}">${cfLetra}</span></div>
     ${resHTML}
   </div>`;
 }

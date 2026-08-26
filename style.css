@@ -155,6 +155,9 @@ tbody tr:hover{background:#fafaf8}
 .cal-grelha{display:grid;grid-template-columns:repeat(7,1fr);gap:5px 4px}
 .cal-dia{min-height:80px;border:1.5px solid var(--bo);border-radius:9px;background:var(--card);padding:4px 2px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
 .cal-dia.cal-pad{visibility:hidden}
+/* jogo/janela: mais folga em cima do que embaixo — desce o brasão e o
+   resultado, que é onde está a informação que interessa. */
+.cal-dia.cal-win,.cal-dia.cal-draw,.cal-dia.cal-loss,.cal-dia.cal-jogado,.cal-dia.cal-fut,.cal-dia.cal-pot{padding-top:15px}
 /* jogos por definir/potenciais entram aqui, mesmo tratamento visual que
    .jcard-pot já dá à lista — dia sem jogo fica esbatido de propósito, para
    os dias com jogo saltarem mais à vista. */
@@ -163,17 +166,19 @@ tbody tr:hover{background:#fafaf8}
    mockups) — a -7px o selo direito ficava meio em cima do dia seguinte,
    o espaço entre células é só de 4-5px. */
 .cal-daybadge{position:absolute;top:-7px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--card);border:1.5px solid var(--bo);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:10.5px;color:var(--tx);box-shadow:0 1px 2px rgba(0,0,0,.15);z-index:2}
-.cal-cf{position:absolute;top:-7px;right:2px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:10px;box-shadow:0 1px 2px rgba(0,0,0,.2);z-index:2}
-.cal-cf.cf-casa{background:#c8a415}
-.cal-cf.cf-fora{background:#e65100}
-.cal-cf.cf-neutro{background:#1565c0}
+/* selo da competição — canto direito, maior (é o que precisava de mais
+   destaque); o casa/fora passa para um selo pequeno sobre o brasão. */
+.cal-compcorner{position:absolute;top:-8px;right:1px;width:21px;height:21px;border-radius:50%;background:#fff;border:1.5px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:3px;box-shadow:0 1px 2px rgba(0,0,0,.18);z-index:2}
+.cal-compcorner img{width:100%;height:100%;object-fit:contain}
 .cal-simbolos{position:relative;width:27px;height:31px;flex-shrink:0}
 /* símbolo do adversário tal e qual — mesmo tratamento do .jlogo da lista,
    sem cortar (nada de clip-path em forma de escudo) */
 .cal-crest{width:27px;height:31px;display:flex;align-items:center;justify-content:center}
 .cal-crest img{max-width:100%;max-height:100%;object-fit:contain}
-.cal-compbadge{position:absolute;bottom:-3px;right:-5px;width:14px;height:14px;border-radius:4px;background:#fff;border:1px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:1.5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
-.cal-compbadge img{width:100%;height:100%;object-fit:contain}
+.cal-cfmini{position:absolute;bottom:-3px;right:-5px;width:15px;height:15px;border-radius:50%;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:9px;box-shadow:0 1px 2px rgba(0,0,0,.2);z-index:2}
+.cal-cfmini.cf-casa{background:#c8a415}
+.cal-cfmini.cf-fora{background:#e65100}
+.cal-cfmini.cf-neutro{background:#1565c0}
 .cal-componly{width:20px;height:20px;border-radius:5px;background:#fff;border:1px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:2px}
 .cal-componly img{width:100%;height:100%;object-fit:contain}
 .cal-potlbl{font-size:6.6px;font-weight:700;color:var(--mu);text-align:center;letter-spacing:.2px;line-height:1.25;padding:0 1px}
@@ -183,8 +188,7 @@ tbody tr:hover{background:#fafaf8}
 .cal-score .cal-a{color:rgba(255,255,255,.75)}
 .cal-score .cal-s{color:var(--ou)}
 .cal-golos{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--vd)}
-.cal-tbd{font-size:15px;color:#b3afa4;font-weight:700;line-height:1}
-/* rebordo = resultado (não casa/fora, que já vai no selo .cal-cf) */
+/* rebordo = resultado (não casa/fora, que já vai no .cal-cfmini) */
 .cal-dia.cal-win{border-color:var(--vd);background:var(--vdp)}
 .cal-dia.cal-win .cal-daybadge{border-color:var(--vd)}
 .cal-dia.cal-win .cal-score{background:#045c40}
