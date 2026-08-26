@@ -1528,8 +1528,12 @@ function rJogos(){
   document.getElementById('t-jlista').style.display='block';
   document.getElementById('t-jdetalhe').style.display='none';
   renderJogosList();
-  // Em ordem ascendente o jogo mais recente fica no fim da lista — se não
-  // couber no ecrã, traz-lo já para a vista em vez de obrigar a scroll manual.
+  // Começar sempre do topo (1º jogo da época) em vez de herdar a posição de
+  // scroll de onde a página estava — só depois, se aplicável, desliza
+  // suavemente até ao jogo mais próximo da data actual. Sem isto o salto era
+  // instantâneo e a partir de um ponto de partida imprevisível (o separador
+  // anterior, ou a época anterior), o que dava um ar tosco à transição.
+  (document.scrollingElement||document.documentElement).scrollTop=0;
   if(ordemJogos==='asc')requestAnimationFrame(scrollJogoMaisRecenteParaVista);
 }
 function scrollJogoMaisRecenteParaVista(){
@@ -1540,7 +1544,7 @@ function scrollJogoMaisRecenteParaVista(){
   // da época todo, que pode estar agendado para daqui a meses.
   const alvo=cards.find(c=>c.dataset.futuro==='1')||cards[cards.length-1];
   const r=alvo.getBoundingClientRect();
-  if(r.top<0||r.bottom>window.innerHeight)alvo.scrollIntoView({block:'center'});
+  if(r.top<0||r.bottom>window.innerHeight)alvo.scrollIntoView({block:'center',behavior:'smooth'});
 }
 
 /* ── SINCRONIZAR CALENDÁRIO (Edge Function `calendario-sporting` + Gemini) ──
