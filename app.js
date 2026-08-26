@@ -1364,7 +1364,7 @@ function voltarLista(){
       const cards=document.querySelectorAll('#j-list .jcard');
       for(const card of cards){
         if(card.getAttribute('onclick')&&card.getAttribute('onclick').includes(_lastViewedJogoId)){
-          card.scrollIntoView({block:'center',behavior:'smooth'});
+          _scrollSuaveAte(card,{block:'center'});
           // Piscar brevemente para destacar o jogo
           card.style.transition='box-shadow .2s,border-color .2s';
           card.style.borderColor='var(--vd)';
@@ -1522,6 +1522,28 @@ async function desmarcarTodos(jogoId){
   toast('Todos desmarcados');
 }
 
+/* O scroll suave nativo (scrollIntoView({behavior:'smooth'})) tem a duração
+   que o browser quiser — normalmente rápida demais para se perceber bem o
+   "salto" entre jogos. Esta versão anima com uma duração fixa e mais lenta,
+   para ficar visivelmente mais calma. */
+function _scrollSuaveAte(el,{duration=900,block='center'}={}){
+  const scroller=document.scrollingElement||document.documentElement;
+  const startY=scroller.scrollTop;
+  const rect=el.getBoundingClientRect();
+  const offset=block==='center'?(window.innerHeight/2-rect.height/2):0;
+  const targetY=startY+rect.top-offset;
+  const distancia=targetY-startY;
+  if(Math.abs(distancia)<1)return;
+  const t0=performance.now();
+  function passo(agora){
+    const p=Math.min((agora-t0)/duration,1);
+    const suave=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2; // ease-in-out
+    scroller.scrollTop=startY+distancia*suave;
+    if(p<1)requestAnimationFrame(passo);
+  }
+  requestAnimationFrame(passo);
+}
+
 function rJogos(){
   const hoje=new Date().toISOString().split('T')[0];
   if(document.getElementById('cal-data'))document.getElementById('cal-data').value=hoje;
@@ -1544,7 +1566,7 @@ function scrollJogoMaisRecenteParaVista(){
   // da época todo, que pode estar agendado para daqui a meses.
   const alvo=cards.find(c=>c.dataset.futuro==='1')||cards[cards.length-1];
   const r=alvo.getBoundingClientRect();
-  if(r.top<0||r.bottom>window.innerHeight)alvo.scrollIntoView({block:'center',behavior:'smooth'});
+  if(r.top<0||r.bottom>window.innerHeight)_scrollSuaveAte(alvo,{block:'center'});
 }
 
 /* ── SINCRONIZAR CALENDÁRIO (Edge Function `calendario-sporting` + Gemini) ──
@@ -4533,6 +4555,24 @@ function ajustarHdrH(){
   window.addEventListener('orientationchange',ajustarHdrH);
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(ajustarHdrH).catch(()=>{});
   ajustarHdrH();
+})();
+
+/* A .itabs passou a bottom-nav fixa (ver style.css); o .wrap precisa de
+   padding-bottom do tamanho real dela (varia com env(safe-area-inset-bottom)
+   no iOS) para o conteúdo não ficar tapado por trás. Mesmo padrão do --hdr-h. */
+function ajustarBotNavH(){
+  const b=document.querySelector('.itabs');
+  if(!b)return;
+  const alt=Math.round(b.getBoundingClientRect().height);
+  if(alt>0)document.documentElement.style.setProperty('--botnav-h',alt+'px');
+}
+(function(){
+  const b=document.querySelector('.itabs');
+  if(b&&window.ResizeObserver)new ResizeObserver(ajustarBotNavH).observe(b);
+  window.addEventListener('resize',ajustarBotNavH);
+  window.addEventListener('orientationchange',ajustarBotNavH);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(ajustarBotNavH).catch(()=>{});
+  ajustarBotNavH();
 })();
 
 /* ── INIT ──────────────────────────────────── */
