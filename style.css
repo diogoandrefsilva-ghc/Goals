@@ -159,14 +159,19 @@ tbody tr:hover{background:#fafaf8}
    .jcard-pot já dá à lista — dia sem jogo fica esbatido de propósito, para
    os dias com jogo saltarem mais à vista. */
 .cal-dia.cal-vazio{opacity:.4}
-.cal-daybadge{position:absolute;top:-7px;left:-7px;width:18px;height:18px;border-radius:50%;background:var(--card);border:1.5px solid var(--bo);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:10.5px;color:var(--tx);box-shadow:0 1px 2px rgba(0,0,0,.15);z-index:2}
-.cal-cf{position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:10px;box-shadow:0 1px 2px rgba(0,0,0,.2);z-index:2}
+/* pousados 2px dentro da própria célula (não a -7px como o ①②③④ dos
+   mockups) — a -7px o selo direito ficava meio em cima do dia seguinte,
+   o espaço entre células é só de 4-5px. */
+.cal-daybadge{position:absolute;top:-7px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--card);border:1.5px solid var(--bo);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:10.5px;color:var(--tx);box-shadow:0 1px 2px rgba(0,0,0,.15);z-index:2}
+.cal-cf{position:absolute;top:-7px;right:2px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:10px;box-shadow:0 1px 2px rgba(0,0,0,.2);z-index:2}
 .cal-cf.cf-casa{background:#c8a415}
 .cal-cf.cf-fora{background:#e65100}
 .cal-cf.cf-neutro{background:#1565c0}
 .cal-simbolos{position:relative;width:27px;height:31px;flex-shrink:0}
-.cal-crest{width:27px;height:31px;display:flex;align-items:center;justify-content:center;background:#ddd;clip-path:polygon(50% 0%,100% 16%,100% 64%,50% 100%,0% 64%,0% 16%);filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.25))}
-.cal-crest img{width:100%;height:100%;object-fit:cover}
+/* símbolo do adversário tal e qual — mesmo tratamento do .jlogo da lista,
+   sem cortar (nada de clip-path em forma de escudo) */
+.cal-crest{width:27px;height:31px;display:flex;align-items:center;justify-content:center}
+.cal-crest img{max-width:100%;max-height:100%;object-fit:contain}
 .cal-compbadge{position:absolute;bottom:-3px;right:-5px;width:14px;height:14px;border-radius:4px;background:#fff;border:1px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:1.5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .cal-compbadge img{width:100%;height:100%;object-fit:contain}
 .cal-componly{width:20px;height:20px;border-radius:5px;background:#fff;border:1px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:2px}
@@ -263,6 +268,9 @@ input:focus,select:focus{border-color:var(--vd)}
 .sbtn+.sbtn{border-left:1px solid var(--bo)}
 .sbtn:hover{color:var(--tx)}
 .sbtn.on{background:var(--vd);color:#fff}
+/* toggle lista/calendário — junta-se aos filtros na mesma linha (sem
+   scroll horizontal), por isso mais compacto que o .sbtn normal */
+.sbtn.sbtn-sm{padding:6px 8px;font-size:11px}
 
 /* MODO CARDS */
 .modo-card{background:var(--card);border:2px solid var(--bo);border-radius:var(--r);padding:20px 18px;cursor:pointer;transition:all .2s;text-align:center}
