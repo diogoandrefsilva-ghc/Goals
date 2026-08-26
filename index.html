@@ -191,6 +191,10 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
       </div>
       <div id="j-list"></div>
       <div id="j-calendario" style="display:none"></div>
+      <!-- popup rápido ao tocar num dia do calendário (abrirPopupJogo(), app.js) -->
+      <div id="cal-popup" class="cal-popup" style="display:none" onclick="if(event.target===this)fecharPopupJogo()">
+        <div class="cal-popup-card" id="cal-popup-card"></div>
+      </div>
     </div>
     <!-- detalhe jogo (oculto por defeito) -->
     <div id="t-jdetalhe" style="display:none">

@@ -1217,6 +1217,14 @@ const COMP_LOGOS={
   'Taça da Liga':'logos-competicoes/taca-da-liga.png',
   'Supertaça':'logos-competicoes/supertaca.png'
 };
+// Selo redondo do calendário (.cal-compcorner, CSS): estes três PNG têm bem
+// mais margem transparente à volta do brasão do que os da Champions/
+// Supertaça, por isso ficam a mais pequenos ali dentro sem um zoom extra.
+const COMP_ESCALA_CAL={
+  'Liga Portugal':'comp-esc-lp',
+  'Taça de Portugal':'comp-esc-tp',
+  'Taça da Liga':'comp-esc-tl'
+};
 
 function jogoCardHTML(j,mini=false){
   const d=new Date(j.data+'T12:00:00');
@@ -1467,9 +1475,10 @@ function _diaJogoCalHTML(d,j){
     const cls=i=>i===est.sIdx?'cal-s':'cal-a';
     resHTML=`<div class="cal-res"><span class="cal-score"><span class="${cls(0)}">${est.p[0]}</span><span class="cal-tr">-</span><span class="${cls(1)}">${est.p[1]}</span></span></div>`;
   }
-  return`<div class="cal-dia cal-${est.estado}" onclick="abrirDetalhe(${j.id})">
+  const compEsc=COMP_ESCALA_CAL[j.competicao]||'';
+  return`<div class="cal-dia cal-${est.estado}" onclick="abrirPopupJogo(${j.id})">
     <span class="cal-daybadge">${String(d).padStart(2,'0')}</span>
-    ${compSrc?`<span class="cal-compcorner"><img src="${compSrc}" alt="${j.competicao}" loading="lazy" onerror="this.style.display='none'"></span>`:''}
+    ${compSrc?`<span class="cal-compcorner ${compEsc}"><img src="${compSrc}" alt="${j.competicao}" loading="lazy" onerror="this.style.display='none'"></span>`:''}
     <div class="cal-simbolos"><span class="cal-crest">${logo?`<img src="${logo}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}</span><span class="cal-cfmini ${cfClasse}">${cfLetra}</span></div>
     ${resHTML}
   </div>`;
@@ -1480,7 +1489,7 @@ function _diaJogoCalHTML(d,j){
 function _diaJanelaCalHTML(d,j){
   const compSrc=COMP_LOGOS[j.competicao];
   const label=[j.competicao,j.jornada].filter(Boolean).join(' · ');
-  return`<div class="cal-dia cal-pot" onclick="abrirDetalhe(${j.id})">
+  return`<div class="cal-dia cal-pot" onclick="abrirPopupJogo(${j.id})">
     <span class="cal-daybadge">${String(d).padStart(2,'0')}</span>
     ${compSrc?`<div class="cal-componly"><img src="${compSrc}" alt="${j.competicao}" loading="lazy" onerror="this.style.display='none'"></div>`:''}
     <div class="cal-potlbl">${label}</div>
@@ -1488,6 +1497,57 @@ function _diaJanelaCalHTML(d,j){
 }
 function _diaVazioCalHTML(d){
   return`<div class="cal-dia cal-vazio"><span class="cal-daybadge">${String(d).padStart(2,'0')}</span></div>`;
+}
+// ── POPUP RÁPIDO DO CALENDÁRIO ──────────────────
+// Tocar num dia do calendário abre isto em vez do detalhe completo
+// (t-jdetalhe, que é para a lista — tem histórico de pagamentos e por aí
+// fora, informação a mais para um relance rápido a um evento).
+function abrirPopupJogo(jogoId){
+  const j=db.jogos.find(x=>x.id===jogoId);if(!j)return;
+  document.getElementById('cal-popup-card').innerHTML=_popupJogoHTML(j);
+  const pop=document.getElementById('cal-popup');
+  pop.style.display='flex';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>pop.classList.add('on')));
+}
+function fecharPopupJogo(){
+  const pop=document.getElementById('cal-popup');
+  pop.classList.remove('on');
+  setTimeout(()=>{if(!pop.classList.contains('on'))pop.style.display='none';},200);
+}
+function _popupDataFmt(dataStr){
+  const d=new Date(dataStr+'T12:00:00');
+  return`${String(d.getDate()).padStart(2,'0')} de ${d.toLocaleString('pt-PT',{month:'long'})}`;
+}
+function _popupScoreHTML(est){
+  const bg={win:'#045c40',draw:'#e6a700',loss:'#c62828'}[est.estado];
+  const sCor=est.estado==='draw'?'var(--vd)':'var(--ou)';
+  const aCor=est.estado==='draw'?'rgba(255,255,255,.9)':'rgba(255,255,255,.72)';
+  const cor=i=>i===est.sIdx?sCor:aCor;
+  return`<span class="cal-pop-score" style="background:${bg}"><span style="color:${cor(0)}">${est.p[0]}</span><span style="color:rgba(255,255,255,.55);font-size:14px"> - </span><span style="color:${cor(1)}">${est.p[1]}</span></span>`;
+}
+function _popupJogoHTML(j){
+  const compSrc=COMP_LOGOS[j.competicao];
+  const compHTML=`<div class="cal-pop-comp">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}${j.jornada?' · '+j.jornada:''}</span></div>`;
+  const closeBtn='<button class="cal-pop-close" onclick="fecharPopupJogo()" aria-label="Fechar">✕</button>';
+  if(j.porDefinir||j.potencial){
+    const dataTxt=(j.dataAte&&j.dataAte!==j.data)?`${_popupDataFmt(j.data)} – ${_popupDataFmt(j.dataAte)}`:_popupDataFmt(j.data);
+    return`${closeBtn}
+      <div class="cal-pop-data">${dataTxt}</div>
+      <div class="cal-pop-matchup">${j.potencial?'Jogo potencial':'Adversário por sortear'}</div>
+      <div class="cal-pop-res"><span class="cal-pop-res-mu">${j.potencial?(j.condicao||'Depende da ronda anterior'):'A aguardar sorteio'}</span></div>
+      ${compHTML}`;
+  }
+  const est=_estadoCalDia(j);
+  const matchup=j.local==='Fora'?`${j.adversario} – Sporting`:`Sporting – ${j.adversario}`;
+  let resHTML;
+  if(est.estado==='fut')resHTML='<span class="cal-pop-res-mu">Por realizar</span>';
+  else if(est.estado==='jogado')resHTML=`<span class="cal-pop-res-mu">${est.golos} golo${est.golos!==1?'s':''} do Sporting</span>`;
+  else resHTML=_popupScoreHTML(est);
+  return`${closeBtn}
+    <div class="cal-pop-data">${_popupDataFmt(j.data)}</div>
+    <div class="cal-pop-matchup">${matchup}</div>
+    <div class="cal-pop-res">${resHTML}</div>
+    ${compHTML}`;
 }
 function scrollMesAtualParaVista(){
   const meses=[...document.querySelectorAll('.cal-mes')];

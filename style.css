@@ -157,7 +157,11 @@ tbody tr:hover{background:#fafaf8}
 .cal-dia.cal-pad{visibility:hidden}
 /* jogo/janela: mais folga em cima do que embaixo — desce o brasão e o
    resultado, que é onde está a informação que interessa. */
-.cal-dia.cal-win,.cal-dia.cal-draw,.cal-dia.cal-loss,.cal-dia.cal-jogado,.cal-dia.cal-fut,.cal-dia.cal-pot{padding-top:15px}
+.cal-dia.cal-win,.cal-dia.cal-draw,.cal-dia.cal-loss,.cal-dia.cal-jogado,.cal-dia.cal-pot{padding-top:15px}
+/* sem resultado só fica o brasão, sozinho — a mesma folga de 15px ficava
+   demasiado baixa sem a linha do resultado a compensar por baixo; sobe só
+   um pouco acima do centro exato da célula. */
+.cal-dia.cal-fut{padding-top:2px;padding-bottom:9px}
 /* jogos por definir/potenciais entram aqui, mesmo tratamento visual que
    .jcard-pot já dá à lista — dia sem jogo fica esbatido de propósito, para
    os dias com jogo saltarem mais à vista. */
@@ -168,8 +172,15 @@ tbody tr:hover{background:#fafaf8}
 .cal-daybadge{position:absolute;top:-7px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--card);border:1.5px solid var(--bo);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:10.5px;color:var(--tx);box-shadow:0 1px 2px rgba(0,0,0,.15);z-index:2}
 /* selo da competição — canto direito, maior (é o que precisava de mais
    destaque); o casa/fora passa para um selo pequeno sobre o brasão. */
-.cal-compcorner{position:absolute;top:-8px;right:1px;width:21px;height:21px;border-radius:50%;background:#fff;border:1.5px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:3px;box-shadow:0 1px 2px rgba(0,0,0,.18);z-index:2}
+.cal-compcorner{position:absolute;top:-8px;right:1px;width:21px;height:21px;border-radius:50%;background:#fff;border:1.5px solid var(--bo);display:flex;align-items:center;justify-content:center;padding:3px;box-shadow:0 1px 2px rgba(0,0,0,.18);z-index:2;overflow:hidden}
 .cal-compcorner img{width:100%;height:100%;object-fit:contain}
+/* os PNG da Liga Portugal/Taça de Portugal/Taça da Liga têm bem mais
+   margem transparente à volta do brasão do que os da Champions/Supertaça
+   (medido: ~61%/73%/79% de preenchimento em largura vs 84%) — sem isto
+   ficam visivelmente mais pequenos no mesmo selo redondo. */
+.cal-compcorner.comp-esc-lp img{transform:scale(1.38)}
+.cal-compcorner.comp-esc-tp img{transform:scale(1.15)}
+.cal-compcorner.comp-esc-tl img{transform:scale(1.08)}
 .cal-simbolos{position:relative;width:27px;height:31px;flex-shrink:0}
 /* símbolo do adversário tal e qual — mesmo tratamento do .jlogo da lista,
    sem cortar (nada de clip-path em forma de escudo) */
@@ -206,6 +217,23 @@ tbody tr:hover{background:#fafaf8}
 .cal-dia.cal-fut .cal-daybadge{border-color:var(--tx)}
 .cal-dia.cal-pot{border-style:dashed;border-color:#d2cfc6;background:#eceae4}
 .cal-dia.cal-pot .cal-daybadge{border-color:#d2cfc6;color:var(--mu)}
+
+/* POPUP RÁPIDO DO CALENDÁRIO — abrirPopupJogo()/fecharPopupJogo() em
+   app.js. Mais leve que o detalhe completo (t-jdetalhe): só o essencial
+   para um relance ao evento, sem sair da grelha nem perder o scroll. */
+.cal-popup{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(20,20,18,0);transition:background .18s ease}
+.cal-popup.on{background:rgba(20,20,18,.45)}
+.cal-popup-card{background:var(--card);border-radius:16px;padding:20px 22px;width:100%;max-width:270px;box-shadow:0 14px 34px rgba(0,0,0,.28);transform:scale(.85);opacity:0;transition:transform .2s cubic-bezier(.34,1.56,.64,1),opacity .16s ease;position:relative}
+.cal-popup.on .cal-popup-card{transform:scale(1);opacity:1}
+.cal-pop-close{position:absolute;top:8px;right:8px;width:26px;height:26px;border:none;background:none;color:var(--mu);font-size:18px;line-height:1;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.cal-pop-close:hover{background:var(--bg);color:var(--tx)}
+.cal-pop-data{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.cal-pop-matchup{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--tx);line-height:1.25;margin-bottom:14px;padding-right:20px}
+.cal-pop-res{margin-bottom:14px}
+.cal-pop-score{font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;padding:5px 14px;border-radius:8px;display:inline-flex;align-items:baseline;gap:5px}
+.cal-pop-res-mu{font-size:13px;color:var(--mu);font-style:italic}
+.cal-pop-comp{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mu);padding-top:12px;border-top:1px solid var(--bo)}
+.cal-pop-comp img{width:20px;height:20px;object-fit:contain;flex-shrink:0}
 
 /* DETALHE JOGO */
 .jogo-detalhe{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:20px 22px;margin-bottom:16px}
