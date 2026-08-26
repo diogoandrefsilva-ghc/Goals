@@ -1305,11 +1305,34 @@ function jogoCardHTML(j,mini=false){
 
 // 'desc' = mais recentes primeiro · 'asc' = mais antigos primeiro (defeito)
 let ordemJogos='asc';
+// Época para a qual `ordemJogos` já foi decidido (por defeito ou à mão) — só
+// se recalcula o defeito quando a época activa muda, para não desfazer uma
+// escolha manual do utilizador enquanto ele continua a ver a mesma época.
+let _ordemJogosEpocaCalc=null;
 function setOrdemJogos(o){
   ordemJogos=o;
+  _ordemJogosEpocaCalc=epocaAtiva;
   document.getElementById('f-ord-desc')?.classList.toggle('on',o==='desc');
   document.getElementById('f-ord-asc')?.classList.toggle('on',o==='asc');
   renderJogosList();
+}
+// Jogos por realizar nesta época a partir dos quais já se considera "a
+// chegar ao fim" — deixa de fazer sentido navegar por data crescente com
+// scroll automático, mostra-se como lista de resultados (desc).
+const JOGOS_RESTANTES_LIMIAR=8;
+function _ordemPadraoEpoca(){
+  // Só a época mais recente (a "em curso") tem sentido em ordem crescente
+  // com o scroll até ao próximo jogo — uma época antiga já está arrumada.
+  if(epocaAtiva!==epocasOrdem[epocasOrdem.length-1])return 'desc';
+  const porRealizar=db.jogos.filter(j=>j.golos===null||j.golos===undefined||j.golos==='').length;
+  return porRealizar<=JOGOS_RESTANTES_LIMIAR?'desc':'asc';
+}
+function _aplicarOrdemPadraoSeMudouEpoca(){
+  if(_ordemJogosEpocaCalc===epocaAtiva)return;
+  _ordemJogosEpocaCalc=epocaAtiva;
+  ordemJogos=_ordemPadraoEpoca();
+  document.getElementById('f-ord-desc')?.classList.toggle('on',ordemJogos==='desc');
+  document.getElementById('f-ord-asc')?.classList.toggle('on',ordemJogos==='asc');
 }
 
 function renderJogosList(){
@@ -1549,6 +1572,7 @@ function rJogos(){
   if(document.getElementById('cal-data'))document.getElementById('cal-data').value=hoje;
   document.getElementById('t-jlista').style.display='block';
   document.getElementById('t-jdetalhe').style.display='none';
+  _aplicarOrdemPadraoSeMudouEpoca();
   renderJogosList();
   // Começar sempre do topo (1º jogo da época) em vez de herdar a posição de
   // scroll de onde a página estava — só depois, se aplicável, desliza
@@ -4555,24 +4579,6 @@ function ajustarHdrH(){
   window.addEventListener('orientationchange',ajustarHdrH);
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(ajustarHdrH).catch(()=>{});
   ajustarHdrH();
-})();
-
-/* A .itabs passou a bottom-nav fixa (ver style.css); o .wrap precisa de
-   padding-bottom do tamanho real dela (varia com env(safe-area-inset-bottom)
-   no iOS) para o conteúdo não ficar tapado por trás. Mesmo padrão do --hdr-h. */
-function ajustarBotNavH(){
-  const b=document.querySelector('.itabs');
-  if(!b)return;
-  const alt=Math.round(b.getBoundingClientRect().height);
-  if(alt>0)document.documentElement.style.setProperty('--botnav-h',alt+'px');
-}
-(function(){
-  const b=document.querySelector('.itabs');
-  if(b&&window.ResizeObserver)new ResizeObserver(ajustarBotNavH).observe(b);
-  window.addEventListener('resize',ajustarBotNavH);
-  window.addEventListener('orientationchange',ajustarBotNavH);
-  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(ajustarBotNavH).catch(()=>{});
-  ajustarBotNavH();
 })();
 
 /* ── INIT ──────────────────────────────────── */

@@ -36,16 +36,9 @@ header{background:linear-gradient(160deg,#03432e 0%,var(--vd) 55%,#0aa06f 130%);
 .hn.on{background:#fff;color:var(--vd);font-weight:600;border-color:#fff}
 
 /* LAYOUT */
-.wrap{max-width:1040px;margin:0 auto;padding:20px 18px calc(var(--botnav-h,80px) + 14px)}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 18px}
 .sec{display:none}.sec.on{display:block}
-/* Barra de separadores fixa em baixo (estilo bottom-nav de app) — flutua sobre
-   o conteúdo, por isso o .wrap acima ganha padding-bottom do tamanho dela
-   (medido a sério em --botnav-h, ver ajustarBotNavH() no app.js) para nada
-   ficar tapado atrás. O padding de baixo soma sempre 10px fixos ao
-   env(safe-area-inset-bottom) — o viewport-fit=cover no index.html é o que
-   faz o env() valer alguma coisa (senão dá sempre 0 e a barra fica colada à
-   borda, tapada pela barra de gestos em iPhones sem notch físico ali). */
-.itabs{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:1040px;z-index:100;display:flex;gap:4px;background:#e9e7e0;padding:8px 6px calc(10px + env(safe-area-inset-bottom));border-radius:14px 14px 0 0;overflow-x:auto;scrollbar-width:none;box-shadow:0 -4px 20px rgba(0,0,0,.15)}
+.itabs{position:sticky;top:var(--hdr-h,69px);z-index:80;display:flex;gap:4px;margin-bottom:20px;background:#e9e7e0;padding:4px;border-radius:12px;overflow-x:auto;scrollbar-width:none;box-shadow:0 0 0 18px var(--bg)}
 .itabs::-webkit-scrollbar{display:none}
 .it{background:none;border:none;padding:8px 12px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--mu);border-radius:9px;transition:all .15s;font-weight:500;white-space:nowrap;flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
 .it:hover{color:var(--tx);background:rgba(255,255,255,.6)}
@@ -239,7 +232,7 @@ input:focus,select:focus{border-color:var(--vd)}
 
 /* RESULT BADGE (inline before adversary) */
 .jres-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:1px 6px;border-radius:4px;line-height:1.4;margin-right:6px;vertical-align:middle}
-.toast{position:fixed;bottom:calc(var(--botnav-h,80px) + 12px);right:20px;background:var(--vd);color:#fff;padding:10px 17px;border-radius:9px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.15);transform:translateY(70px);opacity:0;transition:all .3s;z-index:400}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--vd);color:#fff;padding:10px 17px;border-radius:9px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.15);transform:translateY(70px);opacity:0;transition:all .3s;z-index:400}
 .toast.on{transform:translateY(0);opacity:1}
 .empty{text-align:center;padding:36px 20px;color:var(--mu);font-size:13px}
 .empty em{display:block;font-size:34px;margin-bottom:9px;font-style:normal}
@@ -306,10 +299,10 @@ input:focus,select:focus{border-color:var(--vd)}
 .est-detail-grid span:last-child{text-align:right;font-weight:600}
 .est-pchk{display:flex;align-items:center;gap:8px;padding:7px 4px;cursor:pointer;user-select:none}
 .est-pchk input[type=checkbox]{width:18px;height:18px;accent-color:var(--vd)}
-.est-fab{position:fixed;bottom:calc(var(--botnav-h,80px) + 16px);right:24px;width:56px;height:56px;border-radius:50%;background:var(--vd);color:#fff;border:none;font-size:28px;font-weight:300;cursor:pointer;box-shadow:0 4px 16px rgba(4,126,87,.4);display:flex;align-items:center;justify-content:center;z-index:90;transition:transform .15s,box-shadow .15s;line-height:1}
+.est-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--vd);color:#fff;border:none;font-size:28px;font-weight:300;cursor:pointer;box-shadow:0 4px 16px rgba(4,126,87,.4);display:flex;align-items:center;justify-content:center;z-index:90;transition:transform .15s,box-shadow .15s;line-height:1}
 .est-fab:hover{transform:scale(1.08);box-shadow:0 6px 24px rgba(4,126,87,.5)}
 .est-fab:active{transform:scale(0.95)}
-.est-fab-menu{position:fixed;bottom:calc(var(--botnav-h,80px) + 82px);right:24px;z-index:89;display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(10px)}
+.est-fab-menu{position:fixed;bottom:90px;right:24px;z-index:89;display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(10px)}
 .est-fab-menu.open{opacity:1;pointer-events:auto;transform:translateY(0)}
 .est-fab-option{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--bo);border-radius:10px;padding:9px 16px;box-shadow:0 4px 16px rgba(0,0,0,.12);cursor:pointer;white-space:nowrap;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;color:var(--tx);transition:all .15s}
 .est-fab-option:hover{border-color:var(--vd);color:var(--vd);box-shadow:0 4px 20px rgba(0,0,0,.16)}
