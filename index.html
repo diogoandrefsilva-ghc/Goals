@@ -178,8 +178,8 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
             <button id="jv-lista" class="sbtn sbtn-sm on" onclick="setJView('lista')">Lista</button>
             <button id="jv-cal" class="sbtn sbtn-sm" onclick="setJView('calendario')">Calendário</button>
           </div>
-          <select id="f-comp" onchange="renderJogosList()" style="flex:1;min-width:0"><option value="">Todas competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
-          <select id="f-local" onchange="renderJogosList()" style="flex:0 0 60px;min-width:0"><option value="">Local</option><option value="Casa">Casa</option><option value="Fora">Fora</option><option value="Neutro">Neutro</option></select>
+          <select id="f-comp" onchange="renderJogosList()" style="flex:1;min-width:0;font-size:11.5px;padding:8px 4px"><option value="">Todas competições</option><option>Liga Portugal</option><option>Liga dos Campeões</option><option>Taça de Portugal</option><option>Taça da Liga</option><option>Supertaça</option><option>Outro</option></select>
+          <select id="f-local" onchange="renderJogosList()" style="flex:0 0 60px;min-width:0;font-size:11.5px;padding:8px 4px"><option value="">Local</option><option value="Casa">Casa</option><option value="Fora">Fora</option><option value="Neutro">Neutro</option></select>
           <div class="sortgrp" style="flex-shrink:0">
             <button id="f-ord-desc" class="sbtn" onclick="setOrdemJogos('desc')" title="Mais recentes primeiro" aria-label="Ordenar do mais recente para o mais antigo">↓</button>
             <button id="f-ord-asc" class="sbtn on" onclick="setOrdemJogos('asc')" title="Mais antigos primeiro" aria-label="Ordenar do mais antigo para o mais recente">↑</button>
