@@ -102,6 +102,10 @@ async function sbReq(method,path,body,extra){
 
 /* ── READ-ONLY CHECK (agora é "não és admin", não "sem token") ────────── */
 let isReadOnly=true;
+// Convidado: entrou sem sessão Supabase (sbEntrarComoConvidado), só vê Jogos
+// e Previsão, sem EUR. A fronteira real é a RLS (goals/acesso-convidado.sql,
+// só SELECT em jogos/epocas para o role `anon`) — isto é só o espelho na UI.
+let isGuest=false;
 function isAdmin(){return !!(_sbSession&&_sbSession.user&&_sbSession.user.email===ADMIN_EMAIL);}
 function checkReadOnly(){
   isReadOnly=!isAdmin();
@@ -190,6 +194,28 @@ async function carregar(){
     ep.pedidosPagamento.push({id:p.id,amigoId:p.amigo_id,jogoIds:p.jogo_ids||[],valor:Number(p.valor)||0,nota:p.nota,estado:p.estado,criadoPorEmail:p.criado_por_email,criadoEm:p.criado_em,decididoPor:p.decidido_por,decididoEm:p.decidido_em,motivo:p.motivo});
   });
 
+  actualizarEpocasOrdem();
+  epocaAtiva=epocaInicial();
+  dbFull.config.epocaAtiva=epocaAtiva;
+  sincEpoca();
+}
+// Versão do convidado: só `jogos`/`epocas` (sem sessão, role `anon` — a RLS
+// em db/acesso-convidado.sql é que garante que não há mais nada para ler).
+// `select=*` de propósito, tal como carregar(): as colunas por_definir/
+// potencial são de migrações opcionais e podem não existir ainda.
+async function carregarConvidado(){
+  const [epocasRows,jogosRows]=await Promise.all([
+    sbReq('GET','epocas?select=nome'),
+    sbReq('GET','jogos?select=*&order=data.asc,id.asc')
+  ]);
+  dbFull={config:{valorPorGolo:0,epocaAtiva},epocas:{}};
+  (epocasRows||[]).forEach(e=>{
+    dbFull.epocas[e.nome]={amigos:[],jogos:[],pagosPorJogo:{},estouros:[],estouroPagos:[],creditosExtra:[],poteHolder:null,pedidosPagamento:[]};
+  });
+  (jogosRows||[]).forEach(j=>{
+    const ep=dbFull.epocas[j.epoca_nome];if(!ep)return;
+    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado,porDefinir:!!j.por_definir,dataAte:j.data_ate||null,potencial:!!j.potencial,condicao:j.condicao||''});
+  });
   actualizarEpocasOrdem();
   epocaAtiva=epocaInicial();
   dbFull.config.epocaAtiva=epocaAtiva;
@@ -616,6 +642,9 @@ function rPrevisao(){
   // ou com poucos para o gráfico de evolução) — senão fica com o que tiver
   // sido desenhado da última vez que uma época com mais dados esteve aberta.
   rCompEpocas();
+  // Convidado: nunca chega a calcular vg/pote — só o gráfico de golos
+  // (rCompEpocas já é golos-only) + os cards/evolução em golos.
+  if(isGuest){rPrevisaoConvidado();return;}
   // Só contar jogos com resultado real (golos não nulo)
   const jogosOrd=[...db.jogos]
     .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
@@ -811,6 +840,187 @@ function rPrevisao(){
   cv.onmousemove=handleChartHover;cv.ontouchmove=handleChartHover;
   cv.onmouseleave=function(){tooltip.style.display='none';crosshair.style.display='none';};
 
+}
+
+// Versão do convidado da Previsão: os mesmos cálculos de rPrevisao(), mas em
+// GOLOS em vez de EUR (sem vg/n) — nada de pote, nada de dívida. Desenha no
+// mesmo canvas #c-evo (nunca corre ao mesmo tempo que a versão do admin).
+function rPrevisaoConvidado(){
+  const jogosOrd=[...db.jogos]
+    .filter(j=>j.golos!==null&&j.golos!==undefined&&j.golos!=='')
+    .sort((a,b)=>new Date(a.data)-new Date(b.data));
+  const nJogosFeitos=jogosOrd.length;
+  const nTotal=jogosContam().length;
+  const nRestantes=Math.max(0,nTotal-nJogosFeitos);
+
+  if(!nJogosFeitos){
+    document.getElementById('prev-cards').innerHTML='<div class="empty" style="grid-column:1/-1"><em>⚽</em>Ainda sem jogos com resultado</div>';
+    document.getElementById('evo-w').style.display='none';
+    return;
+  }
+
+  const totalG=jogosOrd.reduce((a,j)=>a+(j.golos||0),0);
+  const gppTotal=totalG/nJogosFeitos;
+  const prevGolTot=totalG+Math.round(nRestantes*gppTotal);
+
+  const ult10=jogosOrd.slice(-10);
+  const gUlt10=ult10.reduce((a,j)=>a+(j.golos||0),0);
+  const gppUlt10=gUlt10/ult10.length;
+  const prevGolUlt=totalG+Math.round(nRestantes*gppUlt10);
+  const restTxt=restantesTxt();
+
+  document.getElementById('prev-cards').innerHTML=`
+    <div class="sc cg">
+      <div class="sc-l">Média total</div>
+      <div class="sc-v">${prevGolTot} golos</div>
+      <div class="sc-s">${gppTotal.toFixed(2)}/jogo · ${restTxt}</div>
+    </div>
+    <div class="sc co">
+      <div class="sc-l">Últimos 10 jogos</div>
+      <div class="sc-v">${prevGolUlt} golos</div>
+      <div class="sc-s">${gppUlt10.toFixed(2)}/jogo · ${restTxt}</div>
+    </div>
+  `;
+
+  const ew=document.getElementById('evo-w');
+  ew.style.display='block';
+  const cv=document.getElementById('c-evo');
+  const dpr=window.devicePixelRatio||1;
+  const W=(ew.clientWidth||700)-40,H=260;
+  cv.width=W*dpr;cv.height=H*dpr;
+  cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const prevTotArr=[];
+  const prevUlt10Arr=[];
+
+  let accG=0;
+  jogosOrd.forEach((j,i)=>{
+    accG+=(j.golos||0);
+    const jogosRestAqui=Math.max(0,nTotal-(i+1));
+    const gppAqui=accG/(i+1);
+    prevTotArr.push(accG+Math.round(jogosRestAqui*gppAqui));
+    const slice=jogosOrd.slice(Math.max(0,i-9),i+1);
+    const gSlice=slice.reduce((a,s)=>a+(s.golos||0),0);
+    const gppSlice=gSlice/slice.length;
+    prevUlt10Arr.push(accG+Math.round(jogosRestAqui*gppSlice));
+  });
+
+  const SKIP=5;
+  const prevTotPlot=prevTotArr.slice(SKIP);
+  const prevUlt10Plot=prevUlt10Arr.slice(SKIP);
+  const jogosOrdPlot=jogosOrd.slice(SKIP);
+
+  const allVals=[...prevTotPlot,...prevUlt10Plot];
+  const minV=Math.min(...allVals)*0.90||0;
+  const maxV=Math.max(...allVals)*1.06||1;
+
+  const PAD_L=42,PAD_R=20,PAD_T=18,PAD_B=34;
+  const W2=W-PAD_L-PAD_R,H2=H-PAD_T-PAD_B;
+  const nP=prevTotPlot.length;
+  if(nP<1){ew.style.display='none';return;}
+  function px(i){return PAD_L+i/(nP-1||1)*W2;}
+  function py(v){return PAD_T+H2-((v-minV)/((maxV-minV)||1))*H2;}
+
+  const bgGrad=ctx.createLinearGradient(0,PAD_T,0,H-PAD_B);
+  bgGrad.addColorStop(0,'rgba(232,245,233,0.2)');
+  bgGrad.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=bgGrad;
+  ctx.fillRect(PAD_L,PAD_T,W2,H2);
+
+  function niceStep(range,ticks){
+    const raw=range/ticks;const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+    const res=raw/mag;let nice;
+    if(res<=1.5)nice=1;else if(res<=3)nice=2;else if(res<=7)nice=5;else nice=10;
+    return nice*mag;
+  }
+  const step=niceStep(maxV-minV,4);
+  const gridStart=Math.ceil(minV/step)*step;
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let v=gridStart;v<=maxV;v+=step){
+    const y=py(v);
+    ctx.strokeStyle='#eae8e4';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PAD_L,y);ctx.lineTo(W-PAD_R,y);ctx.stroke();
+    ctx.fillStyle='#aaa';ctx.font='500 10px Inter,sans-serif';
+    ctx.fillText(v.toFixed(0),PAD_L-6,y);
+  }
+
+  function smoothLine(arr,close){
+    if(arr.length<2)return;
+    ctx.beginPath();ctx.moveTo(px(0),py(arr[0]));
+    if(arr.length===2){ctx.lineTo(px(1),py(arr[1]));if(!close)ctx.stroke();return;}
+    for(let i=0;i<arr.length-1;i++){
+      const p0=i>0?{x:px(i-1),y:py(arr[i-1])}:{x:px(i),y:py(arr[i])};
+      const p1={x:px(i),y:py(arr[i])};
+      const p2={x:px(i+1),y:py(arr[i+1])};
+      const p3=i<arr.length-2?{x:px(i+2),y:py(arr[i+2])}:p2;
+      const t=0.35;
+      ctx.bezierCurveTo(p1.x+(p2.x-p0.x)*t/3,p1.y+(p2.y-p0.y)*t/3,p2.x-(p3.x-p1.x)*t/3,p2.y-(p3.y-p1.y)*t/3,p2.x,p2.y);
+    }
+    if(!close)ctx.stroke();
+  }
+
+  ctx.save();ctx.strokeStyle='transparent';ctx.lineWidth=0;
+  smoothLine(prevTotPlot,true);
+  ctx.lineTo(px(nP-1),H-PAD_B);ctx.lineTo(px(0),H-PAD_B);ctx.closePath();
+  const areaGrad=ctx.createLinearGradient(0,PAD_T,0,H-PAD_B);
+  areaGrad.addColorStop(0,'rgba(4,126,87,0.12)');areaGrad.addColorStop(1,'rgba(4,126,87,0.01)');
+  ctx.fillStyle=areaGrad;ctx.fill();ctx.restore();
+
+  ctx.strokeStyle='#047e57';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.lineCap='round';ctx.setLineDash([]);
+  smoothLine(prevTotPlot);
+
+  ctx.strokeStyle='#e6a700';ctx.lineWidth=2;ctx.setLineDash([6,5]);
+  smoothLine(prevUlt10Plot);
+  ctx.setLineDash([]);
+
+  [['#047e57',prevTotPlot],['#e6a700',prevUlt10Plot]].forEach(([col,arr])=>{
+    const last=arr[arr.length-1];
+    ctx.beginPath();ctx.arc(px(nP-1),py(last),4,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+    ctx.beginPath();ctx.arc(px(nP-1),py(last),6.5,0,Math.PI*2);
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.globalAlpha=0.25;ctx.stroke();ctx.globalAlpha=1;
+  });
+
+  ctx.fillStyle='#aaa';ctx.font='500 10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  const maxLabels=Math.floor(W2/50);
+  const labelStep=Math.max(1,Math.ceil(nP/maxLabels));
+  jogosOrdPlot.forEach((j,i)=>{
+    const jNum=i+SKIP+1;
+    if(i===0||i===nP-1||i%labelStep===0) ctx.fillText('J'+jNum,px(i),H-PAD_B+8);
+  });
+
+  const tooltip=document.getElementById('evo-tooltip');
+  const crosshair=document.getElementById('evo-crosshair');
+
+  function handleChartHover(e){
+    e.preventDefault();
+    const rect=cv.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const mx=(clientX-rect.left)*(W/rect.width);
+    let closest=-1,minDist=Infinity;
+    for(let i=0;i<nP;i++){const d=Math.abs(px(i)-mx);if(d<minDist){minDist=d;closest=i;}}
+    if(closest<0||minDist>30){tooltip.style.display='none';crosshair.style.display='none';return;}
+    const jNum=closest+SKIP+1;
+    const adv=jogosOrdPlot[closest]?.adversario||'';
+    const vTot=prevTotPlot[closest];
+    const vUlt=prevUlt10Plot[closest];
+    const diff=vUlt-vTot;const diffStr=diff>=0?'+'+diff.toFixed(0):diff.toFixed(0);
+    tooltip.innerHTML=`<div style="font-weight:700;margin-bottom:3px">Jogo ${jNum}${adv?' · '+adv:''}</div>`+
+      `<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#047e57;border-radius:50%;flex-shrink:0"></span>Média total: <strong>${vTot.toFixed(0)} golos</strong></div>`+
+      `<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#e6a700;border-radius:50%;flex-shrink:0"></span>Últ. 10: <strong>${vUlt.toFixed(0)} golos</strong> <span style="opacity:.6">(${diffStr})</span></div>`;
+    const pxPos=px(closest)*(rect.width/W);
+    const tipW=tooltip.offsetWidth||160;
+    let left=pxPos+12;if(left+tipW>rect.width-10)left=pxPos-tipW-12;
+    tooltip.style.left=left+'px';tooltip.style.top='10px';tooltip.style.display='block';
+    crosshair.style.left=pxPos+'px';
+    crosshair.style.height=(H2*(rect.height/H))+'px';
+    crosshair.style.top=(PAD_T*(rect.height/H))+'px';
+    crosshair.style.display='block';
+  }
+  cv.onmousemove=handleChartHover;cv.ontouchmove=handleChartHover;
+  cv.onmouseleave=function(){tooltip.style.display='none';crosshair.style.display='none';};
 }
 
 function rCompEpocas(){
@@ -1013,7 +1223,7 @@ function jogoCardHTML(j,mini=false){
   const janela=(j.dataAte&&j.dataAte!==j.data)?janelaCurta(j.data,j.dataAte):'';
 
   let dotsHTML='';
-  if(!isFuturo && golosJ>0){
+  if(!isGuest && !isFuturo && golosJ>0){
     if(nTotal<=12){
       dotsHTML=db.amigos.map(am=>{
         const p=pagaram.includes(am.id);
@@ -1030,8 +1240,10 @@ function jogoCardHTML(j,mini=false){
   const editBtn='';
 
   // valor: +pote verde; se houver dívida, -divida vermelho; se pago, "Pago ✓"; se 0 golos, "N/A"
+  // Convidado não vê nada disto — nem sequer "N/A" (é sempre o mesmo bloco de EUR).
   let valHTML='';
-  if(!isFuturo && golosJ===0){
+  if(isGuest){
+  } else if(!isFuturo && golosJ===0){
     valHTML='<div class="jval"><span style="font-size:13px;font-weight:600;color:#999">N/A</span></div>';
   } else if(!isFuturo&&golosJ>0){
     if(nPag>=nTotal){
@@ -1212,6 +1424,8 @@ function renderDetalhe(jogo){
   const localLabel=jogo.local?(localSVGsm[jogo.local]||'')+' '+jogo.local:'';
 
   // Lista de amigos em 2 colunas, sem siglas nem "pago/deve" — só nome + toggle
+  // Convidado não tem amigos/pagamentos carregados (carregarConvidado só
+  // busca jogos/épocas) — nem vale a pena mostrar esta secção.
   const amigosGrid=db.amigos.length?`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
       ${db.amigos.map((am,i)=>{
@@ -1225,6 +1439,18 @@ function renderDetalhe(jogo){
       }).join('')}
     </div>`
   :'<div class="empty"><em>👥</em>Sem amigos configurados</div>';
+
+  const metaMoneyHTML=isGuest?'':`
+          <div style="font-size:12px;color:var(--mu)">Pote do jogo: <strong style="color:var(--tx)">${totalJogo}€</strong></div>
+          <div style="font-size:12px;color:var(--mu)">Valor recebido: <strong style="color:var(--vd)">${totalReceb}€</strong></div>`;
+  const quemPagouHTML=isGuest?'':`
+      <!-- QUEM PAGOU -->
+      <div style="padding:14px 20px 14px">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:10px">
+          Quem pagou este jogo (${nPag}/${nTotal})
+        </div>
+        ${amigosGrid}
+      </div>`;
 
   document.getElementById('jd-content').innerHTML=`
     <div class="jogo-detalhe" style="padding:0;overflow:hidden">
@@ -1254,22 +1480,14 @@ function renderDetalhe(jogo){
         <div style="display:flex;flex-direction:column;gap:4px">
           <div style="font-size:12px;color:var(--mu)">${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}</div>
           <div style="font-size:12px;color:var(--mu)">${d}</div>
-          <div style="font-size:12px;color:var(--mu)">Pote do jogo: <strong style="color:var(--tx)">${totalJogo}€</strong></div>
-          <div style="font-size:12px;color:var(--mu)">Valor recebido: <strong style="color:var(--vd)">${totalReceb}€</strong></div>
+          ${metaMoneyHTML}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button class="jdel" style="color:#1565c0;border:1px solid #ddd;border-radius:7px;padding:5px 9px;font-size:13px" onclick="abrirModalEditar(${jogo.id})" title="Editar">✏️ Editar</button>
           <button class="jdel" style="color:var(--dg);border:1px solid #ddd;border-radius:7px;padding:5px 9px;font-size:13px" onclick="if(confirm('Remover este jogo?'))remJogo(${jogo.id})" title="Remover">✕ Apagar</button>
         </div>
       </div>
-
-      <!-- QUEM PAGOU -->
-      <div style="padding:14px 20px 14px">
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:10px">
-          Quem pagou este jogo (${nPag}/${nTotal})
-        </div>
-        ${amigosGrid}
-      </div>
+      ${quemPagouHTML}
     </div>
   `;
 }
@@ -3399,7 +3617,33 @@ async function sbInit(){
     _sbSession=null;
     localStorage.removeItem(SESSION_KEY);
   }
+  let wasGuest=null;try{wasGuest=localStorage.getItem('sg_guest');}catch(e){}
+  if(wasGuest==='1'){await sbEntrarComoConvidado();return;}
   sbMostrarLogin();
+}
+
+// ── Convidado: sem sessão Supabase nenhuma, só jogos/época (goals.acesso-
+// convidado.sql). Reentra sozinho no próximo arranque (localStorage), como
+// já acontece com a época/tab de um login normal.
+async function sbEntrarComoConvidado(){
+  try{localStorage.setItem('sg_guest','1');}catch(e){}
+  isGuest=true;
+  document.body.classList.add('guest');
+  document.getElementById('page-login').style.display='none';
+  document.getElementById('page-sem-acesso').style.display='none';
+  document.getElementById('page-nova-pass').style.display='none';
+  checkReadOnly();
+  try{
+    await carregarConvidado();
+  }catch(e){toast('Erro a carregar dados: '+e.message,1);}
+  const btnJogos=document.querySelector('#s-dash > .itabs .it[onclick*="itab(\'jogos\'"]');
+  if(btnJogos)itab('jogos',btnJogos,'dash');
+  if(window.glEsconderSplash)window.glEsconderSplash();
+}
+
+function sbSairConvidado(){
+  try{localStorage.removeItem('sg_guest');}catch(e){}
+  window.location.reload();
 }
 
 function sbMostrarLogin(){

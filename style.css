@@ -358,6 +358,11 @@ body.readonly .jdel{display:none!important}
 /* Read-only: contas grid — button is hidden, so 5 cols fill the space better */
 body.readonly .divida-row{grid-template-columns:44px 1fr 56px 40px 50px!important}
 
+/* ── MODO CONVIDADO (sem login, só Jogos + Previsão, sem EUR) ─────────── */
+.guest-only{display:none}
+body.guest .guest-only{display:inline-block}
+body.guest .guest-hide{display:none!important}
+
 /* ── SPLASH DE ARRANQUE ──────────────────────── */
 #gl-splash{position:fixed;inset:0;z-index:100000;background:#045c40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .26s ease}
 #gl-splash .gl-splash-logo{width:52px;height:74px}

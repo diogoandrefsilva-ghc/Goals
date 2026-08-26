@@ -71,6 +71,14 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
     de jogos da época enquanto `potencial=true`. Idempotente, tolerante: sem
     ela essa secção do painel de sugestões diz que falta correr o ficheiro e
     nada mais muda.
+11. `acesso-convidado.sql` — recomendado se quiseres o botão "Entrar como
+    convidado" do ecrã de login: duas policies de `SELECT` para o role `anon`
+    (sem sessão nenhuma) em `goals.jogos` e `goals.epocas` — só essas duas
+    tabelas, nada de `pagos_jogo`/`estouros`/`creditos_extra`/`config`/
+    `pedidos_pagamento`. Idempotente. Tolerante: sem ela, o botão continua na
+    UI mas o `carregar` do convidado devolve listas vazias (RLS bloqueia
+    tudo por omissão), não é preciso mudar nada no código para a correres
+    depois.
 
 ## Passos manuais (fora do SQL Editor)
 
@@ -154,21 +162,26 @@ telefone/WhatsApp, e a pessoa entra e troca-a em Definições › Conta
   marcar `aprovado` + lançar `pagos_jogo` numa única transação, para uma
   falha de rede a meio não deixar as duas escritas dessincronizadas.
   Recomendado, tolerante.
+- **acesso-convidado.sql** — as duas policies de `SELECT TO anon` que dão ao
+  botão "Entrar como convidado" (sem login) acesso só a `jogos`/`epocas`. Ver
+  secção "Acesso de Convidado" no `CLAUDE.md` para o resto do desenho
+  (frontend em `app.js`, o que fica escondido). Recomendado, tolerante.
 
 ## Modelo de permissões
 
-| Ação | Admin | Amigo ligado (`user_amigos`) | Conta sem `allowed_users` |
-|---|---|---|---|
-| Ver tudo (jogos, dívidas, estouro) | ✅ | ✅ | ❌ (ecrã "sem acesso") |
-| Adicionar/editar jogos e resultados | ✅ | ❌ | ❌ |
-| Gerir amigos, épocas, valor por golo | ✅ | ❌ | ❌ |
-| Marcar um jogo como pago | ✅ direto | ❌ (só pedir, ver abaixo) | ❌ |
-| Pedir "já paguei os jogos X, Y" | ✅ | ✅ só o seu (`eh_meu_amigo`) | ❌ |
-| Aprovar/rejeitar um pedido de pagamento | ✅ | ❌ | ❌ |
-| Cancelar o próprio pedido (enquanto pendente) | ✅ | ✅ | ❌ |
-| Estouro (eventos, quem levantou o pote) | ✅ | ❌ | ❌ |
-| Aprovar pedidos de acesso | ✅ | ❌ | ❌ |
-| Ligar um email a um amigo (`user_amigos`) | ✅ | ❌ | ❌ |
+| Ação | Admin | Amigo ligado (`user_amigos`) | Conta sem `allowed_users` | Convidado (sem login) |
+|---|---|---|---|---|
+| Ver tudo (jogos, dívidas, estouro) | ✅ | ✅ | ❌ (ecrã "sem acesso") | ❌ |
+| Ver calendário/resultados (sem EUR) | ✅ | ✅ | ❌ | ✅ |
+| Adicionar/editar jogos e resultados | ✅ | ❌ | ❌ | ❌ |
+| Gerir amigos, épocas, valor por golo | ✅ | ❌ | ❌ | ❌ |
+| Marcar um jogo como pago | ✅ direto | ❌ (só pedir, ver abaixo) | ❌ | ❌ |
+| Pedir "já paguei os jogos X, Y" | ✅ | ✅ só o seu (`eh_meu_amigo`) | ❌ | ❌ |
+| Aprovar/rejeitar um pedido de pagamento | ✅ | ❌ | ❌ | ❌ |
+| Cancelar o próprio pedido (enquanto pendente) | ✅ | ✅ | ❌ | ❌ |
+| Estouro (eventos, quem levantou o pote) | ✅ | ❌ | ❌ | ❌ |
+| Aprovar pedidos de acesso | ✅ | ❌ | ❌ | ❌ |
+| Ligar um email a um amigo (`user_amigos`) | ✅ | ❌ | ❌ | ❌ |
 
 Quem pode mexer no quê resolve-se por NOME via `user_amigos` (`eh_meu_amigo`)
 — não há conceito de cônjuge/casal no Goals, ao contrário do FestasBV.

@@ -66,6 +66,46 @@ exatamente a forma de sempre, e `db` continua o "atalho" para a época ativa
 - **Ligar um login a um amigo é manual, pelo admin** (Definições ›
   Utilizadores › "Ligar"), não há auto-associação por nome parecido.
 
+## Acesso de Convidado (sem login, sem EUR)
+Botão "👀 Entrar como convidado" no ecrã de login, para Sportinguistas que só
+querem seguir o calendário/resultados sem entrar na parte do pote. Salta o
+Supabase Auth por completo: `sbEntrarComoConvidado()` nunca cria sessão,
+usa a `anon` key directamente (como `sbHeaders`/`sbReq` já fazem por omissão
+quando `_sbSession` é `null`).
+- **A fronteira é na BD, não no JS.** Todas as policies de `SELECT` eram
+  `TO authenticated`, por isso um pedido sem sessão (role `anon`) já ficava
+  bloqueado em tudo. `db/acesso-convidado.sql` acrescenta só DUAS policies —
+  `SELECT TO anon` em `goals.jogos` e `goals.epocas`, nada mais. `jogos` não
+  tem nenhuma coluna de dinheiro (isso vive à parte, em
+  `pagos_jogo`/`estouros`/`creditos_extra`/`config`/`pedidos_pagamento`, e
+  nenhuma dessas é acessível a `anon`) — por isso não precisou de uma view a
+  filtrar colunas, a tabela inteira já é seguro mostrar. Mesmo que alguém
+  abra a consola e tente ler outro endpoint, a RLS bloqueia — esconder botões
+  não é a proteção, é só a UI.
+- **`isGuest`** (global, `app.js`) é o espelho disto na UI: `carregarConvidado()`
+  só busca `jogos`/`epocas` (equivalente ao `carregar()` normal, mas sem
+  `amigos`/`pagos_jogo`/`estouros`/`creditos_extra`/`config`/
+  `pedidos_pagamento` — por isso `db.amigos` fica sempre `[]` para um
+  convidado). Os separadores Resumo/Saldos/Estouro/Config ficam com a classe
+  `guest-hide` no `index.html` (`body.guest .guest-hide{display:none}`,
+  `style.css`) — só Jogos e Previsão continuam visíveis.
+- **Jogos**: `jogoCardHTML`/`renderDetalhe` escondem tudo o que é EUR/quem-
+  pagou quando `isGuest` (bloco `jval`, os pontinhos de pago/não-pago, "Pote
+  do jogo"/"Valor recebido", a grelha "Quem pagou"). Continua a ver-se
+  resultado, data, adversário, competição, local.
+- **Previsão**: `rPrevisao()` bifurca logo no início para
+  `rPrevisaoConvidado()` quando `isGuest` — os mesmos cálculos (golos feitos +
+  projeção da média até ao fim da época), mas em GOLOS, nunca em `€`
+  (sem `valorPorGolo`/`nAmigos`). O gráfico "Comparação com épocas
+  anteriores" (`rCompEpocas()`) já era golos-only mesmo para o admin, por
+  isso corre igual para os dois.
+- **Persistência**: fica em `localStorage` (`sg_guest`), mesmo padrão de
+  `sg_epoca`/`sg_tab` — reabrir a app volta directamente ao modo convidado
+  sem passar pelo ecrã de login. "Sair" (`sbSairConvidado()`, botão no
+  cabeçalho só visível em modo convidado) limpa a flag e recarrega.
+- Migração: `db/acesso-convidado.sql`. Tolerante: sem ela o botão continua lá
+  mas `carregarConvidado()` devolve listas vazias (RLS bloqueia por omissão).
+
 ## Password temporária dada pelo admin (Definições › Utilizadores)
 Este projeto Supabase **não tem SMTP próprio configurado**, e sem ele o
 painel não deixa editar templates de email — o "Esqueci-me da password" do
