@@ -230,9 +230,9 @@ input:focus,select:focus{border-color:var(--vd)}
 /* LOCAL BADGE (top-left corner of card) */
 .jlocal-badge{position:absolute;top:-1px;left:-1px;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--card);border:1px solid var(--bo);border-radius:50% 0 6px 0;line-height:1;z-index:1}
 
-/* COMPETITION BADGE (bottom-left corner of card, simétrico ao LOCAL BADGE) */
-.jcomp-badge{position:absolute;bottom:-1px;left:-1px;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--card);border:1px solid var(--bo);border-radius:0 6px 0 50%;line-height:1;z-index:1;overflow:hidden}
-.jcomp-badge img{width:17px;height:17px;object-fit:contain}
+/* COMPETITION ICON (canto direito do card, no lugar do jval) */
+.jcomp-icon{width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+.jcomp-icon img{max-width:100%;max-height:100%;object-fit:contain}
 
 /* RESULT BADGE (inline before adversary) */
 .jres-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:1px 6px;border-radius:4px;line-height:1.4;margin-right:6px;vertical-align:middle}

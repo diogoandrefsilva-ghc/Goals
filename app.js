@@ -1250,11 +1250,13 @@ function jogoCardHTML(j,mini=false){
 
   // valor: +pote verde; se houver dívida, -divida vermelho; se pago, "Pago ✓"; se 0 golos, "N/A"
   // Convidado não vê nada disto — nem sequer "N/A" (é sempre o mesmo bloco de EUR).
+  // Só aparece no card "mini" (jogos com pagamento em falta, no Resumo) — no
+  // card normal da lista de Jogos esse espaço passa a ser o símbolo da competição.
   let valHTML='';
-  if(isGuest){
-  } else if(!isFuturo && golosJ===0){
+  if(mini&&isGuest){
+  } else if(mini&&!isFuturo && golosJ===0){
     valHTML='<div class="jval"><span style="font-size:13px;font-weight:600;color:#999">N/A</span></div>';
-  } else if(!isFuturo&&golosJ>0){
+  } else if(mini&&!isFuturo&&golosJ>0){
     if(nPag>=nTotal){
       valHTML=`<div class="jval"><span class="jval-total">+${pot}€</span><span style="font-size:11px;font-weight:600;color:var(--vd)">Pago ✓</span></div>`;
     } else {
@@ -1271,9 +1273,10 @@ function jogoCardHTML(j,mini=false){
   const localIcon=localSVG[j.local]||'';
   const localBadge=localIcon?`<span class="jlocal-badge">${localIcon}</span>`:'';
 
-  // Competição badge — canto inferior esquerdo, simétrico ao local badge
+  // Símbolo da competição — no card normal (não-mini) ocupa o espaço à
+  // direita onde, no card "mini", vai o pote/dívida (valHTML).
   const compLogoSrc=COMP_LOGOS[j.competicao];
-  const compBadge=compLogoSrc?`<span class="jcomp-badge"><img src="${compLogoSrc}" alt="${j.competicao}" loading="lazy" onerror="this.parentElement.style.display='none'"></span>`:'';
+  const compIconHTML=(!mini&&compLogoSrc)?`<span class="jcomp-icon"><img src="${compLogoSrc}" alt="${j.competicao}" loading="lazy" onerror="this.style.display='none'"></span>`:'';
 
   // Resultado no lugar do jgol — número do Sporting colorido
   let resDisplayHTML='';
@@ -1304,7 +1307,6 @@ function jogoCardHTML(j,mini=false){
 
   return`<div class="jcard${j.potencial?' jcard-pot':''}" data-futuro="${isFuturo?1:0}" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     ${localBadge}
-    ${compBadge}
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
     <span class="jlogo">${(l=>l?`<img src="${l}" alt="" loading="lazy" onerror="this.style.display='none'">`:'')(logoAdv(j.adversario))}</span>
@@ -1312,6 +1314,7 @@ function jogoCardHTML(j,mini=false){
     <div class="jpag-bar">${dotsHTML}</div>
     ${resDisplayHTML}
     ${valHTML}
+    ${compIconHTML}
     ${editBtn}
     ${delBtn}
   </div>`;
