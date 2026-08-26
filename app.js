@@ -1209,6 +1209,15 @@ function jogoTemDivida(j){
   return pag.length<db.amigos.length;
 }
 
+// Símbolos das competições — badge no canto inferior esquerdo do card do jogo
+const COMP_LOGOS={
+  'Liga Portugal':'logos-competicoes/liga-portugal.png',
+  'Liga dos Campeões':'logos-competicoes/liga-dos-campeoes.png',
+  'Taça de Portugal':'logos-competicoes/taca-de-portugal.png',
+  'Taça da Liga':'logos-competicoes/taca-da-liga.png',
+  'Supertaça':'logos-competicoes/supertaca.png'
+};
+
 function jogoCardHTML(j,mini=false){
   const d=new Date(j.data+'T12:00:00');
   const dia=d.getDate().toString().padStart(2,'0');
@@ -1262,6 +1271,10 @@ function jogoCardHTML(j,mini=false){
   const localIcon=localSVG[j.local]||'';
   const localBadge=localIcon?`<span class="jlocal-badge">${localIcon}</span>`:'';
 
+  // Competição badge — canto inferior esquerdo, simétrico ao local badge
+  const compLogoSrc=COMP_LOGOS[j.competicao];
+  const compBadge=compLogoSrc?`<span class="jcomp-badge"><img src="${compLogoSrc}" alt="${j.competicao}" loading="lazy" onerror="this.parentElement.style.display='none'"></span>`:'';
+
   // Resultado no lugar do jgol — número do Sporting colorido
   let resDisplayHTML='';
   if(isFuturo){
@@ -1291,6 +1304,7 @@ function jogoCardHTML(j,mini=false){
 
   return`<div class="jcard${j.potencial?' jcard-pot':''}" data-futuro="${isFuturo?1:0}" onclick="abrirDetalhe(${j.id})" style="${isFuturo?'opacity:.75':''}">
     ${localBadge}
+    ${compBadge}
     <div class="jdt"><strong>${dia}</strong><span>${mes}</span></div>
     <div class="jsep"></div>
     <span class="jlogo">${(l=>l?`<img src="${l}" alt="" loading="lazy" onerror="this.style.display='none'">`:'')(logoAdv(j.adversario))}</span>
