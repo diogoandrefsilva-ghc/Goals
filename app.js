@@ -1533,9 +1533,20 @@ function _popupVsHTML(nomeA,crestA,nomeB,crestB,meioHTML){
   const time=(nome,crest)=>`<div class="cal-pop-team"><span class="cal-pop-team-crest">${crest?`<img src="${crest}" alt="" loading="lazy" onerror="this.style.display='none'">`:'<span class="cal-pop-team-crest-vazio">?</span>'}</span><span class="cal-pop-team-nome">${nome}</span></div>`;
   return`<div class="cal-pop-vs">${time(nomeA,crestA)}<div class="cal-pop-meio">${meioHTML||'<span class="cal-pop-meio-dash">–</span>'}</div>${time(nomeB,crestB)}</div>`;
 }
+// "J1" (abreviatura da jornada da Liga) → "Jornada 1"; as fases de
+// taça/Champions ("Oitavos-de-final", "4.ª eliminatória", "1.ª mão"…) já vêm
+// por extenso da Edge Function e ficam como estão.
+function _jornadaLonga(s){
+  const m=/^J\s*(\d+)$/i.exec(String(s||'').trim());
+  return m?`Jornada ${m[1]}`:s;
+}
 function _popupJogoHTML(j){
   const compSrc=COMP_LOGOS[j.competicao];
-  const compHTML=`<div class="cal-pop-comp">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}${j.jornada?' · '+j.jornada:''}</span></div>`;
+  const jornadaTxt=j.jornada?_jornadaLonga(j.jornada):'';
+  const compHTML=`<div class="cal-pop-comp">
+    <div class="cal-pop-comp-nome">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}</span></div>
+    ${jornadaTxt?`<div class="cal-pop-comp-jorn">${jornadaTxt}</div>`:''}
+  </div>`;
   const closeBtn='<button class="cal-pop-close" onclick="fecharPopupJogo()" aria-label="Fechar">✕</button>';
   const estadioHTML=j.estadio?`<div class="cal-pop-estadio">🏟️ ${j.estadio}</div>`:'';
   if(j.porDefinir||j.potencial){
@@ -1556,10 +1567,11 @@ function _popupJogoHTML(j){
   const vsHTML=j.local==='Fora'
     ?_popupVsHTML(j.adversario,logoAdv(j.adversario),'Sporting','escudo-verde.png',meioHTML)
     :_popupVsHTML('Sporting','escudo-verde.png',j.adversario,logoAdv(j.adversario),meioHTML);
+  // Ordem antes dos brasões/resultado: estádio, data, hora.
   return`${closeBtn}
+    ${estadioHTML}
     <div class="cal-pop-data">${_popupDataFmt(j.data)}${j.hora?' · '+j.hora:''}</div>
     ${vsHTML}
-    ${estadioHTML}
     ${compHTML}`;
 }
 function scrollMesAtualParaVista(){
@@ -2467,7 +2479,7 @@ function calRender() {
       <div class="calsug-sec-hd"><span>Jogos potenciais a remover (${_calPotRem.length})</span>
         <span><button class="calsug-link" onclick="calTodos('potRem',true)">todos</button> · <button class="calsug-link" onclick="calTodos('potRem',false)">nenhum</button></span>
       </div>
-      <p class="calsug-nota aviso">O Sporting já não pode chegar a estas rondas (eliminado, ou já fora de causa) — a leitura de agora deixou de as encontrar. Por omissão vêm desmarcadas: confirma antes de apagar.</p>
+      <p class="calsug-nota aviso">A leitura de agora deixou de mencionar estas rondas — pode ser o Sporting eliminado/fora de causa, mas também pode ser só a pesquisa por IA a não as ter apanhado desta vez (o número de "potenciais" varia de leitura para leitura, mesmo sem nada ter mudado). Por omissão vêm desmarcadas: <strong>confirma numa fonte antes de apagar</strong>.</p>
       ${_calPotRem.map(_calLinhaPotRem).join('')}
     </div>`);
   }
