@@ -1525,6 +1525,12 @@ function _popupScoreHTML(est){
   const cor=i=>i===est.sIdx?sCor:aCor;
   return`<span class="cal-pop-score" style="background:${bg}"><span style="color:${cor(0)}">${est.p[0]}</span><span style="color:rgba(255,255,255,.55);font-size:14px"> - </span><span style="color:${cor(1)}">${est.p[1]}</span></span>`;
 }
+// Brasão dos dois lados, na ordem casa-fora — mesmo padrão do
+// resDisplayHTML/_estadoCalDia, só que com o escudo em vez do texto.
+function _popupVsHTML(nomeA,crestA,nomeB,crestB){
+  const time=(nome,crest)=>`<div class="cal-pop-team"><span class="cal-pop-team-crest">${crest?`<img src="${crest}" alt="" loading="lazy" onerror="this.style.display='none'">`:'<span class="cal-pop-team-crest-vazio">?</span>'}</span><span class="cal-pop-team-nome">${nome}</span></div>`;
+  return`<div class="cal-pop-vs">${time(nomeA,crestA)}<span class="cal-pop-vs-sep">–</span>${time(nomeB,crestB)}</div>`;
+}
 function _popupJogoHTML(j){
   const compSrc=COMP_LOGOS[j.competicao];
   const compHTML=`<div class="cal-pop-comp">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}${j.jornada?' · '+j.jornada:''}</span></div>`;
@@ -1533,19 +1539,21 @@ function _popupJogoHTML(j){
     const dataTxt=(j.dataAte&&j.dataAte!==j.data)?`${_popupDataFmt(j.data)} – ${_popupDataFmt(j.dataAte)}`:_popupDataFmt(j.data);
     return`${closeBtn}
       <div class="cal-pop-data">${dataTxt}</div>
-      <div class="cal-pop-matchup">${j.potencial?'Jogo potencial':'Adversário por sortear'}</div>
+      ${_popupVsHTML('Sporting','escudo.png','?',null)}
       <div class="cal-pop-res"><span class="cal-pop-res-mu">${j.potencial?(j.condicao||'Depende da ronda anterior'):'A aguardar sorteio'}</span></div>
       ${compHTML}`;
   }
   const est=_estadoCalDia(j);
-  const matchup=j.local==='Fora'?`${j.adversario} – Sporting`:`Sporting – ${j.adversario}`;
+  const vsHTML=j.local==='Fora'
+    ?_popupVsHTML(j.adversario,logoAdv(j.adversario),'Sporting','escudo.png')
+    :_popupVsHTML('Sporting','escudo.png',j.adversario,logoAdv(j.adversario));
   let resHTML;
   if(est.estado==='fut')resHTML='<span class="cal-pop-res-mu">Por realizar</span>';
   else if(est.estado==='jogado')resHTML=`<span class="cal-pop-res-mu">${est.golos} golo${est.golos!==1?'s':''} do Sporting</span>`;
   else resHTML=_popupScoreHTML(est);
   return`${closeBtn}
     <div class="cal-pop-data">${_popupDataFmt(j.data)}</div>
-    <div class="cal-pop-matchup">${matchup}</div>
+    ${vsHTML}
     <div class="cal-pop-res">${resHTML}</div>
     ${compHTML}`;
 }
