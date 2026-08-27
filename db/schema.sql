@@ -114,6 +114,8 @@ CREATE TABLE IF NOT EXISTS goals.jogos (
   local       text,                                -- 'Casa' | 'Fora' | 'Neutro'
   golos       integer,                              -- null = jogo futuro, sem resultado
   resultado   text,                                 -- ex: '2-1', opcional
+  hora        text,                                 -- 'HH:MM', null se ainda não se souber
+  estadio     text,                                 -- nome do estádio, null se não se souber
   -- Jogos certos mas ainda por sortear (fase de liga da Champions antes do
   -- sorteio, eliminatória da Taça em que a I Liga entra): `adversario` fica a
   -- '' e `data` leva o primeiro dia da janela oficial, com `data_ate` a

@@ -71,7 +71,14 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
     de jogos da época enquanto `potencial=true`. Idempotente, tolerante: sem
     ela essa secção do painel de sugestões diz que falta correr o ficheiro e
     nada mais muda.
-11. `acesso-convidado.sql` — recomendado se quiseres o botão "Entrar como
+11. `jogo-hora-estadio.sql` — opcional: as colunas `hora`/`estadio` em
+    `goals.jogos`. Preenchem-se à mão no modal de editar jogo ou pela
+    sincronização do calendário (a Edge Function já ia buscar esta
+    informação, só não tinha onde a gravar). Idempotente, tolerante: sem ela
+    o detalhe do jogo não mostra essa linha e a sincronização não sugere
+    corrigi-las. **Numa BD limpa não é preciso** — as colunas já vão no
+    `schema.sql`; isto é só para as BD que já existiam antes.
+12. `acesso-convidado.sql` — recomendado se quiseres o botão "Entrar como
     convidado" do ecrã de login: duas policies de `SELECT` para o role `anon`
     (sem sessão nenhuma) em `goals.jogos` e `goals.epocas` — só essas duas
     tabelas, nada de `pagos_jogo`/`estouros`/`creditos_extra`/`config`/
@@ -162,6 +169,8 @@ telefone/WhatsApp, e a pessoa entra e troca-a em Definições › Conta
   marcar `aprovado` + lançar `pagos_jogo` numa única transação, para uma
   falha de rede a meio não deixar as duas escritas dessincronizadas.
   Recomendado, tolerante.
+- **jogo-hora-estadio.sql** — colunas `hora`/`estadio` em `goals.jogos`.
+  Opcional, tolerante.
 - **acesso-convidado.sql** — as duas policies de `SELECT TO anon` que dão ao
   botão "Entrar como convidado" (sem login) acesso só a `jogos`/`epocas`. Ver
   secção "Acesso de Convidado" no `CLAUDE.md` para o resto do desenho

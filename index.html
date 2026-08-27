@@ -442,6 +442,17 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
             <input type="text" id="ed-jorn" placeholder="ex: LP J32">
           </div>
         </div>
+        <!-- LINHA 3b: Hora + Estádio -->
+        <div style="display:flex;gap:10px">
+          <div class="fg" style="flex:0 0 110px">
+            <label>Hora <em style="font-weight:400;font-style:italic;color:var(--mu)">(opc.)</em></label>
+            <input type="time" id="ed-hora">
+          </div>
+          <div class="fg" style="flex:1;min-width:0">
+            <label>Estádio <em style="font-weight:400;font-style:italic;color:var(--mu)">(opc.)</em></label>
+            <input type="text" id="ed-estadio" placeholder="ex: Estádio José Alvalade">
+          </div>
+        </div>
         <!-- Golos -->
         <div class="fg">
           <label>Golos do Sporting <em style="font-weight:400;font-style:italic;color:var(--mu)">(auto-calculado pelo resultado)</em></label>

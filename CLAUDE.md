@@ -177,8 +177,17 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   está com outra grafia ou com a data velha.
 - Por omissão vêm marcados só os jogos futuros e as datas de jogos ainda sem
   resultado; os passados/jogados aparecem na mesma, desmarcados e etiquetados.
-- Resultados **não** são importados — de propósito. O botão faz três coisas:
-  criar jogos, preencher adversários sorteados e corrigir datas.
+- Resultados **não** são importados — de propósito. O botão faz quatro coisas:
+  criar jogos, preencher adversários sorteados, corrigir datas e completar
+  hora/estádio (`jogos.hora`/`jogos.estadio`, migração `db/jogo-hora-estadio.sql`,
+  tolerante — sem ela essa parte fica de fora e mais nada muda). A Edge
+  Function já ia buscar `hora`/`estadio` por jogo (é onde vêm de `s.hora`
+  nas linhas de sugestão); só faltava a BD ter onde os gravar. A secção
+  "Datas diferentes" do painel passa a chamar-se "Datas/hora/estádio
+  diferentes" e cobre as três em conjunto — um jogo já gravado com a data
+  certa mas sem hora, por exemplo, aparece lá só com a hora a preencher. Estes
+  dois campos também são editáveis à mão no modal de editar jogo, e aparecem
+  no detalhe do jogo (lista e popup do calendário).
 
 ### Jogos certos mas ainda sem adversário (`jogos.por_definir`)
 Há jogos que o Sporting joga de certeza muito antes de se saber contra quem: as

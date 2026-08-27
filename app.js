@@ -13,6 +13,7 @@ let MEU_AMIGO_NOME=null; // nome do amigo (goals.user_amigos) ligado a este logi
 let PUSH_COL=true; // tabela push_subscriptions existe? (verificado em pushCheckColuna, chamado por sbAposLogin)
 let JOGOS_PD=true; // colunas por_definir/data_ate existem? (db/jogos-por-definir.sql, visto em carregar())
 let JOGOS_POT=true; // colunas potencial/condicao existem? (db/jogos-potenciais.sql, visto em carregar())
+let JOGOS_HE=true; // colunas hora/estadio existem? (db/jogo-hora-estadio.sql, visto em carregar())
 
 // Par de chaves para notificações Web Push (não é a chave do Supabase) —
 // o MESMO par já usado pelo SplitBill: os secrets de Edge Function no
@@ -158,10 +159,10 @@ async function carregar(){
   // (db/jogos-por-definir.sql, db/jogos-potenciais.sql). Se a BD ainda não as
   // tiver, o `select=*` volta sem essas chaves — é assim que se sabe, sem
   // gastar um pedido só a perguntar.
-  if((jogosRows||[]).length){JOGOS_PD='por_definir' in jogosRows[0];JOGOS_POT='potencial' in jogosRows[0];}
+  if((jogosRows||[]).length){JOGOS_PD='por_definir' in jogosRows[0];JOGOS_POT='potencial' in jogosRows[0];JOGOS_HE='hora' in jogosRows[0];}
   (jogosRows||[]).forEach(j=>{
     const ep=dbFull.epocas[j.epoca_nome];if(!ep)return;
-    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado,porDefinir:!!j.por_definir,dataAte:j.data_ate||null,potencial:!!j.potencial,condicao:j.condicao||''});
+    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado,porDefinir:!!j.por_definir,dataAte:j.data_ate||null,potencial:!!j.potencial,condicao:j.condicao||'',hora:j.hora||null,estadio:j.estadio||null});
   });
   const jogoEpoca={};(jogosRows||[]).forEach(j=>jogoEpoca[j.id]=j.epoca_nome);
   (pagosRows||[]).forEach(p=>{
@@ -214,7 +215,7 @@ async function carregarConvidado(){
   });
   (jogosRows||[]).forEach(j=>{
     const ep=dbFull.epocas[j.epoca_nome];if(!ep)return;
-    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado,porDefinir:!!j.por_definir,dataAte:j.data_ate||null,potencial:!!j.potencial,condicao:j.condicao||''});
+    ep.jogos.push({id:j.id,data:j.data,adversario:j.adversario,competicao:j.competicao,jornada:j.jornada,local:j.local,golos:j.golos,resultado:j.resultado,porDefinir:!!j.por_definir,dataAte:j.data_ate||null,potencial:!!j.potencial,condicao:j.condicao||'',hora:j.hora||null,estadio:j.estadio||null});
   });
   actualizarEpocasOrdem();
   epocaAtiva=epocaInicial();
@@ -1536,6 +1537,7 @@ function _popupJogoHTML(j){
   const compSrc=COMP_LOGOS[j.competicao];
   const compHTML=`<div class="cal-pop-comp">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}${j.jornada?' · '+j.jornada:''}</span></div>`;
   const closeBtn='<button class="cal-pop-close" onclick="fecharPopupJogo()" aria-label="Fechar">✕</button>';
+  const estadioHTML=j.estadio?`<div class="cal-pop-estadio">🏟️ ${j.estadio}</div>`:'';
   if(j.porDefinir||j.potencial){
     const dataTxt=(j.dataAte&&j.dataAte!==j.data)?`${_popupDataFmt(j.data)} – ${_popupDataFmt(j.dataAte)}`:_popupDataFmt(j.data);
     return`${closeBtn}
@@ -1555,8 +1557,9 @@ function _popupJogoHTML(j){
     ?_popupVsHTML(j.adversario,logoAdv(j.adversario),'Sporting','escudo-verde.png',meioHTML)
     :_popupVsHTML('Sporting','escudo-verde.png',j.adversario,logoAdv(j.adversario),meioHTML);
   return`${closeBtn}
-    <div class="cal-pop-data">${_popupDataFmt(j.data)}</div>
+    <div class="cal-pop-data">${_popupDataFmt(j.data)}${j.hora?' · '+j.hora:''}</div>
     ${vsHTML}
+    ${estadioHTML}
     ${compHTML}`;
 }
 function scrollMesAtualParaVista(){
@@ -1722,7 +1725,8 @@ function renderDetalhe(jogo){
       <div style="padding:14px 20px;border-bottom:1px solid var(--bo);display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
         <div style="display:flex;flex-direction:column;gap:4px">
           <div style="font-size:12px;color:var(--mu)">${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}</div>
-          <div style="font-size:12px;color:var(--mu)">${d}</div>
+          <div style="font-size:12px;color:var(--mu)">${d}${jogo.hora?' · '+jogo.hora:''}</div>
+          ${jogo.estadio?`<div style="font-size:12px;color:var(--mu)">🏟️ ${jogo.estadio}</div>`:''}
           ${metaMoneyHTML}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
@@ -2100,12 +2104,19 @@ function calPreparar(d) {
       if (!passado) _calSel.novos.add(_calNovos.length - 1);
       return;
     }
-    if (j.data === s.data) return;                       // já está certo
-    // Data diferente. Um jogo com resultado já é história — sugere-se na mesma
-    // (pode ter sido gravado com a data errada) mas desmarcado por omissão.
+    // Data igual, e hora/estádio ou já lá estão ou a BD ainda não tem onde os
+    // guardar (JOGOS_HE): nada a sugerir para este jogo.
+    const dataMuda = j.data !== s.data;
+    const horaMuda = JOGOS_HE && !!s.hora && j.hora !== s.hora;
+    const estadioMuda = JOGOS_HE && !!s.estadio && j.estadio !== s.estadio;
+    if (!dataMuda && !horaMuda && !estadioMuda) return;   // já está tudo certo
+    // Alguma coisa diferente. Um jogo com resultado já é história — sugere-se
+    // na mesma (pode ter sido gravado com a data errada) mas desmarcado por
+    // omissão quando é a DATA que muda; hora/estádio sozinhos são inofensivos
+    // e podem vir marcados mesmo num jogo já jogado.
     const jogado = !!(j.resultado || (j.golos !== null && j.golos !== undefined && j.golos !== ''));
-    _calDatas.push({ jogo: j, sug: s, jogado });
-    if (!jogado) _calSel.datas.add(_calDatas.length - 1);
+    _calDatas.push({ jogo: j, sug: s, jogado, dataMuda, horaMuda, estadioMuda });
+    if (!jogado || !dataMuda) _calSel.datas.add(_calDatas.length - 1);
   });
   /* Rondas em que o Sporting joga de certeza mas ainda sem adversário sorteado.
      Só entram as que não estão cá de nenhuma forma — por ronda, não por data:
@@ -2198,7 +2209,7 @@ function calAtualizarBotao() {
 
 function _calLinhaNova(o, i) {
   const s = o.sug;
-  const meta = [s.competicao, s.jornada, s.local, s.hora].filter(Boolean).join(' · ');
+  const meta = [s.competicao, s.jornada, s.local, s.hora, s.estadio].filter(Boolean).join(' · ');
   return `<label class="calsug-row">
     <input type="checkbox" ${_calSel.novos.has(i) ? 'checked' : ''} onchange="calToggle('novos',${i},this)">
     <span class="calsug-dt">${_calEsc(_calDataCurta(s.data))}</span>
@@ -2234,7 +2245,7 @@ function _calLinhaPD(o, i) {
 }
 // O sorteio saiu: linha que já cá está, agora com nome (e com a data certa).
 function _calLinhaPromo(o, i) {
-  const meta = [o.sug.competicao, o.sug.jornada, o.sug.local, o.sug.hora].filter(Boolean).join(' · ');
+  const meta = [o.sug.competicao, o.sug.jornada, o.sug.local, o.sug.hora, o.sug.estadio].filter(Boolean).join(' · ');
   const velha = (o.jogo.dataAte && o.jogo.dataAte !== o.jogo.data)
     ? janelaCurta(o.jogo.data, o.jogo.dataAte) : _calDataCurta(o.jogo.data);
   const mudou = o.jogo.data !== o.sug.data;
@@ -2252,19 +2263,26 @@ function _calLinhaPromo(o, i) {
     </span>
   </label>`;
 }
+// Mesma linha serve para três coisas (podem vir combinadas): data diferente,
+// hora nova/diferente, estádio novo/diferente — ver a extensão do
+// emparelhamento em calPreparar().
 function _calLinhaData(o, i) {
   const meta = [o.sug.competicao, o.sug.jornada, o.sug.local].filter(Boolean).join(' · ');
+  const dataHTML = o.dataMuda
+    ? `<s>${_calEsc(_calDataCurta(o.jogo.data))}</s><b>${_calEsc(_calDataCurta(o.sug.data))}</b>`
+    : _calEsc(_calDataCurta(o.jogo.data));
+  const trocas = [];
+  if (o.horaMuda) trocas.push(`<span class="calsug-tag">hora${o.jogo.hora ? ': ' + _calEsc(o.jogo.hora) + ' → ' : ': '}${_calEsc(o.sug.hora)}</span>`);
+  if (o.estadioMuda) trocas.push(`<span class="calsug-tag">estádio: ${_calEsc(o.sug.estadio)}</span>`);
   return `<label class="calsug-row">
     <input type="checkbox" ${_calSel.datas.has(i) ? 'checked' : ''} onchange="calToggle('datas',${i},this)">
-    <span class="calsug-dt trocada">
-      <s>${_calEsc(_calDataCurta(o.jogo.data))}</s>
-      <b>${_calEsc(_calDataCurta(o.sug.data))}</b>
-    </span>
+    <span class="calsug-dt${o.dataMuda ? ' trocada' : ''}">${dataHTML}</span>
     <span class="calsug-info">
       <span class="calsug-adv">${_calEsc(o.jogo.adversario)}</span>
       <span class="calsug-sub">
         <span class="calsug-meta">${_calEsc(meta)}</span>
-        ${o.jogado ? '<span class="calsug-tag">jogado</span>' : ''}
+        ${trocas.join('')}
+        ${o.jogado && o.dataMuda ? '<span class="calsug-tag">jogado</span>' : ''}
         ${o.sug.confirmado === false ? '<span class="calsug-tag aviso">provisória</span>' : ''}
       </span>
     </span>
@@ -2292,7 +2310,7 @@ function _calLinhaPot(o, i) {
 }
 // Era potencial, o Sporting apurou-se e já se sabe o adversário: sobe a jogo completo.
 function _calLinhaPotProm(o, i) {
-  const meta = [o.sug.competicao, o.sug.jornada, o.sug.local, o.sug.hora].filter(Boolean).join(' · ');
+  const meta = [o.sug.competicao, o.sug.jornada, o.sug.local, o.sug.hora, o.sug.estadio].filter(Boolean).join(' · ');
   return `<label class="calsug-row">
     <input type="checkbox" ${_calSel.potProm.has(i) ? 'checked' : ''} onchange="calToggle('potProm',${i},this)">
     <span class="calsug-dt">${_calEsc(_calDataCurta(o.sug.data))}</span>
@@ -2411,7 +2429,7 @@ function calRender() {
   }
   if (_calDatas.length) {
     partes.push(`<div class="calsug-sec">
-      <div class="calsug-sec-hd"><span>Datas diferentes (${_calDatas.length})</span>
+      <div class="calsug-sec-hd"><span>Datas/hora/estádio diferentes (${_calDatas.length})</span>
         <span><button class="calsug-link" onclick="calTodos('datas',true)">todas</button> · <button class="calsug-link" onclick="calTodos('datas',false)">nenhuma</button></span>
       </div>
       ${_calDatas.map(_calLinhaData).join('')}
@@ -2503,11 +2521,16 @@ async function calAplicar() {
   let criadosPot = 0, potProms = 0, potPDs = 0, potRemovidos = 0;
   try {
     if (novos.length) {
-      const linhas = novos.map(o => ({
-        epoca_nome: epocaAtiva, data: o.sug.data, adversario: o.sug.adversario,
-        competicao: o.sug.competicao || '', jornada: o.sug.jornada || '',
-        local: o.sug.local || 'Casa', golos: null, resultado: ''
-      }));
+      const linhas = novos.map(o => {
+        const linha = {
+          epoca_nome: epocaAtiva, data: o.sug.data, adversario: o.sug.adversario,
+          competicao: o.sug.competicao || '', jornada: o.sug.jornada || '',
+          local: o.sug.local || 'Casa', golos: null, resultado: ''
+        };
+        // hora/estádio são de uma migração opcional (db/jogo-hora-estadio.sql).
+        if (JOGOS_HE) { if (o.sug.hora) linha.hora = o.sug.hora; if (o.sug.estadio) linha.estadio = o.sug.estadio; }
+        return linha;
+      });
       try {
         // Insere em bloco e lê os ids reais de volta — os ids são da BD, nunca
         // inventados do lado do cliente (ver CLAUDE.md).
@@ -2517,7 +2540,8 @@ async function calAplicar() {
           db.jogos.push({
             id: row.id, data: row.data || o.data, adversario: row.adversario || o.adversario,
             golos: null, resultado: '', competicao: row.competicao || o.competicao,
-            jornada: row.jornada || o.jornada, local: row.local || o.local
+            jornada: row.jornada || o.jornada, local: row.local || o.local,
+            hora: row.hora || o.hora || null, estadio: row.estadio || o.estadio || null
           });
           db.pagosPorJogo[String(row.id)] = [];
           criados++;
@@ -2582,13 +2606,15 @@ async function calAplicar() {
     for (const o of promo) {
       const antes = {
         adversario: o.jogo.adversario, data: o.jogo.data, local: o.jogo.local,
-        jornada: o.jogo.jornada, porDefinir: o.jogo.porDefinir, dataAte: o.jogo.dataAte
+        jornada: o.jogo.jornada, porDefinir: o.jogo.porDefinir, dataAte: o.jogo.dataAte,
+        hora: o.jogo.hora, estadio: o.jogo.estadio
       };
       const depois = {
         adversario: o.sug.adversario, data: o.sug.data,
         local: o.sug.local || o.jogo.local || 'Casa',
         jornada: o.sug.jornada || o.jogo.jornada || ''
       };
+      if (JOGOS_HE) { if (o.sug.hora) depois.hora = o.sug.hora; if (o.sug.estadio) depois.estadio = o.sug.estadio; }
       try {
         await sbReq('PATCH', `jogos?id=eq.${o.jogo.id}`,
           Object.assign({}, depois, { por_definir: false, data_ate: null }));
@@ -2602,13 +2628,15 @@ async function calAplicar() {
     for (const o of potProm) {
       const antes = {
         adversario: o.jogo.adversario, data: o.jogo.data, local: o.jogo.local,
-        jornada: o.jogo.jornada, potencial: o.jogo.potencial, condicao: o.jogo.condicao, dataAte: o.jogo.dataAte
+        jornada: o.jogo.jornada, potencial: o.jogo.potencial, condicao: o.jogo.condicao, dataAte: o.jogo.dataAte,
+        hora: o.jogo.hora, estadio: o.jogo.estadio
       };
       const depois = {
         adversario: o.sug.adversario, data: o.sug.data,
         local: o.sug.local || o.jogo.local || 'Casa',
         jornada: o.sug.jornada || o.jogo.jornada || ''
       };
+      if (JOGOS_HE) { if (o.sug.hora) depois.hora = o.sug.hora; if (o.sug.estadio) depois.estadio = o.sug.estadio; }
       try {
         await sbReq('PATCH', `jogos?id=eq.${o.jogo.id}`,
           Object.assign({}, depois, { potencial: false, condicao: null, data_ate: null }));
@@ -2635,14 +2663,20 @@ async function calAplicar() {
         potPDs++;
       } catch (e) { Object.assign(o.jogo, antes); erros++; }
     }
-    // Uma data de cada vez: se uma falhar, as outras continuam válidas.
+    // Um jogo de cada vez: se um falhar, os outros continuam válidos. Cada
+    // linha pode trazer data, hora e/ou estádio, misturados — só se manda o
+    // que de facto mudou nessa linha (ver calPreparar()).
     for (const o of datas) {
-      const antes = o.jogo.data;
+      const antes = { data: o.jogo.data, hora: o.jogo.hora, estadio: o.jogo.estadio };
+      const payload = {};
+      if (o.dataMuda) payload.data = o.sug.data;
+      if (o.horaMuda) payload.hora = o.sug.hora;
+      if (o.estadioMuda) payload.estadio = o.sug.estadio;
       try {
-        await sbReq('PATCH', `jogos?id=eq.${o.jogo.id}`, { data: o.sug.data });
-        o.jogo.data = o.sug.data;
+        await sbReq('PATCH', `jogos?id=eq.${o.jogo.id}`, payload);
+        Object.assign(o.jogo, payload);
         corrigidos++;
-      } catch (e) { o.jogo.data = antes; erros++; }
+      } catch (e) { Object.assign(o.jogo, antes); erros++; }
     }
     /* Sporting eliminado dessa fase: apaga-se a linha (é financeiramente
        inerte, nunca teve pagamentos ligados). Optimista, como remJogo(). */
@@ -2671,7 +2705,7 @@ async function calAplicar() {
   if (promovidos) p.push(`${promovidos} adversário${promovidos === 1 ? '' : 's'} preenchido${promovidos === 1 ? '' : 's'}`);
   if (potProms) p.push(`${potProms} potencial${potProms === 1 ? '' : 'ais'} confirmado${potProms === 1 ? '' : 's'}`);
   if (potPDs) p.push(`${potPDs} potencial${potPDs === 1 ? '' : 'ais'} apurado${potPDs === 1 ? '' : 's'}`);
-  if (corrigidos) p.push(`${corrigidos} data${corrigidos === 1 ? '' : 's'} corrigida${corrigidos === 1 ? '' : 's'}`);
+  if (corrigidos) p.push(`${corrigidos} jogo${corrigidos === 1 ? '' : 's'} atualizado${corrigidos === 1 ? '' : 's'}`);
   if (potRemovidos) p.push(`${potRemovidos} potencial${potRemovidos === 1 ? '' : 'ais'} removido${potRemovidos === 1 ? '' : 's'}`);
   toast(p.length ? '✓ ' + p.join(' · ') + (erros ? ` (${erros} com erro)` : '') : 'Nada gravado', erros && !p.length ? 1 : 0);
 }
@@ -2920,6 +2954,8 @@ function abrirModalEditar(jogoId){
   document.getElementById('ed-data').value=j.data||'';
   document.getElementById('ed-jorn').value=j.jornada||'';
   document.getElementById('ed-res').value=j.resultado||'';
+  document.getElementById('ed-hora').value=j.hora||'';
+  document.getElementById('ed-estadio').value=j.estadio||'';
   // Local
   const localVal=j.local||'Casa';
   document.getElementById('ed-local').value=localVal;
@@ -2975,6 +3011,12 @@ async function guardarEdicao(){
   };
   const gv=document.getElementById('ed-golos').value;
   novo.golos=gv===''?null:parseInt(gv);
+  // hora/estádio são de uma migração opcional (db/jogo-hora-estadio.sql) —
+  // sem as colunas na BD, nem sequer se manda o PATCH desses dois campos.
+  if(JOGOS_HE){
+    novo.hora=document.getElementById('ed-hora').value||null;
+    novo.estadio=document.getElementById('ed-estadio').value.trim()||null;
+  }
   // Escreveste o adversário de um jogo que estava à espera do sorteio: deixa de
   // estar por definir e a janela de datas já não interessa.
   const saiuDeporDefinir=!!(j.porDefinir&&novo.adversario&&JOGOS_PD);
