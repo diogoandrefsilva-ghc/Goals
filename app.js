@@ -1540,12 +1540,19 @@ function _jornadaLonga(s){
   const m=/^J\s*(\d+)$/i.exec(String(s||'').trim());
   return m?`Jornada ${m[1]}`:s;
 }
+// Sem acentos/maiúsculas para apanhar variações da IA ("Estádio José
+// Alvalade", "Estadio Jose Alvalade (Lisboa)", …) — só o nome do estádio em
+// casa do Sporting é que interessa aqui, o resto usa o ícone escuro.
+function _ehEstadioAlvalade(nome){
+  return String(nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes('jose alvalade');
+}
 function _popupJogoHTML(j){
   const compSrc=COMP_LOGOS[j.competicao];
   const jornadaTxt=j.jornada?_jornadaLonga(j.jornada):'';
   const compHTML=`<div class="cal-pop-comp">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}${jornadaTxt?' · <strong>'+jornadaTxt+'</strong>':''}</span></div>`;
   const closeBtn='<button class="cal-pop-close" onclick="fecharPopupJogo()" aria-label="Fechar">✕</button>';
-  const estadioHTML=j.estadio?`<div class="cal-pop-estadio">🏟️ ${j.estadio}</div>`:'';
+  const estadioIcon=_ehEstadioAlvalade(j.estadio)?'estadio-alvalade.png':'estadio-outro.png';
+  const estadioHTML=j.estadio?`<div class="cal-pop-estadio"><img src="${estadioIcon}" alt="" loading="lazy" onerror="this.style.display='none'"> ${j.estadio}</div>`:'';
   if(j.porDefinir||j.potencial){
     const dataTxt=(j.dataAte&&j.dataAte!==j.data)?`${_popupDataFmt(j.data)} – ${_popupDataFmt(j.dataAte)}`:_popupDataFmt(j.data);
     return`${closeBtn}
