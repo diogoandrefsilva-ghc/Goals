@@ -223,11 +223,11 @@ tbody tr:hover{background:#fafaf8}
    para um relance ao evento, sem sair da grelha nem perder o scroll. */
 .cal-popup{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(20,20,18,0);transition:background .18s ease}
 .cal-popup.on{background:rgba(20,20,18,.45)}
-.cal-popup-card{background:var(--card);border-radius:16px;padding:20px 22px;width:100%;max-width:270px;box-shadow:0 14px 34px rgba(0,0,0,.28);transform:scale(.85);opacity:0;transition:transform .2s cubic-bezier(.34,1.56,.64,1),opacity .16s ease;position:relative}
+.cal-popup-card{background:var(--card);border-radius:16px;padding:20px 22px;width:100%;max-width:310px;box-shadow:0 14px 34px rgba(0,0,0,.28);transform:scale(.85);opacity:0;transition:transform .2s cubic-bezier(.34,1.56,.64,1),opacity .16s ease;position:relative}
 .cal-popup.on .cal-popup-card{transform:scale(1);opacity:1}
 .cal-pop-close{position:absolute;top:8px;right:8px;width:26px;height:26px;border:none;background:none;color:var(--mu);font-size:18px;line-height:1;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center}
 .cal-pop-close:hover{background:var(--bg);color:var(--tx)}
-.cal-pop-data{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;text-align:center}
+.cal-pop-data{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;text-align:center;margin-bottom:16px}
 /* brasões dos dois lados, casa-fora — .jlogo/.cal-crest sem cortar, outra
    vez, agora um bocado maiores por ser só duas equipas em vez de sete dias */
 .cal-pop-vs{display:flex;align-items:flex-start;justify-content:center;gap:10px;margin-bottom:14px}
@@ -244,10 +244,9 @@ tbody tr:hover{background:#fafaf8}
 .cal-pop-res{margin-bottom:14px}
 .cal-pop-score{font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1;padding:4px 10px;border-radius:8px;display:inline-flex;align-items:baseline;gap:4px}
 .cal-pop-res-mu{font-size:13px;color:var(--mu);font-style:italic}
-.cal-pop-comp{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--mu);padding-top:12px;border-top:1px solid var(--bo)}
-.cal-pop-comp-nome{display:flex;align-items:center;gap:8px}
+.cal-pop-comp{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--mu);padding-top:12px;border-top:1px solid var(--bo);text-align:center}
 .cal-pop-comp img{width:20px;height:20px;object-fit:contain;flex-shrink:0}
-.cal-pop-comp-jorn{font-size:11px;color:var(--mu)}
+.cal-pop-comp strong{color:var(--tx)}
 .cal-pop-estadio{font-size:11px;color:var(--mu);text-align:center;margin-bottom:8px}
 
 /* DETALHE JOGO */

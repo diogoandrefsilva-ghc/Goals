@@ -1543,10 +1543,7 @@ function _jornadaLonga(s){
 function _popupJogoHTML(j){
   const compSrc=COMP_LOGOS[j.competicao];
   const jornadaTxt=j.jornada?_jornadaLonga(j.jornada):'';
-  const compHTML=`<div class="cal-pop-comp">
-    <div class="cal-pop-comp-nome">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}</span></div>
-    ${jornadaTxt?`<div class="cal-pop-comp-jorn">${jornadaTxt}</div>`:''}
-  </div>`;
+  const compHTML=`<div class="cal-pop-comp">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}${jornadaTxt?' · <strong>'+jornadaTxt+'</strong>':''}</span></div>`;
   const closeBtn='<button class="cal-pop-close" onclick="fecharPopupJogo()" aria-label="Fechar">✕</button>';
   const estadioHTML=j.estadio?`<div class="cal-pop-estadio">🏟️ ${j.estadio}</div>`:'';
   if(j.porDefinir||j.potencial){
