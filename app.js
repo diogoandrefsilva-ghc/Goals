@@ -1540,7 +1540,7 @@ function _popupJogoHTML(j){
     const dataTxt=(j.dataAte&&j.dataAte!==j.data)?`${_popupDataFmt(j.data)} – ${_popupDataFmt(j.dataAte)}`:_popupDataFmt(j.data);
     return`${closeBtn}
       <div class="cal-pop-data">${dataTxt}</div>
-      ${_popupVsHTML('Sporting','escudo.png','?',null)}
+      ${_popupVsHTML('Sporting','escudo-verde.png','?',null)}
       <div class="cal-pop-res"><span class="cal-pop-res-mu">${j.potencial?(j.condicao||'Depende da ronda anterior'):'A aguardar sorteio'}</span></div>
       ${compHTML}`;
   }
@@ -1552,8 +1552,8 @@ function _popupJogoHTML(j){
   if(est.estado==='jogado')meioHTML=`<span class="cal-pop-golos">${est.golos}g</span>`;
   else if(est.estado!=='fut')meioHTML=_popupScoreHTML(est);
   const vsHTML=j.local==='Fora'
-    ?_popupVsHTML(j.adversario,logoAdv(j.adversario),'Sporting','escudo.png',meioHTML)
-    :_popupVsHTML('Sporting','escudo.png',j.adversario,logoAdv(j.adversario),meioHTML);
+    ?_popupVsHTML(j.adversario,logoAdv(j.adversario),'Sporting','escudo-verde.png',meioHTML)
+    :_popupVsHTML('Sporting','escudo-verde.png',j.adversario,logoAdv(j.adversario),meioHTML);
   return`${closeBtn}
     <div class="cal-pop-data">${_popupDataFmt(j.data)}</div>
     ${vsHTML}
