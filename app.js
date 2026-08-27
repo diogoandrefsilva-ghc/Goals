@@ -1552,7 +1552,7 @@ function _popupJogoHTML(j){
   const compHTML=`<div class="cal-pop-comp">${compSrc?`<img src="${compSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}<span>${j.competicao}${jornadaTxt?' · <strong>'+jornadaTxt+'</strong>':''}</span></div>`;
   const closeBtn='<button class="cal-pop-close" onclick="fecharPopupJogo()" aria-label="Fechar">✕</button>';
   const estadioIcon=_ehEstadioAlvalade(j.estadio)?'estadio-alvalade.png':'estadio-outro.png';
-  const estadioHTML=j.estadio?`<div class="cal-pop-estadio"><img src="${estadioIcon}" alt="" loading="lazy" onerror="this.style.display='none'"> ${j.estadio}</div>`:'';
+  const estadioHTML=j.estadio?`<div class="cal-pop-estadio"><img src="${estadioIcon}" alt="" loading="lazy" onerror="this.style.display='none'"><span>${j.estadio}</span></div>`:'';
   if(j.porDefinir||j.potencial){
     const dataTxt=(j.dataAte&&j.dataAte!==j.data)?`${_popupDataFmt(j.data)} – ${_popupDataFmt(j.dataAte)}`:_popupDataFmt(j.data);
     return`${closeBtn}

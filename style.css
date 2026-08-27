@@ -247,8 +247,11 @@ tbody tr:hover{background:#fafaf8}
 .cal-pop-comp{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--mu);padding-top:12px;border-top:1px solid var(--bo);text-align:center}
 .cal-pop-comp img{width:20px;height:20px;object-fit:contain;flex-shrink:0}
 .cal-pop-comp strong{color:var(--tx)}
-.cal-pop-estadio{font-size:11px;color:var(--mu);text-align:center;margin-bottom:8px}
-.cal-pop-estadio img{width:14px;height:14px;object-fit:contain;vertical-align:-2px;margin-right:2px}
+/* flex + align-items:center em vez de vertical-align: o ícone é bem mais
+   alto que o texto de 11px, e alinhar pela baseline deixava-o a flutuar
+   muito acima da linha — mesmo truque do .cal-pop-comp acima. */
+.cal-pop-estadio{display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--mu);text-align:center;margin-bottom:8px}
+.cal-pop-estadio img{width:16px;height:16px;object-fit:contain;flex-shrink:0}
 
 /* DETALHE JOGO */
 .jogo-detalhe{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);padding:20px 22px;margin-bottom:16px}
