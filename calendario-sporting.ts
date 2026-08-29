@@ -651,15 +651,27 @@ async function produzirCalendario(
          recusa response_mime_type, por isso o JSON só é pedido no prompt;
          sem pesquisa já se pode exigir JSON à API.
        · `semThinking` desliga o "pensamento" que os modelos recentes trazem
-         ligado por omissão — com o tool de pesquisa ligado isso é um custo de
-         latência grande. Fica a variante a pensar logo a seguir, para o caso
-         de algum modelo recusar `thinkingConfig` com um 400. */
+         ligado por omissão. É RÁPIDO mas LÊ MAL: medido em 29/08, a variante
+         sem pensar respondeu em 10s com `jogos: []` — só apanhou as datas
+         genéricas da Champions, não o calendário do Sporting. A pensar, isto
+         devolvia 35 jogos em 28-47s (ver o histórico 22-27/08 no `sync_log`).
+     Por isso a ordem depende do ORÇAMENTO: em segundo plano há tempo de
+     sobra para pensar e é isso que dá uma leitura boa; no modo síncrono
+     (55s presos ao browser) o pensamento não cabe, e aí mais vale uma
+     resposta pobre do que nenhuma. */
   type Variante = { search: boolean; semThinking: boolean; label: string };
-  const VARIANTES: Variante[] = [
-    { search: true, semThinking: true, label: "pesquisa+sem-pensar" },
-    { search: true, semThinking: false, label: "pesquisa" },
-    { search: false, semThinking: false, label: "sem-pesquisa" },
-  ];
+  const pensarCabe = budgetMs >= 90_000;
+  const VARIANTES: Variante[] = pensarCabe
+    ? [
+      { search: true, semThinking: false, label: "pesquisa" },
+      { search: true, semThinking: true, label: "pesquisa+sem-pensar" },
+      { search: false, semThinking: false, label: "sem-pesquisa" },
+    ]
+    : [
+      { search: true, semThinking: true, label: "pesquisa+sem-pensar" },
+      { search: true, semThinking: false, label: "pesquisa" },
+      { search: false, semThinking: false, label: "sem-pesquisa" },
+    ];
   const chamarGemini = (model: string, v: Variante, sinal: AbortSignal) => {
     const generationConfig: Record<string, unknown> = v.search
       ? { temperature: 0 }
