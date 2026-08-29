@@ -71,18 +71,18 @@ const TIMEOUT_MS = 55_000;
 // função toda sem sobrar tempo para tentar outro candidato. Isto dá a cada
 // tentativa um relógio próprio, mais curto, para uma que fique presa ser
 // abandonada depressa e a próxima ainda ter tempo dentro do TIMEOUT_MS geral.
-// CORRIGIDO em 29/08 depois de comparar `sync_log` "pedido"→"ok": uma
-// pesquisa bem sucedida demora HISTORICAMENTE 28-47s (é um prompt pesado —
-// pesquisa e confirma dezenas de jogos em várias competições). A primeira
-// versão disto tinha o relógio da pesquisa em 18s e depois 9s — bem abaixo
-// do normal — por isso desistia quase sempre da pesquisa mesmo com o Gemini
-// perfeitamente saudável, só a demorar o tempo dele. Dava a impressão de
-// "pesquisa em baixo" quando o problema era o timeout curto de mais a matar
-// chamadas que iam ter sucesso. Por isso a tentativa com pesquisa recebe
-// agora quase todo o orçamento (cobre os 47s vistos no histórico, com
-// margem), e só sobra uma janela curta para o fallback sem pesquisa — que
-// esse sim é sempre rápido (poucos segundos, por não ter o tool).
-const SEARCH_TENTATIVA_TIMEOUT_MS = 45_000;
+// CAUSA RAIZ (29/08), encontrada a comparar com a `sugerir-vinho` do
+// WineSelection — que faz pesquisa Google com a MESMA chave e funciona: essa
+// manda `thinkingConfig:{thinkingBudget:0}` e esta não mandava. `gemini-flash-
+// latest` é um alias que se atualiza sozinho e passou a resolver para um
+// modelo novo (ver `gemini-3.x-flash` na lista de candidatos) com o
+// "pensamento" LIGADO por omissão. Pensar + pesquisar + este prompt enorme
+// deixou de caber no orçamento, e a chamada nunca respondia — parecia a
+// pesquisa em baixo, era o thinking a estourar o tempo. Enquanto o alias
+// apontava para um modelo sem thinking, isto corria em 28-47s (ver histórico
+// no `sync_log`). A correção é a mesma da função irmã: primeira tentativa
+// sempre sem pensar (ver VARIANTES).
+const SEARCH_TENTATIVA_TIMEOUT_MS = 30_000;
 const FALLBACK_TENTATIVA_TIMEOUT_MS = 9_000;
 
 /* ── Escolha do modelo (mesma estratégia da `fatura-restaurante`) ──
@@ -584,18 +584,33 @@ Deno.serve(async (req) => {
     const hoje = new Date().toISOString().slice(0, 10);
     const texto = prompt(epoca, hoje, conhecidos);
 
-    /* `search: true` liga o grounding com pesquisa Google — é o que faz a
-       diferença entre datas reais e datas de memória. Nesse modo a API recusa
-       response_mime_type, por isso o JSON só é pedido no prompt; sem pesquisa
-       (fallback) já se pode exigir JSON à API. */
-    const chamarGemini = (model: string, search: boolean, signal: AbortSignal) => {
+    /* Cada variante é a mesma pergunta, pedida de outra maneira, da mais
+       rápida para a mais lenta (mesma escada da `sugerir-vinho`):
+         · `search` liga o grounding com pesquisa Google — é o que faz a
+           diferença entre datas reais e datas de memória. Nesse modo a API
+           recusa response_mime_type, por isso o JSON só é pedido no prompt;
+           sem pesquisa já se pode exigir JSON à API.
+         · `semThinking` desliga o "pensamento" que os modelos recentes trazem
+           ligado por omissão. É a diferença entre responder e nunca responder
+           (ver o comentário das constantes lá em cima), por isso a primeira
+           tentativa é sempre esta. Fica a variante a pensar logo a seguir,
+           para o caso de algum modelo recusar `thinkingConfig` com um 400. */
+    type Variante = { search: boolean; semThinking: boolean; label: string };
+    const VARIANTES: Variante[] = [
+      { search: true, semThinking: true, label: "pesquisa+sem-pensar" },
+      { search: true, semThinking: false, label: "pesquisa" },
+      { search: false, semThinking: false, label: "sem-pesquisa" },
+    ];
+    const chamarGemini = (model: string, v: Variante, signal: AbortSignal) => {
+      const generationConfig: Record<string, unknown> = v.search
+        ? { temperature: 0 }
+        : { temperature: 0, response_mime_type: "application/json" };
+      if (v.semThinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
       const corpo: Record<string, unknown> = {
         contents: [{ role: "user", parts: [{ text: texto }] }],
-        generationConfig: search
-          ? { temperature: 0 }
-          : { temperature: 0, response_mime_type: "application/json" },
+        generationConfig,
       };
-      if (search) corpo.tools = [{ google_search: {} }];
+      if (v.search) corpo.tools = [{ google_search: {} }];
       return fetch(`${GAPI}/models/${model}:generateContent?key=${GEMINI_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -603,24 +618,29 @@ Deno.serve(async (req) => {
         body: JSON.stringify(corpo),
       });
     };
-    // Uma chamada, com o relógio certo consoante tem ou não o tool de pesquisa
-    // ligado — devolve a Response, ou null se ficou presa sem responder a
-    // tempo (nesse caso já regista o log; quem chama só decide o que fazer a
-    // seguir).
-    const tentar = async (model: string, search: boolean): Promise<Response | null> => {
-      const { signal, limpar } = comLimiteProprio(
-        ctrl.signal,
-        search ? SEARCH_TENTATIVA_TIMEOUT_MS : FALLBACK_TENTATIVA_TIMEOUT_MS,
-      );
+
+    const inicio = Date.now();
+    // O que sobra do orçamento geral, guardando margem para ainda conseguir
+    // responder ao browser em vez de morrer a meio.
+    const restante = () => TIMEOUT_MS - (Date.now() - inicio) - 2_000;
+
+    // Uma chamada, com o relógio certo para a variante (e nunca mais do que o
+    // que sobra do orçamento). Devolve a Response, ou null se ficou presa sem
+    // responder a tempo — quem chama é que decide o passo seguinte.
+    const tentar = async (model: string, v: Variante): Promise<Response | null> => {
+      const nominal = v.search ? SEARCH_TENTATIVA_TIMEOUT_MS : FALLBACK_TENTATIVA_TIMEOUT_MS;
+      const ms = Math.min(nominal, restante());
+      if (ms < 2_000) return null;   // já não dá tempo de nada útil
+      const { signal, limpar } = comLimiteProprio(ctrl.signal, ms);
       try {
-        const r = await chamarGemini(model, search, signal);
+        const r = await chamarGemini(model, v, signal);
         limpar();
-        console.log("CALENDARIO tentativa:", model, search ? "(pesquisa)" : "(sem pesquisa)", "-> ", r.status);
+        console.log("CALENDARIO tentativa:", model, v.label, "-> ", r.status);
         return r;
       } catch (e) {
         limpar();
         if (ctrl.signal.aborted) throw e;   // orçamento geral esgotado, sai já
-        console.log("CALENDARIO tentativa presa (sem resposta):", model, search ? "(pesquisa)" : "(sem pesquisa)");
+        console.log("CALENDARIO tentativa presa (sem resposta):", model, v.label);
         return null;
       }
     };
@@ -639,36 +659,26 @@ Deno.serve(async (req) => {
 
     for (let ci = 0; ci < candidatos.length && !ctrl.signal.aborted; ci++) {
       model = candidatos[ci];
-
-      // Fase 1: COM pesquisa, uma única tentativa rápida — sem retry aqui,
-      // porque uma que fica presa não fica presa "um bocadinho menos" da
-      // segunda vez, e vale mais gastar esse tempo no fallback ou no
-      // candidato seguinte.
-      comPesquisa = true;
-      g = await tentar(model, true);
-      if (g && g.status === 400) {
-        // Este modelo não aceita `google_search` nesta versão da API — cai já
-        // para a fase 2, é exactamente o mesmo caminho de um hang.
-        console.log("CALENDARIO 400:", (await g.clone().text()).slice(0, 300));
-        g = null;
-      }
-      if (g && g.status === 404) { _models = null; g = null; continue; }   // saiu do catálogo, próximo já
-      if (g && transitorio(g.status)) {
-        await sleep(700);
-        g = await tentar(model, true);
+      // Escada de variantes: assim que uma responde, fica-se por ela. Não há
+      // retry da MESMA variante — uma tentativa que fica presa não fica presa
+      // "um bocadinho menos" à segunda, e esse tempo rende mais na variante
+      // ou no modelo seguinte.
+      for (const v of VARIANTES) {
+        if (ctrl.signal.aborted || restante() < 2_000) break;
+        comPesquisa = v.search;
+        g = await tentar(model, v);
+        if (!g) continue;                       // presa/sem tempo — variante seguinte
+        if (g.status === 400) {                 // este modelo não aceita esta variante
+          console.log("CALENDARIO 400:", (await g.clone().text()).slice(0, 300));
+          g = null;
+          continue;
+        }
+        if (g.status === 404) { _models = null; g = null; break; }   // saiu do catálogo
+        if (transitorio(g.status)) { await sleep(700); g = null; break; }   // sobrecarga: outro modelo
+        break;                                  // ok, ou erro definitivo
       }
       if (g && g.ok) break;
-
-      if (ctrl.signal.aborted) break;
-
-      // Fase 2: SEM pesquisa — mais lenta a admitir derrota (dá-lhe mais
-      // tempo, já que sem o tool costuma responder depressa quando responde),
-      // mas garante alguma coisa em vez do 504 de sempre. A app assinala bem
-      // visível quando isto acontece (`pesquisa:false`).
-      comPesquisa = false;
-      g = await tentar(model, false);
-      if (g && g.status === 404) { g = null; continue; }
-      if (g && g.ok) break;
+      if (g && !transitorio(g.status) && g.status !== 404) break;   // erro definitivo
     }
     if (!g && ctrl.signal.aborted) {
       // O orçamento geral acabou entre tentativas (sem nenhum fetch a
