@@ -212,7 +212,11 @@ OFICIAIS do Sporting Clube de Portugal — futebol masculino, EQUIPA PRINCIPAL �
 da época ${epoca}${j ? ` (jogos entre ${j.ini} e ${j.fim})` : ""}.
 
 Confirma as datas em fontes fiáveis e atuais: sítio oficial do Sporting CP,
-zerozero.pt, Liga Portugal, UEFA, Federação Portuguesa de Futebol.
+Liga Portugal (ligaportugal.pt), flashscore.pt, zerozero.pt, UEFA, Federação
+Portuguesa de Futebol. O flashscore.pt costuma ser o mais rápido a refletir
+horários confirmados pela TV/Liga, mas NUNCA o uses como única fonte para uma
+data — isso confirma-se sempre com a Liga Portugal ou o sítio oficial do
+Sporting.
 
 INCLUI: Liga Portugal, Taça de Portugal, Taça da Liga, Supertaça, Liga dos
 Campeões (também as pré-eliminatórias e o play-off), Liga Europa e Liga
@@ -252,6 +256,18 @@ Regras:
   "jogos" — vai para "porDefinir" (regras abaixo). Mais vale faltar um jogo do
   que devolver um que não existe.
 - Uma entrada por jogo, sem repetições, ordenadas por data crescente.
+- "hora": jogos da Liga Portugal só costumam ter horário oficial fixado 2-3
+  semanas antes da jornada (depende da escolha da TV) — antes disso, é normal
+  e preferível deixar "hora": null a arriscar um valor que ainda pode mudar.
+  Só preenches "hora" quando tiveres a certeza de que é a hora JÁ CONFIRMADA
+  (fonte oficial, ou pelo menos duas fontes independentes e recentes de
+  acordo). Uma única fonte secundária ou um valor "por omissão" tipo 20:30 não
+  chega.
+- Datas: se achares que a data de um jogo já esperado MUDOU (adiado/antecipado)
+  em relação ao que seria óbvio pela jornada, só o reportes com uma fonte clara
+  e recente a confirmar essa mudança (comunicado da Liga Portugal ou do
+  Sporting CP). Na dúvida, mantém a data mais plausível em vez de arriscar uma
+  "correção" errada — sugerir uma data errada é pior do que não sugerir nada.
 
 Sobre "porDefinir" — rondas em que o Sporting JÁ TEM presença garantida mas
 cujo adversário ainda não está sorteado:
