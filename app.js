@@ -1290,7 +1290,11 @@ function jogoCardHTML(j,mini=false){
   // Resultado no lugar do jgol — número do Sporting colorido
   let resDisplayHTML='';
   if(isFuturo){
-    resDisplayHTML=`<div class="jgol"><div class="gn" style="color:#ccc">—</div><div class="gl"></div></div>`;
+    // Hora só vem preenchida quando já está confirmada (ver prompt do
+    // calendário sugerido) — por isso chega para decidir "fechada" ou não.
+    resDisplayHTML=j.hora
+      ?`<div class="jgol"><div class="gn" style="font-size:15px">${j.hora}</div><div class="gl">hora</div></div>`
+      :`<div class="jgol"><div class="gn" style="color:#ccc">—</div><div class="gl"></div></div>`;
   } else if(!j.resultado){
     resDisplayHTML=`<div class="jgol"><div class="gn">${golosJ}</div><div class="gl">golo${golosJ!==1?'s':''}</div></div>`;
   } else {
@@ -1475,6 +1479,9 @@ function _diaJogoCalHTML(d,j){
   else if(est.estado!=='fut'){
     const cls=i=>i===est.sIdx?'cal-s':'cal-a';
     resHTML=`<div class="cal-res"><span class="cal-score"><span class="${cls(0)}">${est.p[0]}</span><span class="cal-tr">-</span><span class="${cls(1)}">${est.p[1]}</span></span></div>`;
+  } else if(j.hora){
+    // Mesma regra do jogoCardHTML: só aparece quando a hora já está fechada.
+    resHTML=`<div class="cal-res"><span class="cal-hora">${j.hora}</span></div>`;
   }
   const compEsc=COMP_ESCALA_CAL[j.competicao]||'';
   return`<div class="cal-dia cal-${est.estado}" onclick="abrirPopupJogo(${j.id})">
@@ -1568,13 +1575,17 @@ function _popupJogoHTML(j){
   let meioHTML=null;
   if(est.estado==='jogado')meioHTML=`<span class="cal-pop-golos">${est.golos}g</span>`;
   else if(est.estado!=='fut')meioHTML=_popupScoreHTML(est);
+  else if(j.hora)meioHTML=`<span class="cal-pop-hora">${j.hora}</span>`;
   const vsHTML=j.local==='Fora'
     ?_popupVsHTML(j.adversario,logoAdv(j.adversario),'Sporting','escudo-verde.png',meioHTML)
     :_popupVsHTML('Sporting','escudo-verde.png',j.adversario,logoAdv(j.adversario),meioHTML);
-  // Ordem antes dos brasões/resultado: estádio, data, hora.
+  // Ordem antes dos brasões/resultado: estádio, data, hora. A hora de um
+  // jogo futuro já vai em destaque no meio (meioHTML) — aqui só se repete
+  // para jogos já realizados (onde o meio mostra o marcador, não a hora).
+  const horaNaData=j.hora&&est.estado!=='fut';
   return`${closeBtn}
     ${estadioHTML}
-    <div class="cal-pop-data">${_popupDataFmt(j.data)}${j.hora?' · '+j.hora:''}</div>
+    <div class="cal-pop-data">${_popupDataFmt(j.data)}${horaNaData?' · '+j.hora:''}</div>
     ${vsHTML}
     ${compHTML}`;
 }

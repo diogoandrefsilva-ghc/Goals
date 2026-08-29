@@ -199,6 +199,7 @@ tbody tr:hover{background:#fafaf8}
 .cal-score .cal-a{color:rgba(255,255,255,.75)}
 .cal-score .cal-s{color:var(--ou)}
 .cal-golos{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--vd)}
+.cal-hora{font-family:'Bebas Neue',sans-serif;font-size:11px;color:var(--mu)}
 /* rebordo = resultado (não casa/fora, que já vai no .cal-cfmini) */
 .cal-dia.cal-win{border-color:var(--vd);background:var(--vdp)}
 .cal-dia.cal-win .cal-daybadge{border-color:var(--vd)}
@@ -241,6 +242,7 @@ tbody tr:hover{background:#fafaf8}
 .cal-pop-meio{height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .cal-pop-meio-dash{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--mu)}
 .cal-pop-golos{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--vd)}
+.cal-pop-hora{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--vd)}
 .cal-pop-res{margin-bottom:14px}
 .cal-pop-score{font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1;padding:4px 10px;border-radius:8px;display:inline-flex;align-items:baseline;gap:4px}
 .cal-pop-res-mu{font-size:13px;color:var(--mu);font-style:italic}
