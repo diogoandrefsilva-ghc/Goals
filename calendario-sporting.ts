@@ -717,7 +717,15 @@ Deno.serve(async (req) => {
         passo: "vazio", modelo: model, pesquisa: comPesquisa, epoca,
         amostra: texto2.slice(0, 800),
       }, quem, qualApp);
-      return json({ error: `não encontrei jogos do Sporting para a época ${epoca}` }, 404);
+      // Sem pesquisa o modelo só conhece o que aprendeu no treino — para uma
+      // época a decorrer/futura isso é normalmente nada, e devolve [] em vez
+      // de inventar (é o que se lhe pede). Não é "não há jogos", é "sem
+      // pesquisa não sei" — mensagens diferentes, para não parecer que a
+      // época desapareceu.
+      const msg = comPesquisa
+        ? `não encontrei jogos do Sporting para a época ${epoca}`
+        : "a pesquisa Google está em baixo agora e sem ela o modelo não conhece esta época — tenta outra vez daqui a uns minutos";
+      return json({ error: msg }, comPesquisa ? 404 : 503);
     }
     // As fontes que o grounding usou — a app mostra-as para o admin poder
     // conferir antes de aceitar seja o que for.
