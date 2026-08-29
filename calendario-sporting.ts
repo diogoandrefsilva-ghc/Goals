@@ -64,12 +64,34 @@ const GAPI = "https://generativelanguage.googleapis.com/v1beta";
 // devolver um erro legível em vez de "Load failed". Mais folgado que o da
 // fatura porque aqui há pesquisa Google pelo meio (várias idas à net).
 const TIMEOUT_MS = 55_000;
+// Orçamento por TENTATIVA (um modelo, uma chamada). Desde 28/08 o Gemini com
+// `google_search` começou por vezes a ficar pendurado sem devolver resposta
+// nenhuma — nem um 429/503 rápido, nada — e como todas as tentativas
+// partilhavam o MESMO AbortSignal de 55s, um único modelo preso gastava a
+// função toda sem sobrar tempo para tentar outro candidato. Isto dá a cada
+// tentativa um relógio próprio, mais curto, para uma que fique presa ser
+// abandonada depressa e a próxima ainda ter tempo dentro do TIMEOUT_MS geral.
+const TENTATIVA_TIMEOUT_MS = 18_000;
 
 /* ── Escolha do modelo (mesma estratégia da `fatura-restaurante`) ──
    Os nomes dos modelos Gemini mudam com o tempo. Em vez de fixar um, pergunta-se
    à API que modelos a chave tem e ordenam-se os "flash" do melhor para o pior;
    devolve-se a LISTA para se poder cair no seguinte quando o preferido falha
    (404 se foi reformado, 503 se está sobrecarregado). */
+// Sinal derivado com relógio próprio, que também aborta se `sinalPai` abortar
+// primeiro — usado para não deixar UMA chamada externa (ListModels, Gemini)
+// gastar sozinha todo o orçamento partilhado quando fica presa sem responder.
+function comLimiteProprio(sinalPai: AbortSignal, ms: number): { signal: AbortSignal; limpar: () => void } {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  const propagar = () => c.abort();
+  sinalPai.addEventListener("abort", propagar, { once: true });
+  return {
+    signal: c.signal,
+    limpar: () => { clearTimeout(t); sinalPai.removeEventListener("abort", propagar); },
+  };
+}
+
 let _models: string[] | null = null;
 function rankFlash(names: string[]): string[] {
   const ok = [...new Set(names.filter((n) =>
@@ -89,10 +111,20 @@ async function descobrirFlash(signal: AbortSignal): Promise<string[]> {
     const names: string[] = [];
     let page = "";
     for (let i = 0; i < 3; i++) {
-      const r = await fetch(
-        `${GAPI}/models?pageSize=200${page ? `&pageToken=${page}` : ""}&key=${GEMINI_KEY}`,
-        { signal },
-      );
+      // 8s por página: se o ListModels ficar preso, cai-se depressa no
+      // fallback (ESTAVEIS) em vez de gastar aqui o orçamento dos 55s todo.
+      const { signal: sinalPagina, limpar } = comLimiteProprio(signal, 8_000);
+      let r: Response;
+      try {
+        r = await fetch(
+          `${GAPI}/models?pageSize=200${page ? `&pageToken=${page}` : ""}&key=${GEMINI_KEY}`,
+          { signal: sinalPagina },
+        );
+      } catch (_) {
+        limpar();
+        break;   // presa ou abortada — fica-se com o que já se tinha (ou nada)
+      }
+      limpar();
       if (!r.ok) break;
       const d = await r.json();
       (d.models ?? []).forEach((m: any) => {
@@ -544,7 +576,7 @@ Deno.serve(async (req) => {
        diferença entre datas reais e datas de memória. Nesse modo a API recusa
        response_mime_type, por isso o JSON só é pedido no prompt; sem pesquisa
        (fallback) já se pode exigir JSON à API. */
-    const chamarGemini = (model: string, search: boolean) => {
+    const chamarGemini = (model: string, search: boolean, signal: AbortSignal) => {
       const corpo: Record<string, unknown> = {
         contents: [{ role: "user", parts: [{ text: texto }] }],
         generationConfig: search
@@ -555,10 +587,13 @@ Deno.serve(async (req) => {
       return fetch(`${GAPI}/models/${model}:generateContent?key=${GEMINI_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: ctrl.signal,
+        signal,
         body: JSON.stringify(corpo),
       });
     };
+    // Sinal próprio por tentativa: aborta sozinho ao fim de TENTATIVA_TIMEOUT_MS
+    // OU quando o sinal geral (55s) dispara, o que vier primeiro.
+    const sinalTentativa = () => comLimiteProprio(ctrl.signal, TENTATIVA_TIMEOUT_MS);
 
     const transitorio = (s: number) => s === 429 || s === 500 || s === 503;
     const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -572,11 +607,26 @@ Deno.serve(async (req) => {
     let comPesquisa = true;
     let g: Response | null = null;
 
+    let presoAlgumaVez = false;
     for (let ci = 0; ci < candidatos.length && !ctrl.signal.aborted; ci++) {
       model = candidatos[ci];
+      let presoNesteModelo = false;
       for (let tent = 0; tent < 2 && !ctrl.signal.aborted; tent++) {
         comPesquisa = true;
-        g = await chamarGemini(model, true);
+        const { signal: sinal, limpar } = sinalTentativa();
+        try {
+          g = await chamarGemini(model, true, sinal);
+        } catch (e) {
+          limpar();
+          if (ctrl.signal.aborted) throw e;   // orçamento geral esgotado, sai já
+          // Só esta tentativa ficou presa (relógio próprio disparou) — não
+          // vale a pena repetir o mesmo modelo, passa logo ao seguinte.
+          console.log("CALENDARIO tentativa presa (sem resposta):", model);
+          presoNesteModelo = true;
+          presoAlgumaVez = true;
+          break;
+        }
+        limpar();
         console.log("CALENDARIO tentativa:", model, "-> ", g.status);
         // 400 com o tool ligado = este modelo não aceita `google_search` nesta
         // versão da API. Repete-se uma vez sem pesquisa: as datas passadas
@@ -584,15 +634,33 @@ Deno.serve(async (req) => {
         if (g.status === 400) {
           console.log("CALENDARIO 400:", (await g.clone().text()).slice(0, 300));
           comPesquisa = false;
-          g = await chamarGemini(model, false);
+          const { signal: sinal2, limpar: limpar2 } = sinalTentativa();
+          try {
+            g = await chamarGemini(model, false, sinal2);
+          } catch (e) {
+            limpar2();
+            if (ctrl.signal.aborted) throw e;
+            console.log("CALENDARIO tentativa 400-retry presa:", model);
+            presoNesteModelo = true;
+            presoAlgumaVez = true;
+            break;
+          }
+          limpar2();
           console.log("CALENDARIO 400 retry s/pesquisa:", model, "->", g.status);
         }
         if (g.status === 404) { _models = null; break; }        // saiu do catálogo
         if (transitorio(g.status)) { await sleep(700 * (tent + 1)); continue; }
         break;
       }
+      if (presoNesteModelo) { g = null; continue; }             // sem resposta: tenta o próximo já
       if (g && g.ok) break;
       if (g && !transitorio(g.status) && g.status !== 404) break;
+    }
+    if (!g && presoAlgumaVez && !ctrl.signal.aborted) {
+      // Todos os candidatos ficaram presos, mas ainda há orçamento geral por
+      // gastar (raro) — reporta como o mesmo timeout legível de sempre, em
+      // vez de cair no "gemini 502" genérico sem contexto nenhum.
+      throw new DOMException("todas as tentativas ficaram sem resposta", "AbortError");
     }
 
     if (!g || !g.ok) {
