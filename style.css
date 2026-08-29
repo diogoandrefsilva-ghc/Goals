@@ -156,12 +156,13 @@ tbody tr:hover{background:#fafaf8}
 .cal-dia{min-height:80px;border:1.5px solid var(--bo);border-radius:9px;background:var(--card);padding:4px 2px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
 .cal-dia.cal-pad{visibility:hidden}
 /* jogo/janela: mais folga em cima do que embaixo — desce o brasão e o
-   resultado, que é onde está a informação que interessa. */
-.cal-dia.cal-win,.cal-dia.cal-draw,.cal-dia.cal-loss,.cal-dia.cal-jogado,.cal-dia.cal-pot{padding-top:15px}
-/* sem resultado só fica o brasão, sozinho — a mesma folga de 15px ficava
-   demasiado baixa sem a linha do resultado a compensar por baixo; sobe só
-   um pouco acima do centro exato da célula. */
-.cal-dia.cal-fut{padding-top:2px;padding-bottom:9px}
+   resultado, que é onde está a informação que interessa. Um jogo futuro
+   também entra aqui: desde que passou a poder mostrar a hora por baixo do
+   brasão (quando já está fechada), precisa da MESMA folga das outras — com
+   menos, o selo da competição (círculo no canto, absolute, até uns 13px do
+   topo) atropela o brasão. Sem hora o brasão fica um pouco mais centrado do
+   que o "ideal", mas nunca colado ao selo — preferível a sobrepor. */
+.cal-dia.cal-win,.cal-dia.cal-draw,.cal-dia.cal-loss,.cal-dia.cal-jogado,.cal-dia.cal-pot,.cal-dia.cal-fut{padding-top:15px}
 /* jogos por definir/potenciais entram aqui, mesmo tratamento visual que
    .jcard-pot já dá à lista — dia sem jogo fica esbatido de propósito, para
    os dias com jogo saltarem mais à vista. */
