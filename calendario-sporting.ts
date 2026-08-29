@@ -211,12 +211,16 @@ const prompt = (epoca: string, hoje: string, conhecidos: string[]) => {
 OFICIAIS do Sporting Clube de Portugal — futebol masculino, EQUIPA PRINCIPAL —
 da época ${epoca}${j ? ` (jogos entre ${j.ini} e ${j.fim})` : ""}.
 
-Confirma as datas em fontes fiáveis e atuais: sítio oficial do Sporting CP,
-Liga Portugal (ligaportugal.pt), flashscore.pt, zerozero.pt, UEFA, Federação
-Portuguesa de Futebol. O flashscore.pt costuma ser o mais rápido a refletir
-horários confirmados pela TV/Liga, mas NUNCA o uses como única fonte para uma
-data — isso confirma-se sempre com a Liga Portugal ou o sítio oficial do
-Sporting.
+Confirma as datas em fontes fiáveis e atuais, por esta ORDEM DE PRIORIDADE
+quando houver desacordo entre elas — usa a informação da fonte mais alta
+nesta lista que tiver dados sobre esse jogo, e ignora as de baixo nesse caso:
+  1. flashscore.pt — para jogos de competições europeias (Liga dos Campeões,
+     Liga Europa, Liga Conferência), a UEFA (uefa.com) empata em prioridade
+     com o flashscore.pt.
+  2. Liga Portugal (ligaportugal.pt) e o sítio oficial do Sporting CP
+  3. zerozero.pt, Federação Portuguesa de Futebol e outras fontes
+Só te afastas desta ordem se a fonte de prioridade mais alta estiver
+claramente desatualizada (ex.: data de uma edição anterior da prova).
 
 INCLUI: Liga Portugal, Taça de Portugal, Taça da Liga, Supertaça, Liga dos
 Campeões (também as pré-eliminatórias e o play-off), Liga Europa e Liga
@@ -259,9 +263,10 @@ Regras:
 - "hora": jogos da Liga Portugal só costumam ter horário oficial fixado 2-3
   semanas antes da jornada (depende da escolha da TV) — antes disso, é normal
   e preferível deixar "hora": null a arriscar um valor que ainda pode mudar.
-  Só preenches "hora" quando tiveres a certeza de que é a hora JÁ CONFIRMADA
-  (fonte oficial, ou pelo menos duas fontes independentes e recentes de
-  acordo). Uma única fonte secundária ou um valor "por omissão" tipo 20:30 não
+  Só preenches "hora" quando tiveres a certeza de que é a hora JÁ CONFIRMADA:
+  ou uma fonte de prioridade 1 (flashscore.pt / UEFA, ver ordem acima) diz
+  isso claramente, ou pelo menos duas fontes independentes de prioridade mais
+  baixa e recentes estão de acordo. Um valor "por omissão" tipo 20:30 não
   chega.
 - Datas: se achares que a data de um jogo já esperado MUDOU (adiado/antecipado)
   em relação ao que seria óbvio pela jornada, só o reportes com uma fonte clara
