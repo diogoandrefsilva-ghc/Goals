@@ -2015,6 +2015,36 @@ function _calEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
+/* Espera que o trabalho em segundo plano feche a linha em
+   `goals.calendario_analises` (ver db/calendario-analises.sql e o modo
+   assíncrono da Edge Function). Devolve o `resultado` quando 'concluido', ou
+   atira o erro guardado quando 'erro'.
+   O botão vai contando os segundos enquanto isto corre — a procura demora
+   perto de um minuto e um botão parado dá a sensação de estar pendurado. */
+async function calEsperar(id) {
+  const btn = document.getElementById('cal-sync-btn');
+  const t0 = Date.now();
+  // ~2,5 min de tecto: mais folgado que os 110s de orçamento da função, para
+  // dar margem à última escrita dela. Se nem assim fechar, é porque algo
+  // morreu do lado de lá e mais vale dizê-lo do que esperar para sempre.
+  const LIMITE_MS = 150000;
+  while (Date.now() - t0 < LIMITE_MS) {
+    await new Promise(res => setTimeout(res, 2500));
+    if (btn) btn.textContent = '⏳ A procurar… ' + Math.round((Date.now() - t0) / 1000) + 's';
+    let linhas;
+    try {
+      linhas = await sbReq('GET', `calendario_analises?id=eq.${id}&select=estado,resultado,erro`);
+    } catch (_) {
+      continue;   // falha de rede pontual: o trabalho continua no servidor, insiste
+    }
+    const l = linhas && linhas[0];
+    if (!l || l.estado === 'pendente') continue;
+    if (l.estado === 'concluido' && l.resultado) return l.resultado;
+    throw new Error(l.erro || 'a procura falhou sem dizer porquê');
+  }
+  throw new Error('a procura ainda não terminou ao fim de 2 minutos — vê `goals.calendario_analises` ou tenta outra vez');
+}
+
 async function calSincronizar() {
   if (roGuard()) return;
   if (_calALer) return;
@@ -2029,10 +2059,11 @@ async function calSincronizar() {
   calLog('pedido', { epoca: epocaAtiva, jogos_atuais: db.jogos.length });
   let passo = 'chamada';
   try {
-    // Rede de segurança própria: a função tem um limite interno de 55s, mas se
-    // o pedido nem lá chegar a responder o botão ficava a "pensar" para sempre.
+    // Rede de segurança própria: o ARRANQUE tem de ser rápido (a função só
+    // autoriza e cria a linha antes de responder), por isso este limite é
+    // curto. O trabalho a sério não vive aqui — ver `assincrono` abaixo.
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 70000);
+    const timer = setTimeout(() => ctrl.abort(), 30000);
     let r;
     try {
       r = await sbFetch(`${SB_URL}/functions/v1/calendario-sporting`, {
@@ -2041,6 +2072,12 @@ async function calSincronizar() {
         body: JSON.stringify({
           epoca: epocaAtiva,
           app: 'goals',
+          // A procura com pesquisa Google demora MAIS do que um pedido HTTP
+          // aguenta (o browser/iOS corta por volta dos 60s), por isso pede-se
+          // o modo assíncrono: a função responde já com um `id` e faz o
+          // trabalho em segundo plano; nós fazemos polling à linha. Sem isto
+          // dava sempre "demorou demasiado", por mais tempo que se lhe desse.
+          assincrono: true,
           // Os adversários já gravados seguem no pedido para o modelo devolver a
           // MESMA grafia — é o que faz o emparelhamento bater certo.
           conhecidos: [...new Set(db.jogos.map(j => j.adversario).filter(Boolean))]
@@ -2054,8 +2091,12 @@ async function calSincronizar() {
       if (r.status === 404 && !e.error) throw new Error('a função `calendario-sporting` ainda não está publicada no Supabase');
       throw new Error(e.error || ('HTTP ' + r.status));
     }
+    const d = await r.json();
+    // 202 + {id} = modo assíncrono. Se a função responder o corpo completo
+    // (versão antiga publicada, ou migração por correr), usa-se logo — é o
+    // que mantém isto a funcionar durante um deploy a meio.
     passo = 'leitura';
-    calPreparar(await r.json());
+    calPreparar(d && d.id && d.estado === 'pendente' ? await calEsperar(d.id) : d);
   } catch (e) {
     const m = String(e && e.message || e);
     const rede = /load failed|failed to fetch|networkerror|timed? ?out/i.test(m) || (e && e.name === 'AbortError');

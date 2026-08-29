@@ -55,34 +55,37 @@
 //
 // Deploy: supabase functions deploy calendario-sporting
 
+// Só tipos — dá o global `EdgeRuntime` ao compilador (usado no modo assíncrono).
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
 const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_SRV = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "diogo.andre.f.silva@gmail.com").toLowerCase();
 const GAPI = "https://generativelanguage.googleapis.com/v1beta";
-// Limite próprio, abaixo dos ~60s a que o Safari/iOS mata o pedido — dá para
-// devolver um erro legível em vez de "Load failed". Mais folgado que o da
-// fatura porque aqui há pesquisa Google pelo meio (várias idas à net).
-const TIMEOUT_MS = 55_000;
-// Orçamento por TENTATIVA (um modelo, uma chamada). Desde 28/08 o Gemini com
-// `google_search` começou por vezes a ficar pendurado sem devolver resposta
-// nenhuma — nem um 429/503 rápido, nada — e como todas as tentativas
-// partilhavam o MESMO AbortSignal de 55s, um único modelo preso gastava a
-// função toda sem sobrar tempo para tentar outro candidato. Isto dá a cada
-// tentativa um relógio próprio, mais curto, para uma que fique presa ser
-// abandonada depressa e a próxima ainda ter tempo dentro do TIMEOUT_MS geral.
-// CAUSA RAIZ (29/08), encontrada a comparar com a `sugerir-vinho` do
-// WineSelection — que faz pesquisa Google com a MESMA chave e funciona: essa
-// manda `thinkingConfig:{thinkingBudget:0}` e esta não mandava. `gemini-flash-
-// latest` é um alias que se atualiza sozinho e passou a resolver para um
-// modelo novo (ver `gemini-3.x-flash` na lista de candidatos) com o
-// "pensamento" LIGADO por omissão. Pensar + pesquisar + este prompt enorme
-// deixou de caber no orçamento, e a chamada nunca respondia — parecia a
-// pesquisa em baixo, era o thinking a estourar o tempo. Enquanto o alias
-// apontava para um modelo sem thinking, isto corria em 28-47s (ver histórico
-// no `sync_log`). A correção é a mesma da função irmã: primeira tentativa
-// sempre sem pensar (ver VARIANTES).
-const SEARCH_TENTATIVA_TIMEOUT_MS = 30_000;
+// ── DOIS MODOS ──
+// `assincrono: true` no pedido (é o que o Goals manda) → a função cria uma
+// linha em `goals.calendario_analises`, responde JÁ com o `id`, e faz o
+// trabalho a sério em segundo plano com `EdgeRuntime.waitUntil`; a app faz
+// polling a essa linha. Sem esse campo mantém-se o contrato ANTIGO (resposta
+// completa de uma vez) — é por isso que o SplitBill não parte com esta
+// mudança.
+// Isto existe porque a procura com pesquisa Google passou a demorar MAIS do
+// que um pedido HTTP aguenta: os logs mostram o Gemini a levar mais de um
+// minuto neste prompt, e o browser/iOS corta por volta dos 60s. Enquanto foi
+// tudo síncrono, nenhum limite nosso resolvia — o tecto não era nosso. É a
+// mesma solução que a `sugerir-vinho` (WineSelection) já usa aqui ao lado.
+const TIMEOUT_MS = 55_000;        // modo antigo (síncrono), preso ao browser
+const PROC_TIMEOUT_MS = 110_000;  // segundo plano — já não depende do browser
+// Cada TENTATIVA tem o seu próprio relógio, encadeado ao orçamento geral: uma
+// que fique presa é abandonada sozinha e a seguinte ainda apanha tempo. A
+// tentativa COM pesquisa recebe quase tudo (ver `searchMs` em
+// produzirCalendario) e fica só esta janela curta reservada ao fallback sem
+// pesquisa, que responde sempre depressa por não ter o tool.
+// Além do tempo, os modelos recentes trazem o "pensamento" LIGADO por omissão
+// e com o tool de pesquisa isso é um custo de latência grande — daí a primeira
+// variante ir sempre com `thinkingBudget:0` (ver VARIANTES), tal como a
+// `sugerir-vinho` do WineSelection já fazia.
 const FALLBACK_TENTATIVA_TIMEOUT_MS = 9_000;
 
 /* ── Escolha do modelo (mesma estratégia da `fatura-restaurante`) ──
@@ -523,6 +526,73 @@ async function registar(
   }
 }
 
+/* Cria a linha em `goals.calendario_analises` (estado 'pendente' por omissão)
+   com o PRÓPRIO JWT de quem carregou — assim a RLS corre normalmente e não é
+   preciso confiar em nada que o cliente mande. Devolve o id, ou null se a
+   migração `db/calendario-analises.sql` ainda não tiver sido corrida (nesse
+   caso quem chama cai para o modo síncrono de sempre). */
+async function criarAnalise(
+  auth: string,
+  epoca: string,
+  quem: string,
+  signal: AbortSignal,
+): Promise<number | null> {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/calendario_analises`, {
+      method: "POST",
+      headers: {
+        apikey: SB_SRV,
+        Authorization: auth,
+        "Content-Type": "application/json",
+        "Content-Profile": "goals",
+        Prefer: "return=representation",
+      },
+      signal,
+      body: JSON.stringify({ epoca, quem }),
+    });
+    if (!r.ok) {
+      console.log("CALENDARIO criar analise erro:", r.status, (await r.text().catch(() => "")).slice(0, 300));
+      return null;
+    }
+    const rows = await r.json();
+    const id = rows?.[0]?.id;
+    return typeof id === "number" ? id : null;
+  } catch (e) {
+    console.log("CALENDARIO criar analise excecao:", String((e as Error).message).slice(0, 200));
+    return null;
+  }
+}
+
+/* Fecha a linha (concluído ou erro) — SERVICE ROLE, porque isto corre em
+   segundo plano, depois do pedido original (e do seu JWT) já ter respondido.
+   O `quem=eq.` no WHERE garante que só mexe na linha do próprio dono, mesmo
+   com a service role a ter acesso a tudo — não confia só no `id`. */
+async function fecharAnalise(
+  id: number,
+  quem: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/calendario_analises?id=eq.${id}&quem=eq.${encodeURIComponent(quem)}`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: SB_SRV,
+          Authorization: `Bearer ${SB_SRV}`,
+          "Content-Type": "application/json",
+          "Content-Profile": "goals",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(patch),
+      },
+    );
+    if (!r.ok) console.log("CALENDARIO fechar analise falhou:", r.status);
+  } catch (e) {
+    console.log("CALENDARIO fechar analise erro:", String((e as Error).message).slice(0, 200));
+  }
+}
+
 /* Só o admin. Ao contrário da `fatura-restaurante` (que aceita qualquer
    `allowed_users` do SplitBill), esta função serve duas apps com schemas
    diferentes e escreve calendário — o email do admin é o mesmo nas duas, por
@@ -546,6 +616,235 @@ async function ehAdmin(
   return { ok: !!email && email === ADMIN_EMAIL, email: email || null };
 }
 
+
+/* ── O TRABALHO A SÉRIO ──
+   Toda a conversa com o Gemini num só sítio (escolher modelo, escada de
+   variantes, ler o JSON, normalizar, registar), para poder correr nos DOIS
+   modos: à espera (contrato antigo, SplitBill) ou em segundo plano (Goals).
+   Nunca escreve na resposta HTTP — devolve o corpo final, ou o erro já com o
+   status certo. É isso que a torna reutilizável pelos dois caminhos. */
+type ResCal =
+  | { ok: true; corpo: Record<string, unknown> }
+  | { ok: false; status: number; erro: string };
+
+async function produzirCalendario(
+  epoca: string,
+  conhecidos: string[],
+  quem: string | null,
+  qualApp: string,
+  signal: AbortSignal,
+  budgetMs: number,
+): Promise<ResCal> {
+  const inicio = Date.now();
+  // O que sobra do orçamento, com margem para ainda fechar as contas.
+  const restante = () => budgetMs - (Date.now() - inicio) - 2_000;
+  // A tentativa COM pesquisa leva quase tudo: é a que interessa e é a que
+  // demora (mais de um minuto, nos logs). Fica só uma janela curta reservada
+  // ao fallback sem pesquisa, esse sempre rápido por não ter o tool.
+  const searchMs = Math.max(15_000, budgetMs - 14_000);
+  const texto = prompt(epoca, new Date().toISOString().slice(0, 10), conhecidos);
+
+  /* Cada variante é a mesma pergunta, pedida de outra maneira, da mais
+     rápida para a mais lenta (mesma escada da `sugerir-vinho`):
+       · `search` liga o grounding com pesquisa Google — é o que faz a
+         diferença entre datas reais e datas de memória. Nesse modo a API
+         recusa response_mime_type, por isso o JSON só é pedido no prompt;
+         sem pesquisa já se pode exigir JSON à API.
+       · `semThinking` desliga o "pensamento" que os modelos recentes trazem
+         ligado por omissão — com o tool de pesquisa ligado isso é um custo de
+         latência grande. Fica a variante a pensar logo a seguir, para o caso
+         de algum modelo recusar `thinkingConfig` com um 400. */
+  type Variante = { search: boolean; semThinking: boolean; label: string };
+  const VARIANTES: Variante[] = [
+    { search: true, semThinking: true, label: "pesquisa+sem-pensar" },
+    { search: true, semThinking: false, label: "pesquisa" },
+    { search: false, semThinking: false, label: "sem-pesquisa" },
+  ];
+  const chamarGemini = (model: string, v: Variante, sinal: AbortSignal) => {
+    const generationConfig: Record<string, unknown> = v.search
+      ? { temperature: 0 }
+      : { temperature: 0, response_mime_type: "application/json" };
+    if (v.semThinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    const corpo: Record<string, unknown> = {
+      contents: [{ role: "user", parts: [{ text: texto }] }],
+      generationConfig,
+    };
+    if (v.search) corpo.tools = [{ google_search: {} }];
+    return fetch(`${GAPI}/models/${model}:generateContent?key=${GEMINI_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: sinal,
+      body: JSON.stringify(corpo),
+    });
+  };
+
+  // Uma chamada, com o relógio certo para a variante (e nunca mais do que o
+  // que sobra do orçamento). Devolve a Response, ou null se ficou presa sem
+  // responder a tempo — quem chama é que decide o passo seguinte.
+  const tentar = async (model: string, v: Variante): Promise<Response | null> => {
+    const ms = Math.min(v.search ? searchMs : FALLBACK_TENTATIVA_TIMEOUT_MS, restante());
+    if (ms < 2_000) return null;   // já não dá tempo de nada útil
+    const { signal: sinal, limpar } = comLimiteProprio(signal, ms);
+    try {
+      const r = await chamarGemini(model, v, sinal);
+      limpar();
+      console.log("CALENDARIO tentativa:", model, v.label, "-> ", r.status);
+      return r;
+    } catch (e) {
+      limpar();
+      if (signal.aborted) throw e;   // orçamento geral esgotado, sai já
+      console.log("CALENDARIO tentativa presa (sem resposta):", model, v.label);
+      return null;
+    }
+  };
+
+  const transitorio = (s: number) => s === 429 || s === 500 || s === 503;
+  const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+  const candidatos = await candidatosModelo(signal);
+  // A descoberta engole o AbortError (fica só com o fallback) — se o timeout
+  // já disparou lá dentro, trata-se como timeout e não como 502 genérico.
+  if (signal.aborted) throw new DOMException("timeout", "AbortError");
+  console.log("CALENDARIO candidatos:", candidatos.join(", "));
+  let model = candidatos[0] ?? "gemini-flash-latest";
+  let comPesquisa = true;
+  let g: Response | null = null;
+
+  for (let ci = 0; ci < candidatos.length && !signal.aborted; ci++) {
+    model = candidatos[ci];
+    // Escada de variantes: assim que uma responde, fica-se por ela. Não há
+    // retry da MESMA variante — uma tentativa que fica presa não fica presa
+    // "um bocadinho menos" à segunda, e esse tempo rende mais na variante
+    // ou no modelo seguinte.
+    for (const v of VARIANTES) {
+      if (signal.aborted || restante() < 2_000) break;
+      comPesquisa = v.search;
+      g = await tentar(model, v);
+      if (!g) continue;                       // presa/sem tempo — variante seguinte
+      if (g.status === 400) {                 // este modelo não aceita esta variante
+        console.log("CALENDARIO 400:", (await g.clone().text()).slice(0, 300));
+        g = null;
+        continue;
+      }
+      if (g.status === 404) { _models = null; g = null; break; }   // saiu do catálogo
+      if (transitorio(g.status)) { await sleep(700); g = null; break; }   // sobrecarga: outro modelo
+      break;                                  // ok, ou erro definitivo
+    }
+    if (g && g.ok) break;
+    if (g && !transitorio(g.status) && g.status !== 404) break;   // erro definitivo
+  }
+
+  if (!g) {
+    // NENHUMA tentativa devolveu resposta (ficaram todas presas, ou acabou o
+    // tempo antes de as tentar). Antes isto reportava "gemini 502 (<último
+    // nome da lista>)" — um modelo que nem chegou a ser chamado, o que manda
+    // para o caminho errado quem depois vai ler o log.
+    await registar("erro", {
+      passo: "sem-resposta", epoca, modelos: candidatos.length,
+      orcamento_ms: budgetMs,
+    }, quem, qualApp);
+    return {
+      ok: false,
+      status: 504,
+      erro: "o Gemini não respondeu a tempo — tenta outra vez daqui a pouco",
+    };
+  }
+
+  if (!g.ok) {
+    const status = g.status;
+    const detail = await g.text();
+    console.error("gemini", model, status, detail.slice(0, 500));
+    let msg = "";
+    try { msg = JSON.parse(detail)?.error?.message ?? ""; } catch (_) { /**/ }
+    // O detalhe do Gemini fica REGISTADO mesmo quando a app só mostra "502":
+    // é a diferença entre saber que a quota da pesquisa acabou e andar a
+    // adivinhar.
+    await registar("erro", {
+      passo: "gemini", status, modelo: model, pesquisa: comPesquisa,
+      erro: (msg || detail).slice(0, 800),
+    }, quem, qualApp);
+    if (transitorio(status)) {
+      return {
+        ok: false,
+        status: 503,
+        erro: "o serviço está com muita procura agora — espera um minuto e tenta outra vez",
+      };
+    }
+    return {
+      ok: false,
+      status: 502,
+      erro: `gemini ${status} (${model})${msg ? ": " + msg.slice(0, 200) : ""}`,
+    };
+  }
+
+  const gd = await g.json();
+  const cand = gd?.candidates?.[0];
+  const texto2 = (cand?.content?.parts ?? [])
+    .map((p: any) => p?.text ?? "")
+    .join("")
+    .trim();
+  const parsed: any = extrairJson(texto2);
+  if (!parsed) {
+    console.error("CALENDARIO resposta ilegível:", texto2.slice(0, 400));
+    await registar("erro", {
+      passo: "json", modelo: model, pesquisa: comPesquisa, amostra: texto2.slice(0, 800),
+    }, quem, qualApp);
+    return { ok: false, status: 502, erro: "resposta ilegível do modelo" };
+  }
+  const jogos = normalizarJogos(parsed.jogos, epoca);
+  const porDefinir = normalizarPorDefinir(parsed.porDefinir, epoca, jogos);
+  const potenciais = normalizarPotenciais(parsed.potenciais, epoca, jogos, porDefinir);
+  if (!jogos.length) {
+    await registar("erro", {
+      passo: "vazio", modelo: model, pesquisa: comPesquisa, epoca,
+      amostra: texto2.slice(0, 800),
+    }, quem, qualApp);
+    // Sem pesquisa o modelo só conhece o que aprendeu no treino — para uma
+    // época a decorrer/futura isso é normalmente nada, e devolve [] em vez
+    // de inventar (é o que se lhe pede). Não é "não há jogos", é "sem
+    // pesquisa não sei" — mensagens diferentes, para não parecer que a
+    // época desapareceu.
+    return {
+      ok: false,
+      status: comPesquisa ? 404 : 503,
+      erro: comPesquisa
+        ? `não encontrei jogos do Sporting para a época ${epoca}`
+        : "só consegui responder sem pesquisa web, e sem ela o modelo não conhece esta época — tenta outra vez daqui a uns minutos",
+    };
+  }
+  // As fontes que o grounding usou — a app mostra-as para o admin poder
+  // conferir antes de aceitar seja o que for.
+  const fontes: { titulo: string; url: string }[] = [];
+  (cand?.groundingMetadata?.groundingChunks ?? []).forEach((c: any) => {
+    const w = c?.web;
+    if (w?.uri && !fontes.some((f) => f.url === w.uri)) {
+      fontes.push({ titulo: String(w.title ?? w.uri).slice(0, 80), url: String(w.uri) });
+    }
+  });
+  console.log(
+    "CALENDARIO jogos:", jogos.length, "porDefinir:", porDefinir.length,
+    "potenciais:", potenciais.length, "pesquisa:", comPesquisa, "fontes:", fontes.length,
+  );
+  await registar("ok", {
+    epoca, jogos: jogos.length, por_definir: porDefinir.length,
+    potenciais: potenciais.length, modelo: model, pesquisa: comPesquisa,
+    fontes: fontes.map((f) => f.url).slice(0, 8),
+  }, quem, qualApp);
+  return {
+    ok: true,
+    corpo: {
+      epoca,
+      jogos,
+      porDefinir,
+      potenciais,
+      pesquisa: comPesquisa,
+      fontes: fontes.slice(0, 8),
+      modelo: model,
+      geradoEm: new Date().toISOString(),
+    },
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const json = (body: unknown, status = 200) =>
@@ -554,6 +853,7 @@ Deno.serve(async (req) => {
       headers: { ...CORS, "Content-Type": "application/json" },
     });
 
+  const authHeader = req.headers.get("Authorization") ?? "";
   // Criado à entrada e passado a TODOS os fetch (auth, ListModels, Gemini):
   // um único fetch sem este signal já chegou, na função irmã, para a deixar
   // pendurada sem nunca responder ao browser.
@@ -566,7 +866,7 @@ Deno.serve(async (req) => {
 
   try {
     console.log("CALENDARIO start");
-    const auth = await ehAdmin(req.headers.get("Authorization") ?? "", ctrl.signal);
+    const auth = await ehAdmin(authHeader, ctrl.signal);
     quem = auth.email;
     if (!auth.ok) {
       await registar("erro", { passo: "autorizacao" }, quem, qualApp);
@@ -581,193 +881,56 @@ Deno.serve(async (req) => {
       return json({ error: 'época em falta ou inválida (esperado "2025/26")' }, 400);
     }
     const conhecidos = lerConhecidos(body?.conhecidos);
-    const hoje = new Date().toISOString().slice(0, 10);
-    const texto = prompt(epoca, hoje, conhecidos);
 
-    /* Cada variante é a mesma pergunta, pedida de outra maneira, da mais
-       rápida para a mais lenta (mesma escada da `sugerir-vinho`):
-         · `search` liga o grounding com pesquisa Google — é o que faz a
-           diferença entre datas reais e datas de memória. Nesse modo a API
-           recusa response_mime_type, por isso o JSON só é pedido no prompt;
-           sem pesquisa já se pode exigir JSON à API.
-         · `semThinking` desliga o "pensamento" que os modelos recentes trazem
-           ligado por omissão. É a diferença entre responder e nunca responder
-           (ver o comentário das constantes lá em cima), por isso a primeira
-           tentativa é sempre esta. Fica a variante a pensar logo a seguir,
-           para o caso de algum modelo recusar `thinkingConfig` com um 400. */
-    type Variante = { search: boolean; semThinking: boolean; label: string };
-    const VARIANTES: Variante[] = [
-      { search: true, semThinking: true, label: "pesquisa+sem-pensar" },
-      { search: true, semThinking: false, label: "pesquisa" },
-      { search: false, semThinking: false, label: "sem-pesquisa" },
-    ];
-    const chamarGemini = (model: string, v: Variante, signal: AbortSignal) => {
-      const generationConfig: Record<string, unknown> = v.search
-        ? { temperature: 0 }
-        : { temperature: 0, response_mime_type: "application/json" };
-      if (v.semThinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
-      const corpo: Record<string, unknown> = {
-        contents: [{ role: "user", parts: [{ text: texto }] }],
-        generationConfig,
-      };
-      if (v.search) corpo.tools = [{ google_search: {} }];
-      return fetch(`${GAPI}/models/${model}:generateContent?key=${GEMINI_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal,
-        body: JSON.stringify(corpo),
-      });
-    };
-
-    const inicio = Date.now();
-    // O que sobra do orçamento geral, guardando margem para ainda conseguir
-    // responder ao browser em vez de morrer a meio.
-    const restante = () => TIMEOUT_MS - (Date.now() - inicio) - 2_000;
-
-    // Uma chamada, com o relógio certo para a variante (e nunca mais do que o
-    // que sobra do orçamento). Devolve a Response, ou null se ficou presa sem
-    // responder a tempo — quem chama é que decide o passo seguinte.
-    const tentar = async (model: string, v: Variante): Promise<Response | null> => {
-      const nominal = v.search ? SEARCH_TENTATIVA_TIMEOUT_MS : FALLBACK_TENTATIVA_TIMEOUT_MS;
-      const ms = Math.min(nominal, restante());
-      if (ms < 2_000) return null;   // já não dá tempo de nada útil
-      const { signal, limpar } = comLimiteProprio(ctrl.signal, ms);
-      try {
-        const r = await chamarGemini(model, v, signal);
-        limpar();
-        console.log("CALENDARIO tentativa:", model, v.label, "-> ", r.status);
-        return r;
-      } catch (e) {
-        limpar();
-        if (ctrl.signal.aborted) throw e;   // orçamento geral esgotado, sai já
-        console.log("CALENDARIO tentativa presa (sem resposta):", model, v.label);
-        return null;
+    /* ── MODO ASSÍNCRONO (só quem o pedir) ──
+       Responde já com o `id` e faz o trabalho a sério depois, com muito mais
+       tempo do que um pedido HTTP aguenta. Quem não mandar `assincrono` fica
+       com o contrato de sempre — é o que mantém o SplitBill a funcionar sem
+       lhe tocar. Se a migração ainda não tiver sido corrida, `criarAnalise`
+       devolve null e cai-se para o modo síncrono em vez de rebentar. */
+    if (body?.assincrono === true) {
+      const analiseId = await criarAnalise(authHeader, epoca, quem!, ctrl.signal);
+      if (analiseId != null) {
+        const dono = quem!;
+        // NÃO faz await — o trabalho pesado continua depois de já se ter
+        // respondido, e sobrevive ao pedido original terminar.
+        EdgeRuntime.waitUntil((async () => {
+          const c = new AbortController();
+          const t = setTimeout(() => c.abort(), PROC_TIMEOUT_MS);
+          try {
+            const res = await produzirCalendario(
+              epoca, conhecidos, dono, qualApp, c.signal, PROC_TIMEOUT_MS,
+            );
+            await fecharAnalise(analiseId, dono, res.ok
+              ? { estado: "concluido", resultado: res.corpo }
+              : { estado: "erro", erro: res.erro });
+          } catch (e) {
+            const err = e as Error;
+            const timeout = err.name === "AbortError";
+            await registar("erro", {
+              passo: timeout ? "timeout" : "excecao",
+              erro: String(err.message).slice(0, 500),
+            }, dono, qualApp);
+            await fecharAnalise(analiseId, dono, {
+              estado: "erro",
+              erro: timeout
+                ? "o modelo demorou demasiado a procurar o calendário — tenta outra vez daqui a pouco"
+                : (err.message || "erro inesperado"),
+            });
+          } finally {
+            clearTimeout(t);
+          }
+        })());
+        return json({ id: analiseId, estado: "pendente" }, 202);
       }
-    };
-
-    const transitorio = (s: number) => s === 429 || s === 500 || s === 503;
-    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-    const candidatos = await candidatosModelo(ctrl.signal);
-    // A descoberta engole o AbortError (fica só com o fallback) — se o timeout
-    // já disparou lá dentro, trata-se como timeout e não como 502 genérico.
-    if (ctrl.signal.aborted) throw new DOMException("timeout", "AbortError");
-    console.log("CALENDARIO candidatos:", candidatos.join(", "));
-    let model = candidatos[0] ?? "gemini-flash-latest";
-    let comPesquisa = true;
-    let g: Response | null = null;
-
-    for (let ci = 0; ci < candidatos.length && !ctrl.signal.aborted; ci++) {
-      model = candidatos[ci];
-      // Escada de variantes: assim que uma responde, fica-se por ela. Não há
-      // retry da MESMA variante — uma tentativa que fica presa não fica presa
-      // "um bocadinho menos" à segunda, e esse tempo rende mais na variante
-      // ou no modelo seguinte.
-      for (const v of VARIANTES) {
-        if (ctrl.signal.aborted || restante() < 2_000) break;
-        comPesquisa = v.search;
-        g = await tentar(model, v);
-        if (!g) continue;                       // presa/sem tempo — variante seguinte
-        if (g.status === 400) {                 // este modelo não aceita esta variante
-          console.log("CALENDARIO 400:", (await g.clone().text()).slice(0, 300));
-          g = null;
-          continue;
-        }
-        if (g.status === 404) { _models = null; g = null; break; }   // saiu do catálogo
-        if (transitorio(g.status)) { await sleep(700); g = null; break; }   // sobrecarga: outro modelo
-        break;                                  // ok, ou erro definitivo
-      }
-      if (g && g.ok) break;
-      if (g && !transitorio(g.status) && g.status !== 404) break;   // erro definitivo
-    }
-    if (!g && ctrl.signal.aborted) {
-      // O orçamento geral acabou entre tentativas (sem nenhum fetch a
-      // abortar sozinho) — mesma mensagem legível de sempre, em vez de
-      // um "gemini 502" genérico sem contexto nenhum.
-      throw new DOMException("orçamento esgotado entre tentativas", "AbortError");
+      console.log("CALENDARIO sem tabela de análises — cai para o modo síncrono");
     }
 
-    if (!g || !g.ok) {
-      const status = g?.status ?? 502;
-      const detail = g ? await g.text() : "";
-      console.error("gemini", model, status, detail.slice(0, 500));
-      let msg = "";
-      try { msg = JSON.parse(detail)?.error?.message ?? ""; } catch (_) { /**/ }
-      // O detalhe do Gemini fica REGISTADO mesmo quando a app só mostra "502":
-      // é a diferença entre saber que a quota da pesquisa acabou e andar a
-      // adivinhar.
-      await registar("erro", {
-        passo: "gemini", status, modelo: model, pesquisa: comPesquisa,
-        erro: (msg || detail).slice(0, 800),
-      }, quem, qualApp);
-      if (transitorio(status)) {
-        return json({
-          error: "o serviço está com muita procura agora — espera um minuto e tenta outra vez",
-        }, 503);
-      }
-      return json({ error: `gemini ${status} (${model})${msg ? ": " + msg.slice(0, 200) : ""}` }, 502);
-    }
-
-    const gd = await g.json();
-    const cand = gd?.candidates?.[0];
-    const texto2 = (cand?.content?.parts ?? [])
-      .map((p: any) => p?.text ?? "")
-      .join("")
-      .trim();
-    const parsed: any = extrairJson(texto2);
-    if (!parsed) {
-      console.error("CALENDARIO resposta ilegível:", texto2.slice(0, 400));
-      await registar("erro", {
-        passo: "json", modelo: model, pesquisa: comPesquisa, amostra: texto2.slice(0, 800),
-      }, quem, qualApp);
-      return json({ error: "resposta ilegível do modelo" }, 502);
-    }
-    const jogos = normalizarJogos(parsed.jogos, epoca);
-    const porDefinir = normalizarPorDefinir(parsed.porDefinir, epoca, jogos);
-    const potenciais = normalizarPotenciais(parsed.potenciais, epoca, jogos, porDefinir);
-    if (!jogos.length) {
-      await registar("erro", {
-        passo: "vazio", modelo: model, pesquisa: comPesquisa, epoca,
-        amostra: texto2.slice(0, 800),
-      }, quem, qualApp);
-      // Sem pesquisa o modelo só conhece o que aprendeu no treino — para uma
-      // época a decorrer/futura isso é normalmente nada, e devolve [] em vez
-      // de inventar (é o que se lhe pede). Não é "não há jogos", é "sem
-      // pesquisa não sei" — mensagens diferentes, para não parecer que a
-      // época desapareceu.
-      const msg = comPesquisa
-        ? `não encontrei jogos do Sporting para a época ${epoca}`
-        : "a pesquisa Google está em baixo agora e sem ela o modelo não conhece esta época — tenta outra vez daqui a uns minutos";
-      return json({ error: msg }, comPesquisa ? 404 : 503);
-    }
-    // As fontes que o grounding usou — a app mostra-as para o admin poder
-    // conferir antes de aceitar seja o que for.
-    const fontes: { titulo: string; url: string }[] = [];
-    (cand?.groundingMetadata?.groundingChunks ?? []).forEach((c: any) => {
-      const w = c?.web;
-      if (w?.uri && !fontes.some((f) => f.url === w.uri)) {
-        fontes.push({ titulo: String(w.title ?? w.uri).slice(0, 80), url: String(w.uri) });
-      }
-    });
-    console.log(
-      "CALENDARIO jogos:", jogos.length, "porDefinir:", porDefinir.length,
-      "potenciais:", potenciais.length, "pesquisa:", comPesquisa, "fontes:", fontes.length,
+    // ── MODO SÍNCRONO (contrato antigo) ──
+    const res = await produzirCalendario(
+      epoca, conhecidos, quem, qualApp, ctrl.signal, TIMEOUT_MS,
     );
-    await registar("ok", {
-      epoca, jogos: jogos.length, por_definir: porDefinir.length,
-      potenciais: potenciais.length, modelo: model, pesquisa: comPesquisa,
-      fontes: fontes.map((f) => f.url).slice(0, 8),
-    }, quem, qualApp);
-    return json({
-      epoca,
-      jogos,
-      porDefinir,
-      potenciais,
-      pesquisa: comPesquisa,
-      fontes: fontes.slice(0, 8),
-      modelo: model,
-      geradoEm: new Date().toISOString(),
-    });
+    return res.ok ? json(res.corpo) : json({ error: res.erro }, res.status);
   } catch (e) {
     const err = e as Error;
     const timeout = err.name === "AbortError";

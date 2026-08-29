@@ -166,6 +166,24 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
 - **A mesma função serve o SplitBill** (que só quer os jogos em Alvalade). Ela
   devolve SEMPRE a época inteira, sem filtrar por local nem competição — quem
   filtra é cada app. Se mexeres no contrato, mexe nos dois lados.
+- **A procura corre em SEGUNDO PLANO** (`db/calendario-analises.sql` →
+  `goals.calendario_analises`). A pesquisa Google neste prompt passou a demorar
+  mais do que um pedido HTTP aguenta (o browser/iOS corta perto dos 60s), e
+  enquanto foi síncrono dava sempre "demorou demasiado" por mais tempo que se
+  lhe desse — o tecto não era nosso. O Goals manda `assincrono: true`; a função
+  cria uma linha 'pendente', responde já com o `id` e continua com
+  `EdgeRuntime.waitUntil` (110s de orçamento); a app faz polling
+  (`calEsperar`). É o mesmo padrão da `sugerir-vinho` do WineSelection.
+  **Sem `assincrono` mantém-se o contrato antigo** (resposta completa de uma
+  vez) — é isso que deixa o SplitBill a funcionar sem lhe tocar, mas ele fica
+  com o mesmo tecto de 55s, por isso mais dia menos dia precisa do mesmo
+  tratamento.
+- Os modelos recentes trazem o **"pensamento" ligado por omissão** e, com o tool
+  de pesquisa, isso é um custo de latência grande. A primeira variante vai
+  sempre com `thinkingConfig:{thinkingBudget:0}` (ver `VARIANTES`: pesquisa+sem-
+  pensar → pesquisa → sem-pesquisa). Atenção: `gemini-flash-latest` é um alias
+  que se atualiza sozinho — quando ele salta para um modelo novo, a latência
+  desta chamada pode mudar sem ninguém ter mexido em código.
 - Só o admin pode chamar: a função compara o email do JWT com `ADMIN_EMAIL`
   (secret opcional, por omissão o mesmo email das duas apps). É verificação do
   servidor, não da UI.
