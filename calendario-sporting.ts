@@ -71,16 +71,19 @@ const TIMEOUT_MS = 55_000;
 // função toda sem sobrar tempo para tentar outro candidato. Isto dá a cada
 // tentativa um relógio próprio, mais curto, para uma que fique presa ser
 // abandonada depressa e a próxima ainda ter tempo dentro do TIMEOUT_MS geral.
-// Dividido em dois relógios desde que os logs mostraram, em 29/08, TRÊS
-// modelos "flash" diferentes (não um só) a ficar sem resposta NENHUMA
-// durante o tempo todo quando `google_search` estava ligado — sinal de que
-// é a pesquisa em si que está em baixo do lado da Google, não um modelo
-// específico. Falhar depressa na tentativa com pesquisa e cair já para uma
-// chamada sem pesquisa (mais rápida, sem o tool) dá muito mais hipótese de
-// devolver alguma coisa dentro do orçamento total — a app já assinala bem
-// visível quando `pesquisa:false` (ver app.js, `semPesquisa`).
-const SEARCH_TENTATIVA_TIMEOUT_MS = 9_000;
-const FALLBACK_TENTATIVA_TIMEOUT_MS = 15_000;
+// CORRIGIDO em 29/08 depois de comparar `sync_log` "pedido"→"ok": uma
+// pesquisa bem sucedida demora HISTORICAMENTE 28-47s (é um prompt pesado —
+// pesquisa e confirma dezenas de jogos em várias competições). A primeira
+// versão disto tinha o relógio da pesquisa em 18s e depois 9s — bem abaixo
+// do normal — por isso desistia quase sempre da pesquisa mesmo com o Gemini
+// perfeitamente saudável, só a demorar o tempo dele. Dava a impressão de
+// "pesquisa em baixo" quando o problema era o timeout curto de mais a matar
+// chamadas que iam ter sucesso. Por isso a tentativa com pesquisa recebe
+// agora quase todo o orçamento (cobre os 47s vistos no histórico, com
+// margem), e só sobra uma janela curta para o fallback sem pesquisa — que
+// esse sim é sempre rápido (poucos segundos, por não ter o tool).
+const SEARCH_TENTATIVA_TIMEOUT_MS = 45_000;
+const FALLBACK_TENTATIVA_TIMEOUT_MS = 9_000;
 
 /* ── Escolha do modelo (mesma estratégia da `fatura-restaurante`) ──
    Os nomes dos modelos Gemini mudam com o tempo. Em vez de fixar um, pergunta-se
