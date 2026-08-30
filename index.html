@@ -401,13 +401,13 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
              Local só quebra para a linha seguinte quando o Até aparece e a
              linha deixa de ter espaço — com uma só data, fica tudo junto. -->
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <div class="fg" style="flex:0 0 auto">
+          <div class="fg" style="flex:0 0 140px">
             <label>Data</label>
-            <input type="date" id="ed-data" style="width:auto;min-width:130px" onchange="_syncResEdDisponivel()">
+            <input type="date" id="ed-data" onchange="_syncResEdDisponivel()">
           </div>
-          <div class="fg" style="flex:0 0 auto" id="ed-data-ate-wrap">
+          <div class="fg" style="flex:0 0 140px" id="ed-data-ate-wrap">
             <label>Até <em style="font-weight:400;font-style:italic;color:var(--mu)">(janela)</em></label>
-            <input type="date" id="ed-data-ate" style="width:auto;min-width:130px">
+            <input type="date" id="ed-data-ate">
           </div>
           <div class="fg" style="flex:1;min-width:150px">
             <label>Local</label>
@@ -463,7 +463,7 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
         <!-- Golos: só leitura — vem sempre do resultado, nunca se edita à parte -->
         <div class="fg">
           <label>Golos do Sporting <em style="font-weight:400;font-style:italic;color:var(--mu)">(auto-calculado pelo resultado)</em></label>
-          <div id="ed-golos-display" class="fadd-cnt-val" style="margin-top:2px">—</div>
+          <div id="ed-golos-display" class="fadd-cnt-val" style="margin-top:2px;text-align:left">—</div>
           <input type="hidden" id="ed-golos" value="">
         </div>
       </div>
@@ -490,9 +490,9 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
             <label>Nome</label>
             <input type="text" id="ested-nome" placeholder="ex: Jantar de final de época">
           </div>
-          <div class="fg" style="flex:0 0 auto">
+          <div class="fg" style="flex:0 0 140px">
             <label>Data</label>
-            <input type="date" id="ested-data" style="width:auto;min-width:130px">
+            <input type="date" id="ested-data">
           </div>
         </div>
         <div class="fg">
@@ -535,9 +535,9 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
             <label>Descrição</label>
             <input type="text" id="cred-nome" placeholder="ex: Sobra da época anterior">
           </div>
-          <div class="fg" style="flex:0 0 auto">
+          <div class="fg" style="flex:0 0 140px">
             <label>Data</label>
-            <input type="date" id="cred-data" style="width:auto;min-width:130px">
+            <input type="date" id="cred-data">
           </div>
         </div>
         <div class="fg">

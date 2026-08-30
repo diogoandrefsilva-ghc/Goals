@@ -281,8 +281,18 @@ tbody tr:hover{background:#fafaf8}
 @media(max-width:500px){.frow{grid-template-columns:1fr}}
 .fg{display:flex;flex-direction:column;gap:5px;min-width:0;}
 label{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
-input[type=text],input[type=date],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%;height:37px;box-sizing:border-box}
+input[type=text],input[type=date],input[type=time],input[type=number],select{border:1px solid var(--bo);border-radius:8px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--tx);background:#fff;outline:none;transition:border-color .15s;width:100%;height:37px;box-sizing:border-box}
 input:focus,select:focus{border-color:var(--vd)}
+/* Data/hora no iOS: sem isto o Safari usa o widget nativo, que traz altura
+   e margens próprias — os campos de data ficavam bem mais altos do que os
+   de texto ao lado, e o de hora (que nem sequer estava na regra acima)
+   ficava uma pastilha cinzenta a meia altura. `appearance:none` devolve o
+   controlo do tamanho ao CSS; `::-webkit-date-and-time-value` é o texto lá
+   dentro, que por omissão vem centrado e com margem, ao contrário de todos
+   os outros campos. */
+input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;min-height:0;line-height:19px;text-align:left}
+input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left;margin:0;height:19px;line-height:19px}
+input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator{margin-left:auto;padding:0;opacity:.55}
 .btn{border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;transition:all .15s}
 .btn-g{background:var(--vd);color:#fff}.btn-g:hover{background:var(--vd2)}
 .btn-d{background:var(--dg);color:#fff}
