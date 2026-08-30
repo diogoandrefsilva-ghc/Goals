@@ -152,11 +152,14 @@ UM pedido com a lista de `jogo_ids`; fica `pendente` e **não mexe em
   pedidos pendentes não têm de aparecer lá — só estes dois blocos.
 
 ## `goals.jogos` é o calendário das DUAS apps (`db/jogos-leitura-partilhada.sql`)
-O SplitBill mostra "Próximos Jogos em Alvalade" — os mesmos jogos que já estão
-aqui, com hora, competição, jornada e estádio. Vive no MESMO projeto Supabase,
-noutro schema (`splitbill`), e desde esta migração **lê `goals.jogos`
-directamente** em vez de manter uma segunda lista do mesmo calendário. Um
-calendário, um dono: sincroniza-se aqui e as duas apps mudam juntas.
+**Este repo é o dono do calendário.** A pergunta à IA acontece só aqui: o
+SplitBill deixou de ter sincronização própria (não chama a Edge Function, não
+tem botão) e passou a **ler `goals.jogos`**. Ele mostra "Próximos Jogos em
+Alvalade" — os mesmos jogos que já estão aqui, com hora, competição, jornada e
+estádio — e vive no MESMO projeto Supabase, noutro schema (`splitbill`).
+Antes as duas apps perguntavam o mesmo à mesma função e guardavam a resposta
+cada uma para seu lado: bastava sincronizar só uma para as listas divergirem.
+Um calendário, um dono — **sincronizar aqui é o que põe os dois lados em dia**.
 - A migração acrescenta **uma** policy: `SELECT TO authenticated USING (true)`
   em `goals.jogos`. Não abre nada de novo — a tabela **já** era legível pelo
   role `anon` desde o acesso de convidado (`db/acesso-convidado.sql`) e não tem
@@ -165,9 +168,13 @@ calendário, um dono: sincroniza-se aqui e as duas apps mudam juntas.
   `goals.is_allowed()` a quem TEM sessão só barrava os utilizadores do SplitBill
   que não estão na lista daqui.
 - **Escrita continua exclusiva do admin do Goals** (`jogos_admin`, inalterada).
-  O SplitBill só faz SELECT: os jogos futuros dele continuam a ser eventos do
-  schema `splitbill` (é o evento que leva convocados, menu, tesoureiro e
-  presenças) — de cá vem só a ficha do jogo, para desenhar o cartão.
+  O SplitBill só faz SELECT. Do lado dele fica uma linha em `splitbill.eventos`
+  por jogo em Alvalade — o mínimo, porque é aí que vivem os convocados, o menu,
+  o tesoureiro e quem vai ao jogo/ao Sá —, ligada pela coluna
+  `splitbill.eventos.jogo_id` ao `id` daqui, e criada sozinha a partir desta
+  tabela. **Consequência prática: um jogo que apagues aqui deixa lá o evento**
+  (apagá-lo levava com ele as presenças e o consumo do dia). Mudar a data, essa,
+  propaga-se — mas só a jogos que lá ainda estejam por abrir.
 - Se mudares as **colunas** de `goals.jogos`, o SplitBill vai atrás: ele pede
   `data,adversario,competicao,jornada,local,hora,estadio` (e filtra
   `por_definir=is.false`). Do lado dele isto é tolerante — sem acesso ou sem
