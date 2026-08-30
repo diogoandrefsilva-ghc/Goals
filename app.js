@@ -1694,7 +1694,7 @@ function renderDetalhe(jogo){
 
   // Local icon inline
   const localSVGsm={'Casa':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><polygon points="12,3 2,11 4,11 4,21 10,21 10,15 14,15 14,21 20,21 20,11 22,11" fill="#c8a415" opacity=".85"/><rect x="10" y="15" width="4" height="6" rx="1" fill="#a07800"/><polygon points="12,3 2,11 22,11" fill="#c8a415"/></svg>','Fora':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#e65100"/></svg>','Neutro':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M3 17.5V20h18v-2.5c0-1.1-.4-2-1.2-2.5L12 11 4.2 15c-.8.5-1.2 1.4-1.2 2.5z" fill="#1565c0"/><ellipse cx="12" cy="8" rx="9" ry="4" fill="#1565c0" opacity=".5"/></svg>'};
-  const localLabel=jogo.local?(localSVGsm[jogo.local]||'')+' '+jogo.local:'';
+  const localLabel=jogo.local?(localSVGsm[jogo.local]||'')+' '+(jogo.estadio||jogo.local):'';
 
   // Lista de amigos em 2 colunas, sem siglas nem "pago/deve" — só nome + toggle
   // Convidado não tem amigos/pagamentos carregados (carregarConvidado só
@@ -1753,7 +1753,6 @@ function renderDetalhe(jogo){
         <div style="display:flex;flex-direction:column;gap:4px">
           <div style="font-size:12px;color:var(--mu)">${jogo.competicao}${jogo.jornada?' · '+jogo.jornada:''}</div>
           <div style="font-size:12px;color:var(--mu)">${d}${jogo.hora?' · '+jogo.hora:''}</div>
-          ${jogo.estadio?`<div style="font-size:12px;color:var(--mu)">🏟️ ${jogo.estadio}</div>`:''}
           ${metaMoneyHTML}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
