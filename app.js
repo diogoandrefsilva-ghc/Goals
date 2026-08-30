@@ -3013,15 +3013,19 @@ function selLocalEd(btn){
 
 function autoCalcGolosEd(){
   const res=document.getElementById('ed-res').value.trim();
-  if(!res)return;
   const parts=res.split('-').map(s=>parseInt(s.trim()));
-  if(parts.length!==2||isNaN(parts[0])||isNaN(parts[1]))return;
+  if(!res||parts.length!==2||isNaN(parts[0])||isNaN(parts[1])){
+    // Sem resultado válido não há golos a mostrar — nunca se edita à parte.
+    _golosEd=null;
+    document.getElementById('ed-golos').value='';
+    document.getElementById('ed-golos-display').textContent='—';
+    return;
+  }
   const local=document.getElementById('ed-local').value;
   const golosSporting=(local==='Fora')?parts[1]:parts[0];
   _golosEd=golosSporting;
   document.getElementById('ed-golos').value=_golosEd;
   document.getElementById('ed-golos-display').textContent=_golosEd;
-  document.getElementById('btn-clear-golos-ed').style.display='';
 }
 
 function abrirModalEditar(jogoId){
@@ -3047,17 +3051,14 @@ function abrirModalEditar(jogoId){
   // Competição
   const selComp=document.getElementById('ed-comp');
   [...selComp.options].forEach(o=>o.selected=o.value===j.competicao);
-  // Golos
-  if(j.golos!==null&&j.golos!==undefined&&j.golos!==''){
+  // Golos — derivados do resultado (autoCalcGolosEd precisa do Local já
+  // definido acima). Só cai para o valor gravado em jogos antigos que têm
+  // golos mas nunca chegaram a ter a string "resultado" preenchida.
+  autoCalcGolosEd();
+  if(_golosEd===null&&j.golos!==null&&j.golos!==undefined&&j.golos!==''){
     _golosEd=Number(j.golos);
     document.getElementById('ed-golos').value=_golosEd;
     document.getElementById('ed-golos-display').textContent=_golosEd;
-    document.getElementById('btn-clear-golos-ed').style.display='';
-  } else {
-    _golosEd=null;
-    document.getElementById('ed-golos').value='';
-    document.getElementById('ed-golos-display').textContent='—';
-    document.getElementById('btn-clear-golos-ed').style.display='none';
   }
   document.getElementById('modal-editar').style.display='flex';
   document.body.style.overflow='hidden';
@@ -3069,7 +3070,6 @@ function _syncResEdDisponivel(){
   const hoje=new Date().toISOString().split('T')[0];
   const futuro=dataVal>hoje;
   document.getElementById('ed-res').disabled=futuro;
-  document.querySelectorAll('#modal-editar .fadd-cnt-btn,#modal-editar #btn-clear-golos-ed').forEach(b=>b.disabled=futuro);
   const hint=document.getElementById('ed-res-hint');
   if(hint)hint.style.display=futuro?'':'none';
 }
@@ -3078,19 +3078,6 @@ function fecharModalEditar(e){
   document.getElementById('modal-editar').style.display='none';
   document.body.style.overflow='';
   _editId=null;
-}
-function ajustarGolosEd(d){
-  if(_golosEd===null)_golosEd=0;
-  _golosEd=Math.max(0,_golosEd+d);
-  document.getElementById('ed-golos').value=_golosEd;
-  document.getElementById('ed-golos-display').textContent=_golosEd;
-  document.getElementById('btn-clear-golos-ed').style.display='';
-}
-function limparGolosEd(){
-  _golosEd=null;
-  document.getElementById('ed-golos').value='';
-  document.getElementById('ed-golos-display').textContent='—';
-  document.getElementById('btn-clear-golos-ed').style.display='none';
 }
 async function guardarEdicao(){
   if(roGuard())return;
