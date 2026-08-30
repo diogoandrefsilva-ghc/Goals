@@ -214,9 +214,10 @@ da época ${epoca}${j ? ` (jogos entre ${j.ini} e ${j.fim})` : ""}.
 Confirma as datas em fontes fiáveis e atuais, por esta ORDEM DE PRIORIDADE
 quando houver desacordo entre elas — usa a informação da fonte mais alta
 nesta lista que tiver dados sobre esse jogo, e ignora as de baixo nesse caso:
-  1. flashscore.pt — para jogos de competições europeias (Liga dos Campeões,
-     Liga Europa, Liga Conferência), a UEFA (uefa.com) empata em prioridade
-     com o flashscore.pt.
+  1. flashscore.pt e soccerway.com (mesmo conteúdo um do outro — trata-os
+     como a mesma fonte, um a confirmar o outro) — para jogos de competições
+     europeias (Liga dos Campeões, Liga Europa, Liga Conferência), a UEFA
+     (uefa.com) empata em prioridade com estes dois.
   2. Liga Portugal (ligaportugal.pt) e o sítio oficial do Sporting CP
   3. zerozero.pt, Federação Portuguesa de Futebol e outras fontes
 Só te afastas desta ordem se a fonte de prioridade mais alta estiver
@@ -264,10 +265,10 @@ Regras:
   semanas antes da jornada (depende da escolha da TV) — antes disso, é normal
   e preferível deixar "hora": null a arriscar um valor que ainda pode mudar.
   Só preenches "hora" quando tiveres a certeza de que é a hora JÁ CONFIRMADA:
-  ou uma fonte de prioridade 1 (flashscore.pt / UEFA, ver ordem acima) diz
-  isso claramente, ou pelo menos duas fontes independentes de prioridade mais
-  baixa e recentes estão de acordo. Um valor "por omissão" tipo 20:30 não
-  chega.
+  ou uma fonte de prioridade 1 (flashscore.pt / soccerway.com / UEFA, ver
+  ordem acima) diz isso claramente, ou pelo menos duas fontes independentes
+  de prioridade mais baixa e recentes estão de acordo. Um valor "por
+  omissão" tipo 20:30 não chega.
 - Datas: se achares que a data de um jogo já esperado MUDOU (adiado/antecipado)
   em relação ao que seria óbvio pela jornada, só o reportes com uma fonte clara
   e recente a confirmar essa mudança (comunicado da Liga Portugal ou do
