@@ -14,6 +14,7 @@ let PUSH_COL=true; // tabela push_subscriptions existe? (verificado em pushCheck
 let JOGOS_PD=true; // colunas por_definir/data_ate existem? (db/jogos-por-definir.sql, visto em carregar())
 let JOGOS_POT=true; // colunas potencial/condicao existem? (db/jogos-potenciais.sql, visto em carregar())
 let JOGOS_HE=true; // colunas hora/estadio existem? (db/jogo-hora-estadio.sql, visto em carregar())
+const DIAS_SEMANA=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']; // índice = Date.getDay()
 
 // Par de chaves para notificações Web Push (não é a chave do Supabase) —
 // o MESMO par já usado pelo SplitBill: os secrets de Edge Function no
@@ -1292,9 +1293,13 @@ function jogoCardHTML(j,mini=false){
   if(isFuturo){
     // Hora só vem preenchida quando já está confirmada (ver prompt do
     // calendário sugerido) — por isso chega para decidir "fechada" ou não.
+    // O dia da semana vem sempre da data (ao contrário da hora, que nem
+    // sempre está confirmada), por isso serve de legenda em todos os jogos
+    // por realizar, tenham ou não hora marcada.
+    const diaSemana=DIAS_SEMANA[d.getDay()];
     resDisplayHTML=j.hora
-      ?`<div class="jgol"><div class="gn" style="font-size:15px">${j.hora}</div><div class="gl">hora</div></div>`
-      :`<div class="jgol"><div class="gn" style="color:#ccc">—</div><div class="gl"></div></div>`;
+      ?`<div class="jgol"><div class="gn" style="font-size:15px">${j.hora}</div><div class="gl">${diaSemana}</div></div>`
+      :`<div class="jgol"><div class="gn" style="color:#ccc">—</div><div class="gl">${diaSemana}</div></div>`;
   } else if(!j.resultado){
     resDisplayHTML=`<div class="jgol"><div class="gn">${golosJ}</div><div class="gl">golo${golosJ!==1?'s':''}</div></div>`;
   } else {
@@ -1663,6 +1668,11 @@ function renderDetalhe(jogo){
   const totalJogo=(golosJogo*db.config.valorPorGolo*nTotal).toFixed(0);
   const totalReceb=(golosJogo*db.config.valorPorGolo*nPag).toFixed(0);
   const isFuturo=(jogo.golos===null||jogo.golos===undefined||jogo.golos==='');
+  // Data no futuro (não "sem resultado ainda") — um jogo de ontem sem golos
+  // inseridos continua a mostrar quem pagou; um jogo de amanhã não faz
+  // sentido nenhum ter isso marcado.
+  const hoje=new Date().toISOString().split('T')[0];
+  const dataFutura=jogo.data>hoje;
 
   // --- Cabeçalho: equipas na ordem certa (casa à esquerda) + resultado formatado ---
   // Casa/Neutro: Sporting (esq) vs Adversário (dir)
@@ -1713,10 +1723,10 @@ function renderDetalhe(jogo){
     </div>`
   :'<div class="empty"><em>👥</em>Sem amigos configurados</div>';
 
-  const metaMoneyHTML=isGuest?'':`
+  const metaMoneyHTML=(isGuest||dataFutura)?'':`
           <div style="font-size:12px;color:var(--mu)">Pote do jogo: <strong style="color:var(--tx)">${totalJogo}€</strong></div>
           <div style="font-size:12px;color:var(--mu)">Valor recebido: <strong style="color:var(--vd)">${totalReceb}€</strong></div>`;
-  const quemPagouHTML=isGuest?'':`
+  const quemPagouHTML=(isGuest||dataFutura)?'':`
       <!-- QUEM PAGOU -->
       <div style="padding:14px 20px 14px">
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:10px">
@@ -3023,6 +3033,13 @@ function abrirModalEditar(jogoId){
   document.getElementById('ed-res').value=j.resultado||'';
   document.getElementById('ed-hora').value=j.hora||'';
   document.getElementById('ed-estadio').value=j.estadio||'';
+  // Janela de datas (jogos potenciais/por definir) — só existe campo para
+  // mexer nela quando o jogo ainda está nesse estado; um jogo normal não
+  // tem "até", tem só a data certa.
+  const janelaAplicavel=!!(JOGOS_PD&&(j.porDefinir||j.potencial));
+  document.getElementById('ed-data-ate-wrap').style.display=janelaAplicavel?'':'none';
+  document.getElementById('ed-data-ate').value=j.dataAte||j.data||'';
+  _syncResEdDisponivel();
   // Local
   const localVal=j.local||'Casa';
   document.getElementById('ed-local').value=localVal;
@@ -3044,6 +3061,17 @@ function abrirModalEditar(jogoId){
   }
   document.getElementById('modal-editar').style.display='flex';
   document.body.style.overflow='hidden';
+}
+// Um jogo com data no futuro ainda não tem resultado nenhum a registar —
+// bloqueia o campo em vez de deixar escrever um "3-1" que não aconteceu.
+function _syncResEdDisponivel(){
+  const dataVal=document.getElementById('ed-data').value;
+  const hoje=new Date().toISOString().split('T')[0];
+  const futuro=dataVal>hoje;
+  document.getElementById('ed-res').disabled=futuro;
+  document.querySelectorAll('#modal-editar .fadd-cnt-btn,#modal-editar #btn-clear-golos-ed').forEach(b=>b.disabled=futuro);
+  const hint=document.getElementById('ed-res-hint');
+  if(hint)hint.style.display=futuro?'':'none';
 }
 function fecharModalEditar(e){
   if(e&&e.target!==document.getElementById('modal-editar'))return;
@@ -3078,6 +3106,10 @@ async function guardarEdicao(){
   };
   const gv=document.getElementById('ed-golos').value;
   novo.golos=gv===''?null:parseInt(gv);
+  // Rede de segurança para além do campo desactivado na UI: um jogo com
+  // data no futuro nunca grava resultado/golos.
+  const hoje=new Date().toISOString().split('T')[0];
+  if(novo.data>hoje){novo.resultado='';novo.golos=null;}
   // hora/estádio são de uma migração opcional (db/jogo-hora-estadio.sql) —
   // sem as colunas na BD, nem sequer se manda o PATCH desses dois campos.
   if(JOGOS_HE){
@@ -3092,6 +3124,11 @@ async function guardarEdicao(){
   // deixa de ser hipotético e passa a contar para a Previsão.
   const saiuDePotencial=!!(j.potencial&&novo.adversario&&JOGOS_POT);
   if(saiuDePotencial){novo.potencial=false;novo.condicao=null;novo.data_ate=null;}
+  // Continua potencial/por definir: a janela de datas é editável à parte
+  // (campo "Até"), não fica presa ao valor antigo.
+  if(JOGOS_PD&&!saiuDeporDefinir&&!saiuDePotencial&&(j.porDefinir||j.potencial)){
+    novo.data_ate=document.getElementById('ed-data-ate').value||novo.data;
+  }
   try{
     await sbReq('PATCH',`jogos?id=eq.${j.id}`,novo);
   }catch(e){toast('Erro ao guardar: '+e.message,1);return;}
@@ -3099,6 +3136,7 @@ async function guardarEdicao(){
   Object.assign(j,novo);
   if(saiuDeporDefinir){delete j.por_definir;delete j.data_ate;j.porDefinir=false;j.dataAte=null;}
   if(saiuDePotencial){delete j.potencial;delete j.condicao;j.potencial=false;j.condicao='';j.dataAte=null;}
+  if(novo.data_ate!==undefined&&!saiuDeporDefinir&&!saiuDePotencial){j.dataAte=novo.data_ate;delete j.data_ate;}
   if(fechouAgora)sbNotificarResultadoJogo(advNome(j),j.resultado,j.golos); // fire-and-forget, não bloqueia UI
   fecharModalEditar();
   // re-render: verificar se estamos no detalhe do jogo (usa style.display, não classes)
