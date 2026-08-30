@@ -86,6 +86,14 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
     UI mas o `carregar` do convidado devolve listas vazias (RLS bloqueia
     tudo por omissão), não é preciso mudar nada no código para a correres
     depois.
+13. `jogos-leitura-partilhada.sql` — necessário para a app **SplitBill** mostrar
+    hora/competição/jornada nos "Próximos Jogos em Alvalade": uma policy de
+    `SELECT TO authenticated` em `goals.jogos`, para o calendário viver só aqui
+    e não haver duas listas dos mesmos jogos. Não abre nada de novo — a tabela
+    já era legível pelo `anon` desde o `acesso-convidado.sql` e não tem colunas
+    de dinheiro; a escrita continua exclusiva do admin. Idempotente e
+    tolerante: sem ela o SplitBill não rebenta, só desenha o cartão com o nome
+    e a data do evento.
 
 ## Passos manuais (fora do SQL Editor)
 
@@ -175,6 +183,10 @@ telefone/WhatsApp, e a pessoa entra e troca-a em Definições › Conta
   botão "Entrar como convidado" (sem login) acesso só a `jogos`/`epocas`. Ver
   secção "Acesso de Convidado" no `CLAUDE.md` para o resto do desenho
   (frontend em `app.js`, o que fica escondido). Recomendado, tolerante.
+- **jogos-leitura-partilhada.sql** — a policy de `SELECT TO authenticated` que
+  deixa o **SplitBill** (outro schema, mesmo projeto) ler `goals.jogos`. Ver
+  secção "`goals.jogos` é o calendário das DUAS apps" no `CLAUDE.md`.
+  Necessária para essa app, tolerante.
 
 ## Modelo de permissões
 

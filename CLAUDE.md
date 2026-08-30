@@ -21,7 +21,8 @@ Dados e login em **Supabase** — o **mesmo projeto do FestasBV**
 - `style.css` — todo o CSS.
 - `sw.js` — service worker (cache PWA).
 - `db/` — `schema.sql` → `functions.sql` → `policies.sql` (+ `README.md` com
-  os passos manuais no painel Supabase). Fonte de verdade do schema `goals`.
+  os passos manuais no painel Supabase). Fonte de verdade do schema `goals`
+  — **incluindo o que o SplitBill lê daqui** (ver secção a seguir).
 - Não mexer: `apple-touch-icon.png`, `manifest.json`, `escudo.png`.
 
 ## O modelo em memória não mudou — só a origem dos dados
@@ -149,6 +150,28 @@ UM pedido com a lista de `jogo_ids`; fica `pendente` e **não mexe em
   (`mostrarRejPedido`/`rejeitarPedidoPagamento`), nunca `prompt()`.
 - Se acrescentares outro sítio que também marca jogos como pagos, os
   pedidos pendentes não têm de aparecer lá — só estes dois blocos.
+
+## `goals.jogos` é o calendário das DUAS apps (`db/jogos-leitura-partilhada.sql`)
+O SplitBill mostra "Próximos Jogos em Alvalade" — os mesmos jogos que já estão
+aqui, com hora, competição, jornada e estádio. Vive no MESMO projeto Supabase,
+noutro schema (`splitbill`), e desde esta migração **lê `goals.jogos`
+directamente** em vez de manter uma segunda lista do mesmo calendário. Um
+calendário, um dono: sincroniza-se aqui e as duas apps mudam juntas.
+- A migração acrescenta **uma** policy: `SELECT TO authenticated USING (true)`
+  em `goals.jogos`. Não abre nada de novo — a tabela **já** era legível pelo
+  role `anon` desde o acesso de convidado (`db/acesso-convidado.sql`) e não tem
+  colunas de dinheiro (isso vive em `pagos_jogo`/`estouros`/`creditos_extra`/
+  `config`/`pedidos_pagamento`, nenhuma delas tocada). Exigir
+  `goals.is_allowed()` a quem TEM sessão só barrava os utilizadores do SplitBill
+  que não estão na lista daqui.
+- **Escrita continua exclusiva do admin do Goals** (`jogos_admin`, inalterada).
+  O SplitBill só faz SELECT: os jogos futuros dele continuam a ser eventos do
+  schema `splitbill` (é o evento que leva convocados, menu, tesoureiro e
+  presenças) — de cá vem só a ficha do jogo, para desenhar o cartão.
+- Se mudares as **colunas** de `goals.jogos`, o SplitBill vai atrás: ele pede
+  `data,adversario,competicao,jornada,local,hora,estadio` (e filtra
+  `por_definir=is.false`). Do lado dele isto é tolerante — sem acesso ou sem
+  colunas, o cartão degrada para o nome e a data do evento.
 
 ## Calendário do Sporting sugerido por IA (Config › Calendário do Sporting)
 Botão só do admin que vai buscar o calendário oficial da época activa e **sugere**
