@@ -6,7 +6,10 @@
 //                          (fire-and-forget)
 //   'pagamento_declarado' submeterPedidoPagamento() → avisa o ADMIN_EMAIL
 //                          quando um amigo diz que já pagou um conjunto de
-//                          jogos (fire-and-forget)
+//                          jogos (fire-and-forget). Com `lembrete: true` é o
+//                          mesmo aviso repetido por relembrarPedido() — o
+//                          amigo insiste no pedido que já lá está em vez de
+//                          criar outro igual; só muda o texto.
 //   'pagamento_aprovado'  aprovarPedidoPagamento() → avisa só o amigo que
 //                          fez o pedido, quando o admin o aprova
 //                          (fire-and-forget)
@@ -293,7 +296,7 @@ Deno.serve(async (req) => {
     const emailChamador = await emailDoToken(auth);
     if (!emailChamador) return json({ error: "não autorizado" }, 403);
 
-    const { tipo, email, amigo, valor, jogos, adversario, resultado, golos, mudancas } =
+    const { tipo, email, amigo, valor, jogos, adversario, resultado, golos, mudancas, lembrete } =
       (await req.json()) as {
         tipo?: Tipo;
         email?: string;
@@ -304,6 +307,7 @@ Deno.serve(async (req) => {
         resultado?: string;
         golos?: number;
         mudancas?: Mudanca[];
+        lembrete?: boolean;
       };
 
     // 'pedido_acesso': único caso em que NÃO se exige allowed_users — é
@@ -325,11 +329,20 @@ Deno.serve(async (req) => {
 
     if (tipo === "pagamento_declarado") {
       const val = (Number(valor) || 0).toFixed(2);
-      const payload = {
-        title: "Pagamento declarado",
-        body: `${amigo || "Alguém"} diz que já pagou ${jogos || "uns jogos"} — €${val}`,
-        url: "/Goals/",
-      };
+      // `lembrete`: o amigo tocou outra vez à campainha (relembrarPedido()),
+      // em vez de criar um pedido igual ao que já estava à espera. Mesmo
+      // tipo, mesmo destinatário — só o texto diz que já não é novidade.
+      const payload = lembrete
+        ? {
+          title: "🔔 Pagamento à espera",
+          body: `${amigo || "Alguém"} está à espera de confirmação de ${jogos || "uns jogos"} — €${val}`,
+          url: "/Goals/",
+        }
+        : {
+          title: "Pagamento declarado",
+          body: `${amigo || "Alguém"} diz que já pagou ${jogos || "uns jogos"} — €${val}`,
+          url: "/Goals/",
+        };
       const notifId = await registarNotificacao(tipo, "admin", payload);
       const subs = await subscriptionsDe([ADMIN_EMAIL]);
       const res = await enviarParaSubs(subs, JSON.stringify(payload));

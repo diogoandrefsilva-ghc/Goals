@@ -44,11 +44,20 @@ $$;
 -- não decide nada — nasce sempre 'pendente', sem decisão, carimbado por
 -- quem o fez. Só o admin (via UPDATE, policy própria) aprova/rejeita.
 -- Mesmo padrão do festasbv.pagpend_guard_ins.
+--
+-- Também é aqui que se recusa o MESMO pedido duas vezes: um pedido
+-- pendente não marca nada como pago (pendente não é dinheiro), por isso
+-- os jogos ficam na lista "por pagar" na mesma e quem enviou pensa que
+-- não foi e carrega outra vez (aconteceu, 2026-08-31). A UI já não deixa
+-- (renderMeuPedidoBox mostra-os como "aguarda confirmação"), mas dois
+-- dispositivos ao mesmo tempo só param aqui.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION goals.pedpag_guard_ins()
   RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
   SET search_path TO 'goals', 'public'
 AS $$
+DECLARE
+  v_dup bigint;
 BEGIN
   IF NOT goals.is_admin() THEN
     NEW.estado       := 'pendente';
@@ -58,6 +67,28 @@ BEGIN
   END IF;
   NEW.criado_por_email := COALESCE(auth.email(), '');
   NEW.criado_em        := now();
+  NEW.lembrado_em      := NULL;
+
+  -- jogos repetidos DENTRO do mesmo pedido: o bloco do membro está
+  -- montado duas vezes (Resumo e Contas) e o cliente lê as checkboxes
+  -- dos dois de uma vez.
+  NEW.jogo_ids := ARRAY(SELECT DISTINCT unnest(NEW.jogo_ids));
+
+  -- && é "os arrays têm algum elemento em comum": basta UM jogo repetido
+  -- para o pedido ser um duplicado do que já está à espera de decisão.
+  IF NEW.estado = 'pendente' THEN
+    SELECT p.id INTO v_dup
+      FROM goals.pedidos_pagamento p
+     WHERE p.amigo_id = NEW.amigo_id
+       AND p.epoca_nome = NEW.epoca_nome
+       AND p.estado = 'pendente'
+       AND p.jogo_ids && NEW.jogo_ids
+     LIMIT 1;
+    IF v_dup IS NOT NULL THEN
+      RAISE EXCEPTION 'Já tens um pedido à espera de confirmação com esses jogos.';
+    END IF;
+  END IF;
+
   RETURN NEW;
 END;
 $$;

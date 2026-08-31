@@ -94,6 +94,17 @@ Numa BD limpa (ou pela primeira vez, neste projeto):
     de dinheiro; a escrita continua exclusiva do admin. Idempotente e
     tolerante: sem ela o SplitBill não rebenta, só desenha o cartão com o nome
     e a data do evento.
+14. `pedido-lembrete.sql` — recomendado: a coluna `lembrado_em` em
+    `goals.pedidos_pagamento`, a função `goals.relembrar_pedido(id)` (tocar
+    outra vez à campainha do admin, com intervalo mínimo verificado no
+    servidor) e a versão do trigger `pedpag_guard_ins` que **recusa um
+    pedido pendente que repita jogos de outro pendente do mesmo amigo**.
+    Sem isto, quem envia um pedido vê os jogos na lista "por pagar" na
+    mesma (pendente não é dinheiro) e carrega outra vez — foi assim que
+    apareceram dois pedidos iguais em 2026-08-31. Idempotente e tolerante:
+    sem ela o botão "Relembrar" avisa que falta correr o ficheiro e mais
+    nada muda. Nota: já está incluída no `schema.sql`/`functions.sql`
+    atuais; isto é só para as BD que já existiam antes.
 
 ## Passos manuais (fora do SQL Editor)
 
@@ -187,6 +198,11 @@ telefone/WhatsApp, e a pessoa entra e troca-a em Definições › Conta
   deixa o **SplitBill** (outro schema, mesmo projeto) ler `goals.jogos`. Ver
   secção "`goals.jogos` é o calendário das DUAS apps" no `CLAUDE.md`.
   Necessária para essa app, tolerante.
+- **pedido-lembrete.sql** — `goals.relembrar_pedido(id)` (SECURITY DEFINER: o
+  amigo não tem UPDATE em `pedidos_pagamento` e não passa a ter — a função
+  escreve só `lembrado_em`, e só num pedido dele ainda pendente) + o
+  `pedpag_guard_ins` que recusa pedidos pendentes repetidos. Recomendado,
+  tolerante.
 
 ## Modelo de permissões
 

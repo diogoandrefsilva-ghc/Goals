@@ -547,6 +547,14 @@ body.guest .guest-hide{display:none!important}
 .meu-pag-jogo-adv{font-size:12.5px;font-weight:600;color:var(--tx)}
 .meu-pag-jogo-meta{font-size:10.5px;color:var(--mu)}
 .meu-pag-jogo-val{font-size:12px;font-weight:700;color:var(--vd);flex-shrink:0}
+/* jogos já dentro de um pedido pendente: vêem-se, não se marcam */
+.mp-sub{font-size:11px;font-weight:700;color:#7b5e00;margin-top:12px;margin-bottom:2px}
+.mp-lista-espera .meu-pag-jogo.esperando{opacity:.62}
+.meu-pag-jogo.esperando .meu-pag-jogo-val{color:var(--mu)}
+.mp-clock{width:17px;flex-shrink:0;text-align:center;font-size:12px}
+.pp-btn.ring{background:var(--oup);color:#7b5e00}
+.pp-btn:disabled{opacity:.5;cursor:default}
+.pp-nota{font-size:10.5px;color:var(--mu);margin-top:6px;line-height:1.45}
 
 /* ── UTILIZADORES (admin) ──────────────────────── */
 .ua-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fafaf8;border:1px solid var(--bo);border-radius:9px;margin-bottom:6px}

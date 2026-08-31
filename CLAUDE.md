@@ -141,6 +141,26 @@ UM pedido com a lista de `jogo_ids`; fica `pendente` e **não mexe em
   cliente). Os pedidos já feitos aparecem por baixo com o estado; enquanto
   `pendente` pode cancelar (`cancelarPedidoPagamento`, `DELETE` — a policy
   só deixa apagar o que ainda não foi aprovado).
+- **Um pedido pendente TRANCA esses jogos** (`db/pedido-lembrete.sql`). Um
+  pendente não marca nada como pago (é essa a regra), por isso os jogos dele
+  continuavam na lista "por pagar" tal e qual como antes de o enviar: quem
+  enviou pensa que não foi e carrega outra vez (o Rogélio criou dois pedidos
+  iguais com 17s de intervalo, 2026-08-31). Agora `renderMeuPedidoBox`
+  separa-os — os que estão num pendente saem da lista marcável e aparecem
+  debaixo de "🕓 À espera de confirmação do admin", sem checkbox. Quem quer
+  insistir **toca à campainha, não repete o pedido**: `relembrarPedido()` →
+  RPC `goals.relembrar_pedido` (carimba `lembrado_em`; o intervalo mínimo de
+  12h é do SERVIDOR — é SECURITY DEFINER porque o amigo não tem, nem passa a
+  ter, UPDATE na tabela) e dispara o mesmo push `pagamento_declarado` com
+  `lembrete:true` (só muda o texto; a Edge Function sem o deploy novo ignora
+  o campo e manda o aviso de sempre). O admin vê "🔔 relembrado há Xh" no
+  cartão dele.
+- **A trava a sério é do lado da BD**: `pedpag_guard_ins` recusa um pendente
+  que repita jogos (`&&`) de outro pendente do mesmo amigo, e tira `jogo_ids`
+  repetidos dentro do mesmo pedido — o bloco está montado duas vezes e
+  `submeterPedidoPagamento` lê as checkboxes dos dois montes de uma vez.
+  Esconder o botão só resolve um dispositivo; o `_ppEnviando` só resolve o
+  duplo toque. Dois telemóveis ao mesmo tempo param no trigger.
 - **Lado do admin**: painel no **Resumo**, logo a seguir aos cards
   (`#pedidos-admin-box`, `renderPedidosPagamentoAdmin` — chamado por
   `rResumo()`), só com pendentes da época ativa. **Aprovar** marca primeiro,

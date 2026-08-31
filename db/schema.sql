@@ -186,6 +186,9 @@ CREATE TABLE IF NOT EXISTS goals.pedidos_pagamento (
   decidido_por     text,
   decidido_em      timestamptz,
   motivo           text,
+  -- último toque de campainha ao admin (goals.relembrar_pedido). NULL =
+  -- nunca relembrado; o próprio criado_em conta como o primeiro toque.
+  lembrado_em      timestamptz,
   CONSTRAINT pedidos_pagamento_pkey PRIMARY KEY (id),
   CONSTRAINT pedidos_pagamento_estado_chk
     CHECK (estado IN ('pendente','aprovado','rejeitado')),

@@ -193,7 +193,7 @@ async function carregar(){
   });
   (pedPagRows||[]).forEach(p=>{
     const ep=dbFull.epocas[p.epoca_nome];if(!ep)return;
-    ep.pedidosPagamento.push({id:p.id,amigoId:p.amigo_id,jogoIds:p.jogo_ids||[],valor:Number(p.valor)||0,nota:p.nota,estado:p.estado,criadoPorEmail:p.criado_por_email,criadoEm:p.criado_em,decididoPor:p.decidido_por,decididoEm:p.decidido_em,motivo:p.motivo});
+    ep.pedidosPagamento.push({id:p.id,amigoId:p.amigo_id,jogoIds:p.jogo_ids||[],valor:Number(p.valor)||0,nota:p.nota,estado:p.estado,criadoPorEmail:p.criado_por_email,criadoEm:p.criado_em,decididoPor:p.decidido_por,decididoEm:p.decidido_em,motivo:p.motivo,lembradoEm:p.lembrado_em});
   });
 
   actualizarEpocasOrdem();
@@ -2810,7 +2810,7 @@ function renderPedidosPagamentoAdmin(){
       }).filter(Boolean).join(', ');
       return`<div class="pp-card">
         <div class="pp-card-head"><span class="pp-card-nome">${am?am.nome:'?'}</span><span class="pp-card-val">${p.valor.toFixed(2)}€</span></div>
-        <div class="pp-card-jogos">${nomes}${p.nota?`<br><em>"${p.nota}"</em>`:''}</div>
+        <div class="pp-card-jogos">${nomes}${p.nota?`<br><em>"${p.nota}"</em>`:''}${p.lembradoEm?`<br>🔔 relembrado ${_ppQuando(p.lembradoEm)}`:''}</div>
         <div class="pp-card-actions">
           <button class="pp-btn ok" onclick="aprovarPedidoPagamento(${p.id})">✓ Aprovar</button>
           <button class="pp-btn no" onclick="mostrarRejPedido(${p.id})">✕ Rejeitar</button>
@@ -2870,6 +2870,18 @@ async function rejeitarPedidoPagamento(id){
 }
 
 // ── Lado do membro: bloco no Resumo (debaixo dos cards) e nas Contas ──
+// Um pedido pendente NÃO marca nada como pago (pendente não é dinheiro), por
+// isso os jogos dele continuam a contar como dívida em aberto — mas não podem
+// voltar a ser marcados: aparecem à parte, como "à espera de confirmação".
+// Sem isto o ecrã ficava igual ao de antes de enviar e quem enviou pensava
+// que não tinha ido, carregando outra vez (dois pedidos iguais, 2026-08-31).
+// Quem quer insistir toca à campainha (relembrarPedido), não repete o pedido.
+const PP_ESPERA_LEMBRETE_H=12;   // igual ao intervalo de goals.relembrar_pedido
+function _ppUltimoToque(p){return new Date(p.lembradoEm||p.criadoEm||0).getTime();}
+function _ppPodeRelembrar(p){
+  return p.estado==='pendente' &&
+    Date.now()-_ppUltimoToque(p) > PP_ESPERA_LEMBRETE_H*3600e3;
+}
 function renderMeuPedidoBox(){
   const els=document.querySelectorAll('.meu-pedido-mount');
   if(!els.length)return;
@@ -2886,50 +2898,134 @@ function renderMeuPedidoBox(){
   const meusPedidos=(db.pedidosPagamento||[]).filter(p=>p.amigoId===meu.id)
     .sort((a,b)=>new Date(b.criadoEm||0)-new Date(a.criadoEm||0));
 
+  // jogos já dentro de um pedido pendente: mostram-se, mas não se marcam
+  const emEspera=new Set(meusPedidos.filter(p=>p.estado==='pendente')
+    .flatMap(p=>p.jogoIds));
+  const porMarcar=jogosPorPagar.filter(j=>!emEspera.has(j.id));
+  const aguardar =jogosPorPagar.filter(j=> emEspera.has(j.id));
+
+  const linha=(j,esperando)=>{
+    const d=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
+    const val=(gJ(j)*golosVal).toFixed(2);
+    const info=`<div class="meu-pag-jogo-info"><div class="meu-pag-jogo-adv">vs ${j.adversario}</div><div class="meu-pag-jogo-meta">${d} · ${j.competicao}</div></div>
+      <div class="meu-pag-jogo-val">${val}€</div>`;
+    return esperando
+      ? `<div class="meu-pag-jogo esperando"><span class="mp-clock">🕓</span>${info}</div>`
+      : `<label class="meu-pag-jogo"><input type="checkbox" value="${j.id}" class="mp-chk">${info}</label>`;
+  };
+
   let html='<div class="meu-pag-box"><h3>💳 Já pagaste algum jogo?</h3>';
   if(!jogosPorPagar.length){
     html+='<p>Estás em dia — sem jogos por pagar.</p>';
+  }else if(!porMarcar.length){
+    html+='<p>Já pediste confirmação de tudo o que tinhas em aberto — falta só o admin confirmar.</p>';
   }else{
     html+='<p>Marca os que já pagaste e pede confirmação ao admin.</p>';
-    html+='<div class="mp-lista">'+jogosPorPagar.map(j=>{
-      const d=new Date(j.data+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short'});
-      const val=(gJ(j)*golosVal).toFixed(2);
-      return`<label class="meu-pag-jogo">
-        <input type="checkbox" value="${j.id}" class="mp-chk">
-        <div class="meu-pag-jogo-info"><div class="meu-pag-jogo-adv">vs ${j.adversario}</div><div class="meu-pag-jogo-meta">${d} · ${j.competicao}</div></div>
-        <div class="meu-pag-jogo-val">${val}€</div>
-      </label>`;
-    }).join('')+'</div>';
-    html+='<button class="btn btn-g" style="margin-top:10px;width:100%" onclick="submeterPedidoPagamento()">Já paguei os selecionados</button>';
+    html+='<div class="mp-lista">'+porMarcar.map(j=>linha(j,false)).join('')+'</div>';
+    html+='<button class="btn btn-g mp-submit" style="margin-top:10px;width:100%" onclick="submeterPedidoPagamento()">Já paguei os selecionados</button>';
+  }
+  if(aguardar.length){
+    html+=`<div class="mp-sub">🕓 À espera de confirmação do admin</div>`;
+    html+='<div class="mp-lista-espera">'+aguardar.map(j=>linha(j,true)).join('')+'</div>';
   }
   if(meusPedidos.length){
     html+='<div class="divi" style="margin:12px 0"></div><div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--mu);margin-bottom:6px">Os teus pedidos</div>';
     html+=meusPedidos.map(p=>{
       const nomes=p.jogoIds.map(id=>{const j=db.jogos.find(x=>x.id===id);return j?`vs ${j.adversario}`:null;}).filter(Boolean).join(', ');
       const stTxt=p.estado==='pendente'?'🕓 Pendente':p.estado==='aprovado'?'✓ Aprovado':'✕ Rejeitado';
+      let acoes='';
+      if(p.estado==='pendente'){
+        const pode=_ppPodeRelembrar(p);
+        const jaFoi=p.lembradoEm?`Admin relembrado ${_ppQuando(p.lembradoEm)}`:'O admin já foi avisado quando enviaste';
+        acoes=`<div class="pp-card-actions">
+          <button class="pp-btn ring" onclick="relembrarPedido(${p.id})" ${pode?'':'disabled'} title="${jaFoi}">🔔 Relembrar admin</button>
+          <button class="pp-btn cancel" onclick="cancelarPedidoPagamento(${p.id})">Cancelar</button>
+        </div>${pode?'':`<div class="pp-nota">${jaFoi} — podes voltar a tocar daqui a ${_ppFaltam(p)}.</div>`}`;
+      }
       return`<div class="pp-card" style="background:#fff">
         <div class="pp-card-head"><span class="pp-status ${p.estado}">${stTxt}</span><span class="pp-card-val">${p.valor.toFixed(2)}€</span></div>
         <div class="pp-card-jogos">${nomes}${p.estado==='rejeitado'&&p.motivo?`<br><em>Motivo: ${p.motivo}</em>`:''}</div>
-        ${p.estado==='pendente'?`<div class="pp-card-actions"><button class="pp-btn cancel" onclick="cancelarPedidoPagamento(${p.id})">Cancelar</button></div>`:''}
+        ${acoes}
       </div>`;
     }).join('');
   }
   html+='</div>';
   els.forEach(el=>el.innerHTML=html);
 }
+// "há 2h" / "há 3 dias" / "ontem" — só para o texto do botão de lembrete
+function _ppQuando(iso){
+  const m=Math.round((Date.now()-new Date(iso).getTime())/60000);
+  if(m<60)return 'há minutos';
+  if(m<1440)return `há ${Math.round(m/60)}h`;
+  const d=Math.round(m/1440);
+  return d===1?'ontem':`há ${d} dias`;
+}
+function _ppFaltam(p){
+  const ms=_ppUltimoToque(p)+PP_ESPERA_LEMBRETE_H*3600e3-Date.now();
+  const h=Math.ceil(ms/3600e3);
+  return h<=1?'menos de 1h':`${h}h`;
+}
 
+// Trava de duplo envio: sem isto o botão fica clicável enquanto o POST vai a
+// caminho (e o POST + o recarregar demoram o suficiente para uma segunda
+// carregadela). A trava de verdade é o trigger pedpag_guard_ins na BD —
+// isto é só para não chegar lá.
+let _ppEnviando=false;
 async function submeterPedidoPagamento(){
+  if(_ppEnviando)return;
   const meu=meuAmigoNaEpoca();if(!meu)return;
-  const ids=[...document.querySelectorAll('.mp-lista .mp-chk:checked')].map(cb=>parseInt(cb.value));
+  // Set: o bloco está montado duas vezes (Resumo e Contas) e isto lê os dois
+  let ids=[...new Set([...document.querySelectorAll('.mp-lista .mp-chk:checked')].map(cb=>parseInt(cb.value)))];
   if(!ids.length)return toast('Seleciona pelo menos um jogo',1);
+  const emEspera=new Set((db.pedidosPagamento||[])
+    .filter(p=>p.amigoId===meu.id&&p.estado==='pendente').flatMap(p=>p.jogoIds));
+  const repetidos=ids.filter(id=>emEspera.has(id));
+  ids=ids.filter(id=>!emEspera.has(id));
+  if(!ids.length)return toast('Esses jogos já estão à espera de confirmação',1);
+  if(repetidos.length)toast('Alguns já estavam à espera de confirmação — foram ignorados',1);
   const valor=ids.reduce((a,id)=>{const j=db.jogos.find(x=>x.id===id);return a+(j?gJ(j)*db.config.valorPorGolo:0);},0);
+  _ppEnviando=true;
+  document.querySelectorAll('.mp-submit').forEach(b=>{b.disabled=true;b.textContent='A enviar…';});
   try{
     await sbReq('POST','pedidos_pagamento',{epoca_nome:epocaAtiva,amigo_id:meu.id,jogo_ids:ids,valor});
-  }catch(e){toast('Erro ao enviar pedido: '+e.message,1);return;}
+  }catch(e){
+    toast('Erro ao enviar pedido: '+e.message,1);
+    document.querySelectorAll('.mp-submit').forEach(b=>{b.disabled=false;b.textContent='Já paguei os selecionados';});
+    return;
+  }finally{_ppEnviando=false;}
   toast('Pedido enviado — aguarda confirmação do admin ✓');
   const nomes=ids.map(id=>{const j=db.jogos.find(x=>x.id===id);return j?`vs ${j.adversario}`:null;}).filter(Boolean).join(', ');
   sbNotificarPagamentoDeclarado(meu.nome,valor,nomes); // fire-and-forget, não bloqueia UI
-  await recarregarPedidosPagamento();
+  await recarregarPedidosPagamento();   // re-render tira estes jogos do que é marcável
+}
+
+// Toca outra vez à campainha do admin, em vez de repetir o pedido. Quem manda
+// no intervalo é goals.relembrar_pedido (servidor) — recarregar a página não
+// dá direito a outro toque. O push é o mesmo 'pagamento_declarado', com
+// `lembrete: true` para a Edge Function mudar o texto (aditivo: sem o deploy
+// novo dela, o aviso sai à mesma com o texto de sempre).
+let _ppLembrando=false;
+async function relembrarPedido(id){
+  if(_ppLembrando)return;
+  const p=(db.pedidosPagamento||[]).find(x=>x.id===id);
+  if(!p||p.estado!=='pendente')return;
+  _ppLembrando=true;
+  try{
+    const r=await sbReq('POST','rpc/relembrar_pedido',{p_id:id});
+    p.lembradoEm=(typeof r==='string'?r:null)||new Date().toISOString();
+  }catch(e){
+    const m=String(e&&e.message||e);
+    if(/relembrar_pedido|schema cache|PGRST202|404/i.test(m))
+      toast('Falta correr db/pedido-lembrete.sql no Supabase',1);
+    else toast(m,1);
+    _ppLembrando=false;renderMeuPedidoBox();return;
+  }
+  _ppLembrando=false;
+  const nomes=p.jogoIds.map(jid=>{const j=db.jogos.find(x=>x.id===jid);return j?`vs ${j.adversario}`:null;}).filter(Boolean).join(', ');
+  const am=db.amigos.find(a=>a.id===p.amigoId);
+  sbNotificarPagamentoDeclarado(am?am.nome:'Alguém',p.valor,nomes,true);
+  renderMeuPedidoBox();
+  toast('Admin relembrado 🔔');
 }
 async function cancelarPedidoPagamento(id){
   if(!confirm('Cancelar este pedido?'))return;
@@ -2944,7 +3040,7 @@ async function cancelarPedidoPagamento(id){
 async function recarregarPedidosPagamento(){
   try{
     const rows=await sbReq('GET',`pedidos_pagamento?epoca_nome=eq.${encodeURIComponent(epocaAtiva)}&select=*&order=criado_em.desc`);
-    db.pedidosPagamento=(rows||[]).map(p=>({id:p.id,amigoId:p.amigo_id,jogoIds:p.jogo_ids||[],valor:Number(p.valor)||0,nota:p.nota,estado:p.estado,criadoPorEmail:p.criado_por_email,criadoEm:p.criado_em,decididoPor:p.decidido_por,decididoEm:p.decidido_em,motivo:p.motivo}));
+    db.pedidosPagamento=(rows||[]).map(p=>({id:p.id,amigoId:p.amigo_id,jogoIds:p.jogo_ids||[],valor:Number(p.valor)||0,nota:p.nota,estado:p.estado,criadoPorEmail:p.criado_por_email,criadoEm:p.criado_em,decididoPor:p.decidido_por,decididoEm:p.decidido_em,motivo:p.motivo,lembradoEm:p.lembrado_em}));
     if(dbFull.epocas[epocaAtiva])dbFull.epocas[epocaAtiva].pedidosPagamento=db.pedidosPagamento;
   }catch(e){}
   renderMeuPedidoBox();
@@ -4718,8 +4814,11 @@ function sbNotificarPedidoAcesso(email){
 }
 
 // 2) Avisa o admin quando um amigo diz que já pagou um conjunto de jogos.
-function sbNotificarPagamentoDeclarado(amigo,valor,jogos){
-  sbEnviarPush({tipo:'pagamento_declarado',amigo,valor,jogos});
+// `lembrete` é o mesmo aviso disparado de novo por relembrarPedido() (o amigo
+// tocou à campainha em vez de repetir o pedido) — só muda o texto do push, e
+// a Edge Function ignora-o se ainda não estiver com o deploy novo.
+function sbNotificarPagamentoDeclarado(amigo,valor,jogos,lembrete){
+  sbEnviarPush({tipo:'pagamento_declarado',amigo,valor,jogos,lembrete:!!lembrete});
 }
 
 // 3) Avisa TODOS os subscritos quando o resultado de um jogo fecha pela
