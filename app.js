@@ -1597,32 +1597,18 @@ function _popupJogoHTML(j){
 function scrollMesAtualParaVista(){
   const meses=[...document.querySelectorAll('.cal-mes')];
   if(!meses.length)return;
-  const agora=new Date();
-  const hojeYM=agora.toISOString().slice(0,7);
+  const hojeYM=new Date().toISOString().slice(0,7);
   const alvo=meses.find(m=>m.dataset.ym>=hojeYM)||meses[meses.length-1];
-  // Célula da semana atual: se o mês-alvo é o de hoje, calcula o índice do
-  // dia de hoje na grelha (mesma fórmula de offset do _mesCalendarioHTML);
-  // senão (época ainda não começou / já acabou) cai no 1º dia do mês-alvo.
-  let celAlvo;
-  if(alvo.dataset.ym===hojeYM){
-    const[anoAlvo,mesAlvo]=alvo.dataset.ym.split('-').map(Number);
-    const offset=(new Date(anoAlvo,mesAlvo-1,1).getDay()+6)%7;
-    celAlvo=alvo.querySelectorAll('.cal-grelha>.cal-dia')[offset+agora.getDate()-1];
-  }
-  celAlvo=celAlvo||alvo.querySelector('.cal-grelha>.cal-dia:not(.cal-pad)');
-  if(!celAlvo)return;
-  // O header e a barra de separadores são sticky — o que ficar acima desta
-  // folga fica escondido por trás deles, não só fora do ecrã.
-  const barra=document.querySelector('header'),tabs=document.querySelector('.itabs');
-  const folga=(barra?barra.getBoundingClientRect().height:0)+(tabs?tabs.getBoundingClientRect().height:0)+10;
-  // Perto do início do mês: sobe até ao mês inteiro, para o título e o
-  // cabeçalho dos dias da semana também ficarem visíveis por cima da semana
-  // atual, não só a semana em si.
-  const rMes=alvo.getBoundingClientRect(),rCel=celAlvo.getBoundingClientRect();
-  const pertoDoTopo=(rCel.top-rMes.top)<120;
-  const el=pertoDoTopo?alvo:celAlvo;
-  const r=el.getBoundingClientRect();
-  if(r.top<folga-1||r.top>window.innerHeight*.5)_scrollSuaveAte(el,{block:'start',offset:folga});
+  // O mês inteiro (título + semanas), não só a semana actual — enquanto
+  // estivermos nesse mês é sempre ele que se quer ver por completo.
+  // A folga usa o `bottom` real da barra de separadores sticky (não a soma
+  // das alturas de header+barra) porque a posição sticky dela depende de
+  // --hdr-h, recalculado de forma assíncrona (fontes a carregar) — isto
+  // reflecte sempre onde ela está mesmo, evitando cortar o topo do mês.
+  const tabs=document.querySelector('.itabs');
+  const folga=(tabs?tabs.getBoundingClientRect().bottom:0)+14;
+  const r=alvo.getBoundingClientRect();
+  if(r.top<folga-1||r.top>window.innerHeight*.3)_scrollSuaveAte(alvo,{block:'start',offset:folga});
 }
 function _scrollJogosParaVista(){
   if(jViewMode==='calendario')scrollMesAtualParaVista();
