@@ -15,7 +15,15 @@
 //                          (fire-and-forget)
 //   'resultado_jogo'      guardarEdicao() → avisa TODOS os dispositivos
 //                          subscritos quando o resultado de um jogo fecha
-//                          pela primeira vez (fire-and-forget)
+//                          pela primeira vez (fire-and-forget). O texto é
+//                          personalizado por amigo: quem está ligado a um
+//                          login (`goals.user_amigos`) e ainda deve leva
+//                          "Sporting 3-1 Benfica - Deves 2€" (só este jogo)
+//                          ou "… Deves 15€ no total" (já tinha outros jogos
+//                          por pagar); o cliente manda a lista `dividas`
+//                          (por NOME de amigo, calculada em `dividaAmigo()`)
+//                          já pronta — o servidor só resolve o email de
+//                          cada amigo e escolhe o texto, nunca faz contas.
 //   'pagamento_marcado'   pjSet()/marcarTodos()/desmarcarTodos()/
 //                          toggleEstouroPago() → avisa cada amigo quando o
 //                          admin marca/desmarca um pagamento DIRETAMENTE
@@ -283,6 +291,14 @@ type Mudanca = {
   estouro?: boolean | null;
 };
 
+// Uma entrada por amigo com dívida em aberto, já calculada no cliente
+// (dividaAmigo()) — ver comentário de 'resultado_jogo' no topo do ficheiro.
+type Divida = {
+  amigo?: string;
+  valor?: number;
+  soEsteJogo?: boolean;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const json = (body: unknown, status = 200) =>
@@ -296,7 +312,7 @@ Deno.serve(async (req) => {
     const emailChamador = await emailDoToken(auth);
     if (!emailChamador) return json({ error: "não autorizado" }, 403);
 
-    const { tipo, email, amigo, valor, jogos, adversario, resultado, golos, mudancas, lembrete } =
+    const { tipo, email, amigo, valor, jogos, adversario, resultado, local, mudancas, lembrete, dividas } =
       (await req.json()) as {
         tipo?: Tipo;
         email?: string;
@@ -305,9 +321,10 @@ Deno.serve(async (req) => {
         jogos?: string;
         adversario?: string;
         resultado?: string;
-        golos?: number;
+        local?: string;
         mudancas?: Mudanca[];
         lembrete?: boolean;
+        dividas?: Divida[];
       };
 
     // 'pedido_acesso': único caso em que NÃO se exige allowed_users — é
@@ -372,18 +389,68 @@ Deno.serve(async (req) => {
     if (tipo === "resultado_jogo") {
       // só o admin fecha jogos — se chegar aqui de outra conta, ignora-se
       if (emailChamador !== ADMIN_EMAIL) return json({ error: "não autorizado" }, 403);
-      const g = Number(golos);
-      const golosTxt = Number.isFinite(g) && g > 0 ? ` — ${g} golo${g === 1 ? "" : "s"} do Sporting` : "";
-      const payload = {
-        title: "⚽ Resultado fechado",
-        body: `${adversario || "Jogo"}: ${resultado || "?"}${golosTxt}`,
-        url: "/Goals/",
-      };
-      const notifId = await registarNotificacao(tipo, "todos", payload);
+
+      // Placar com o mesmo lado-a-lado do cartão do jogo: casa à esquerda.
+      const parts = String(resultado || "").split("-").map((s) => parseInt(s.trim()));
+      const placarValido = parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]);
+      const adv = adversario || "Adversário";
+      const isFora = local === "Fora";
+      const teamEsq = isFora ? adv : "Sporting";
+      const teamDir = isFora ? "Sporting" : adv;
+      const placarTxt = placarValido
+        ? `${teamEsq} ${parts[0]}-${parts[1]} ${teamDir}`
+        : `${adversario || "Jogo"}: ${resultado || "?"}`;
+
+      // Dívida de cada amigo (por NOME), já calculada no cliente — só quem
+      // ainda deve alguma coisa vem nesta lista.
+      const mapaDividas = new Map<string, { valor: number; soEsteJogo: boolean }>();
+      for (const d of Array.isArray(dividas) ? dividas : []) {
+        if (d?.amigo) mapaDividas.set(d.amigo, { valor: Number(d.valor) || 0, soEsteJogo: !!d.soEsteJogo });
+      }
+
       const subs = await todasAsSubscricoes();
-      const res = await enviarParaSubs(subs, JSON.stringify(payload));
-      if (res.enviados > 0) await marcarEnviado(notifId);
-      return json(res);
+      if (!subs.length) return json({ enviados: 0, falhados: 0 });
+
+      // Um amigo pode ter mais do que um dispositivo subscrito com o mesmo
+      // email — resolve-se a ligação amigo↔login uma vez por email, não por
+      // dispositivo.
+      const emailsUnicos = [...new Set(subs.map((s) => s.email.toLowerCase()))];
+      let amigoPorEmail = new Map<string, string>();
+      if (emailsUnicos.length) {
+        const orEmails = emailsUnicos.map((e) => `"${e.replace(/"/g, '\\"')}"`).join(",");
+        try {
+          const r = await fetchComRetry(
+            `${SB_URL}/rest/v1/user_amigos?email=in.(${orEmails})&select=email,amigo`,
+            { headers: sbHeaders },
+          );
+          if (r.ok) {
+            const rows: { email: string; amigo: string }[] = await r.json();
+            amigoPorEmail = new Map(rows.map((row) => [row.email.toLowerCase(), row.amigo]));
+          }
+        } catch {
+          // sem ligação conhecida — todos ficam só com o placar, sem dívida
+        }
+      }
+
+      let enviados = 0;
+      let falhados = 0;
+      for (const email of emailsUnicos) {
+        const nomeAmigo = amigoPorEmail.get(email);
+        const d = nomeAmigo ? mapaDividas.get(nomeAmigo) : undefined;
+        const body = d
+          ? `${placarTxt} - Deves ${d.valor.toFixed(2)}€${d.soEsteJogo ? "" : " no total"}`
+          : placarTxt;
+        const payload = { title: "⚽ Resultado fechado", body, url: "/Goals/", emailAlvo: email };
+        const notifId = await registarNotificacao(tipo, "amigo", payload);
+        const res = await enviarParaSubs(
+          subs.filter((s) => s.email.toLowerCase() === email),
+          JSON.stringify(payload),
+        );
+        if (res.enviados > 0) await marcarEnviado(notifId);
+        enviados += res.enviados;
+        falhados += res.falhados;
+      }
+      return json({ enviados, falhados });
     }
 
     if (tipo === "pagamento_marcado") {

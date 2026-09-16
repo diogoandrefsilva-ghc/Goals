@@ -3228,7 +3228,7 @@ async function guardarEdicao(){
   if(saiuDeporDefinir){delete j.por_definir;delete j.data_ate;j.porDefinir=false;j.dataAte=null;}
   if(saiuDePotencial){delete j.potencial;delete j.condicao;j.potencial=false;j.condicao='';j.dataAte=null;}
   if(novo.data_ate!==undefined&&!saiuDeporDefinir&&!saiuDePotencial){j.dataAte=novo.data_ate;delete j.data_ate;}
-  if(fechouAgora)sbNotificarResultadoJogo(advNome(j),j.resultado,j.golos); // fire-and-forget, não bloqueia UI
+  if(fechouAgora)sbNotificarResultadoJogo(j); // fire-and-forget, não bloqueia UI
   fecharModalEditar();
   // re-render: verificar se estamos no detalhe do jogo (usa style.display, não classes)
   const tJdetalhe=document.getElementById('t-jdetalhe');
@@ -4832,8 +4832,21 @@ function sbNotificarPagamentoDeclarado(amigo,valor,jogos,lembrete){
 // 3) Avisa TODOS os subscritos quando o resultado de um jogo fecha pela
 // primeira vez. Só o admin dispara isto (guardarEdicao() já é admin-only
 // via roGuard) — a Edge Function confirma isso do lado do servidor também.
-function sbNotificarResultadoJogo(adversario,resultado,golos){
-  sbEnviarPush({tipo:'resultado_jogo',adversario,resultado,golos});
+// Cada amigo ligado a um login (goals.user_amigos) leva a sua própria
+// dívida: "Deves 2€" quando este jogo é a única dívida em aberto dele,
+// "Deves 15€ no total" quando já tinha outros jogos por pagar antes deste
+// fechar. `soEsteJogo` é calculado aqui (o servidor só formata o texto,
+// nunca decide contas) comparando os jogos por pagar deste amigo com o
+// jogo que acabou de fechar.
+function sbNotificarResultadoJogo(jogo){
+  const dividas=db.amigos.map(am=>{
+    const total=dividaAmigo(am.id);
+    if(total<=0.01)return null;
+    const falta=db.jogos.filter(j=>gJ(j)>0&&!jogoAmigoPago(j.id,am.id));
+    const soEsteJogo=falta.length===1&&falta[0].id===jogo.id;
+    return{amigo:am.nome,valor:+total.toFixed(2),soEsteJogo};
+  }).filter(Boolean);
+  sbEnviarPush({tipo:'resultado_jogo',adversario:advNome(jogo),resultado:jogo.resultado,local:jogo.local,dividas});
 }
 
 // 4) Avisa só o amigo que fez o pedido quando o admin aprova o pagamento
