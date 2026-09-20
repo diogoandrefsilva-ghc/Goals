@@ -75,6 +75,29 @@ const GAPI = "https://generativelanguage.googleapis.com/v1beta";
 // minuto neste prompt, e o browser/iOS corta por volta dos 60s. Enquanto foi
 // tudo síncrono, nenhum limite nosso resolvia — o tecto não era nosso. É a
 // mesma solução que a `sugerir-vinho` (WineSelection) já usa aqui ao lado.
+/* Estimativa GROSSEIRA, escrita à mão — não é um preço publicado, e a
+   pesquisa Google é faturada à parte, por pedido. É a mesma ressalva que o
+   Resumo da WineCatalog faz em cima destes números. Serve para dar ordem de
+   grandeza ao `ia_uso`, nunca para se apresentar como fatura. */
+const CUSTO_CALENDARIO_EUR = 0.02;
+
+type UsageMetadata = { promptTokenCount: number; candidatesTokenCount: number; thoughtsTokenCount: number; totalTokenCount: number };
+function usageMetadata(raw: any): UsageMetadata | null {
+  const toInt = (v: unknown) => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+  };
+  const src = raw?.usageMetadata;
+  if (!src || typeof src !== "object") return null;
+  const out = {
+    promptTokenCount: toInt(src.promptTokenCount),
+    candidatesTokenCount: toInt(src.candidatesTokenCount),
+    thoughtsTokenCount: toInt(src.thoughtsTokenCount),
+    totalTokenCount: toInt(src.totalTokenCount),
+  };
+  return (out.promptTokenCount || out.candidatesTokenCount || out.totalTokenCount) ? out : null;
+}
+
 const TIMEOUT_MS = 55_000;        // modo antigo (síncrono), preso ao browser
 const PROC_TIMEOUT_MS = 110_000;  // segundo plano — já não depende do browser
 // Cada TENTATIVA tem o seu próprio relógio, encadeado ao orçamento geral: uma
@@ -546,6 +569,63 @@ async function registar(
   } catch (e) {
     console.log("CALENDARIO sync_log erro:", String((e as Error).message).slice(0, 200));
   }
+  await registarIaUso(estado, detalhe, quem, app);
+}
+
+/* Espelho em `ia_uso.registos` — schema à parte, no MESMO projeto Supabase,
+   partilhado pelas cinco apps (ver o CLAUDE.md da WineCatalog, "O registo
+   central de acessos ao Gemini"). Mesmo `detalhe` de cima, com
+   tokens/modelo/custo também em colunas.
+
+   A `app` é a de QUEM CHAMOU (`goals` ou `splitbill`, o `qualApp`) e não um
+   "calendario-sporting" fixo: esta função é a única das nove que serve duas
+   apps, e a pergunta a que o `ia_uso` existe para responder é quanto custa
+   cada APP — não quanto custa este ficheiro.
+
+   Nunca deita a chamada principal abaixo por isto falhar: é registo, não é
+   o trabalho. */
+async function registarIaUso(
+  estado: string,
+  detalhe: Record<string, unknown>,
+  quem: string | null,
+  app: string,
+): Promise<void> {
+  try {
+    const usage = (detalhe.usageMetadata ?? null) as
+      | { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number }
+      | null;
+    const pesquisa = detalhe.pesquisa as unknown;
+    await fetch(`${SB_URL}/rest/v1/registos`, {
+      method: "POST",
+      headers: {
+        apikey: SB_SRV,
+        Authorization: `Bearer ${SB_SRV}`,
+        "Content-Type": "application/json",
+        "Content-Profile": "ia_uso",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        app,
+        funcao: "calendario-sporting",
+        estado: estado === "pedido" || estado === "erro" ? estado : "ok",
+        modelo: (detalhe.modelo as string | undefined) ?? null,
+        pesquisa_web: typeof pesquisa === "boolean" ? pesquisa : null,
+        tokens_entrada: usage?.promptTokenCount ?? null,
+        tokens_saida: usage?.candidatesTokenCount ?? null,
+        tokens_pensamento: usage?.thoughtsTokenCount ?? null,
+        tokens_total: usage?.totalTokenCount ?? null,
+        custo_estimado_eur: (detalhe.custo_estimado_eur as number | undefined) ?? null,
+        duracao_ms: (detalhe.ms as number | undefined) ?? null,
+        quem,
+        erro: estado === "erro"
+          ? (String((detalhe.erro as string | undefined) ?? (detalhe.passo as string | undefined) ?? "").slice(0, 500) || null)
+          : null,
+        detalhe,
+      }),
+    });
+  } catch (_e) {
+    // nunca deita a chamada principal abaixo
+  }
 }
 
 /* Cria a linha em `goals.calendario_analises` (estado 'pendente' por omissão)
@@ -795,7 +875,7 @@ async function produzirCalendario(
     // adivinhar.
     await registar("erro", {
       passo: "gemini", status, modelo: model, pesquisa: comPesquisa,
-      erro: (msg || detail).slice(0, 800),
+      erro: (msg || detail).slice(0, 800), ms: Date.now() - inicio,
     }, quem, qualApp);
     if (transitorio(status)) {
       return {
@@ -813,15 +893,34 @@ async function produzirCalendario(
 
   const gd = await g.json();
   const cand = gd?.candidates?.[0];
+  const usage = usageMetadata(gd);
+  const motivo = String(cand?.finishReason ?? "");
   const texto2 = (cand?.content?.parts ?? [])
     .map((p: any) => p?.text ?? "")
     .join("")
     .trim();
+  /* Um 200 com o corpo VAZIO não é o mesmo que uma resposta que não se
+     entendeu: ali houve texto, aqui o modelo gastou o orçamento a pensar e
+     não escreveu uma letra. Os dois já davam erro — o que faltava era dizer
+     QUAL, e é o `finishReason` que o diz (`MAX_TOKENS` e `SAFETY` são
+     avarias muito diferentes). Ver o CLAUDE.md da WineCatalog, "O 200
+     vazio". */
+  if (!texto2) {
+    console.error("CALENDARIO resposta vazia:", model, "finishReason:", motivo || "(nenhum)");
+    await registar("erro", {
+      passo: "gemini_vazio", modelo: model, pesquisa: comPesquisa,
+      finishReason: motivo || null, ms: Date.now() - inicio,
+      ...(usage ? { usageMetadata: usage } : {}),
+    }, quem, qualApp);
+    return { ok: false, status: 502, erro: `o modelo não devolveu resposta (${motivo || "vazia"}) — tenta outra vez` };
+  }
   const parsed: any = extrairJson(texto2);
   if (!parsed) {
     console.error("CALENDARIO resposta ilegível:", texto2.slice(0, 400));
     await registar("erro", {
       passo: "json", modelo: model, pesquisa: comPesquisa, amostra: texto2.slice(0, 800),
+      finishReason: motivo || null, ms: Date.now() - inicio,
+      ...(usage ? { usageMetadata: usage } : {}),
     }, quem, qualApp);
     return { ok: false, status: 502, erro: "resposta ilegível do modelo" };
   }
@@ -831,7 +930,9 @@ async function produzirCalendario(
   if (!jogos.length) {
     await registar("erro", {
       passo: "vazio", modelo: model, pesquisa: comPesquisa, epoca,
-      amostra: texto2.slice(0, 800),
+      amostra: texto2.slice(0, 800), ms: Date.now() - inicio,
+      ...(usage ? { usageMetadata: usage } : {}),
+      custo_estimado_eur: CUSTO_CALENDARIO_EUR,
     }, quem, qualApp);
     // Sem pesquisa o modelo só conhece o que aprendeu no treino — para uma
     // época a decorrer/futura isso é normalmente nada, e devolve [] em vez
@@ -863,6 +964,9 @@ async function produzirCalendario(
     epoca, jogos: jogos.length, por_definir: porDefinir.length,
     potenciais: potenciais.length, modelo: model, pesquisa: comPesquisa,
     fontes: fontes.map((f) => f.url).slice(0, 8),
+    ms: Date.now() - inicio,
+    ...(usage ? { usageMetadata: usage } : {}),
+    chamadas_gemini: 1, custo_estimado_eur: CUSTO_CALENDARIO_EUR,
   }, quem, qualApp);
   return {
     ok: true,
