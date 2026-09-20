@@ -290,6 +290,45 @@ com `data_ate` a guardar o último. Migração: `db/jogos-por-definir.sql`
   schema. O `calLog()` é tolerante: sem a migração desliga-se e a app não muda.
 - O erro **fica no ecrã** (`_calErro`) em vez de um toast que se some em 3s.
 
+## O registo central de acessos ao Gemini (schema `ia_uso`)
+Esta app chama o Gemini numa função só, mas não é a única: são **seis** no
+mesmo projeto Supabase, por nove Edge Functions. O schema **`ia_uso`** é
+uma linha por chamada (app, função, modelo, tokens, custo estimado,
+duração, quem, erro), para a pergunta *"quanto é que isto custa ao todo?"*
+ter onde ser respondida.
+
+**A secção canónica é a do `CLAUDE.md` da WineCatalog** — a fonte de
+verdade do schema é o `db/ia_uso.sql` desse repo. Aqui fica só o que é
+preciso saber para não partir nada:
+
+- **Daqui escreve a `calendario-sporting.ts`**, e é a última das nove a ser
+  instrumentada. A `registarIaUso()` vive pendurada no fim do `registar()`
+  local — o mesmo `detalhe` que já ia para o `goals.sync_log`, com
+  tokens/modelo/custo também em colunas, e um `POST` para outro schema
+  (`Content-Profile: ia_uso`).
+- **A `app` é a de QUEM CHAMOU, não "goals".** Esta é a única das nove
+  funções que serve duas apps: o SplitBill lê o mesmo calendário (ver a
+  secção `goals.jogos` acima) e chama-a com `app: "splitbill"` no corpo. É
+  esse `qualApp` que vai para o `ia_uso` — a pergunta a que ele existe para
+  responder é quanto custa cada APP, não quanto custa este ficheiro. No
+  `goals.sync_log` a coluna `app` já fazia exactamente isto.
+- **O `custo_estimado_eur` é uma estimativa GROSSEIRA**
+  (`CUSTO_CALENDARIO_EUR`, escrito à mão): não é um preço publicado, e a
+  pesquisa Google é faturada à parte, por pedido. Os TOKENS é que são
+  facto — vêm do `usageMetadata` da API.
+
+- **Nunca deita abaixo o trabalho que estava a ser feito**: vive num
+  `try/catch` que engole tudo — é registo, não é o trabalho.
+- **E é essa mesma regra que o faz falhar em SILÊNCIO quando está mal
+  configurado.** Já aconteceu: sem os GRANTs do `db/ia_uso.sql`, os INSERTs
+  levavam 403 e a tabela ficava a zero linhas sem um erro em lado nenhum.
+  Se `ia_uso.registos` estiver vazia, confere **(1)** se `ia_uso` está nos
+  *Exposed schemas* do painel e **(2)** se o bloco de GRANTs correu — só
+  depois desconfia do código.
+- **Não há migração a correr deste lado** e nada aqui depende disto: se o
+  schema `ia_uso` não existir, esta função comporta-se exatamente como
+  antes.
+
 ## Regras técnicas (não partir a app)
 - `app.js` carrega como `<script src>` **normal, NÃO module** — há
   `onclick="…"` no HTML, as funções têm de ser **globais**.
