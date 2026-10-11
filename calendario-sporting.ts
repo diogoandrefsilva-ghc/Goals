@@ -607,6 +607,9 @@ async function registarIaUso(
       body: JSON.stringify({
         app,
         funcao: "calendario-sporting",
+        // Uma funcionalidade só, venha do Goals ou do SplitBill. O painel de
+        // custos (AI-API-Control) conta o custo médio por funcionalidade.
+        funcionalidade: "calendario",
         estado: estado === "pedido" || estado === "erro" ? estado : "ok",
         modelo: (detalhe.modelo as string | undefined) ?? null,
         pesquisa_web: typeof pesquisa === "boolean" ? pesquisa : null,

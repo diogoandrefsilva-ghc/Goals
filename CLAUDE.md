@@ -317,6 +317,13 @@ preciso saber para não partir nada:
   pesquisa Google é faturada à parte, por pedido. Os TOKENS é que são
   facto — vêm do `usageMetadata` da API.
 
+- **Cada linha grava a `funcionalidade`** (11/10/2026) — a chave curta da
+  coisa que a pessoa fez, para o painel da AI-API-Control dar o custo médio
+  por funcionalidade dentro de cada app. Um pedido recusado antes de se
+  saber o que era grava `entrada`; nada de linhas `pedido` no `ia_uso`. O
+  contrato inteiro está no `db/README.md` da AI-API-Control. **O SQL de lá
+  (`db/funcionalidades.sql`) corre ANTES do deploy**: sem a coluna, o
+  INSERT é recusado e o `try/catch` engole a linha em silêncio.
 - **Nunca deita abaixo o trabalho que estava a ser feito**: vive num
   `try/catch` que engole tudo — é registo, não é o trabalho.
 - **E é essa mesma regra que o faz falhar em SILÊNCIO quando está mal
