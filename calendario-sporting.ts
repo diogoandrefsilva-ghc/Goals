@@ -110,6 +110,8 @@ const PROC_TIMEOUT_MS = 110_000;  // segundo plano — já não depende do brows
 // variante ir sempre com `thinkingBudget:0` (ver VARIANTES), tal como a
 // `sugerir-vinho` do WineSelection já fazia.
 const FALLBACK_TENTATIVA_TIMEOUT_MS = 9_000;
+// Tecto ao "pensamento" (thinkingBudget) — ver o comentário das VARIANTES.
+const PENSAR_TECTO = 4096;
 
 /* ── Escolha do modelo (mesma estratégia da `fatura-restaurante`) ──
    Os nomes dos modelos Gemini mudam com o tempo. Em vez de fixar um, pergunta-se
@@ -764,24 +766,30 @@ async function produzirCalendario(
      sobra para pensar e é isso que dá uma leitura boa; no modo síncrono
      (55s presos ao browser) o pensamento não cabe, e aí mais vale uma
      resposta pobre do que nenhuma. */
-  type Variante = { search: boolean; semThinking: boolean; label: string };
+  /* `pensar` é o thinkingBudget: 0 desliga, um número põe-lhe TECTO. Sem
+     tecto (o "dinâmico" por omissão) foi o que partiu isto em set/2026: o
+     `gemini-flash-latest` saltou para um modelo novo e, com pesquisa e
+     pensamento à solta, ficava >96s sem responder — e levava o orçamento
+     todo com ele. 4096 é bem acima do que as funções irmãs gastam a pensar
+     com pesquisa (~2.5k no `ia_uso`), por isso não volta ao "lê mal" de 0. */
+  type Variante = { search: boolean; pensar: number; label: string };
   const pensarCabe = budgetMs >= 90_000;
   const VARIANTES: Variante[] = pensarCabe
     ? [
-      { search: true, semThinking: false, label: "pesquisa" },
-      { search: true, semThinking: true, label: "pesquisa+sem-pensar" },
-      { search: false, semThinking: false, label: "sem-pesquisa" },
+      { search: true, pensar: PENSAR_TECTO, label: "pesquisa" },
+      { search: true, pensar: 0, label: "pesquisa+sem-pensar" },
+      { search: false, pensar: PENSAR_TECTO, label: "sem-pesquisa" },
     ]
     : [
-      { search: true, semThinking: true, label: "pesquisa+sem-pensar" },
-      { search: true, semThinking: false, label: "pesquisa" },
-      { search: false, semThinking: false, label: "sem-pesquisa" },
+      { search: true, pensar: 0, label: "pesquisa+sem-pensar" },
+      { search: true, pensar: PENSAR_TECTO, label: "pesquisa" },
+      { search: false, pensar: PENSAR_TECTO, label: "sem-pesquisa" },
     ];
   const chamarGemini = (model: string, v: Variante, sinal: AbortSignal) => {
     const generationConfig: Record<string, unknown> = v.search
       ? { temperature: 0 }
       : { temperature: 0, response_mime_type: "application/json" };
-    if (v.semThinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    generationConfig.thinkingConfig = { thinkingBudget: v.pensar };
     const corpo: Record<string, unknown> = {
       contents: [{ role: "user", parts: [{ text: texto }] }],
       generationConfig,
@@ -798,10 +806,10 @@ async function produzirCalendario(
   // Uma chamada, com o relógio certo para a variante (e nunca mais do que o
   // que sobra do orçamento). Devolve a Response, ou null se ficou presa sem
   // responder a tempo — quem chama é que decide o passo seguinte.
-  const tentar = async (model: string, v: Variante): Promise<Response | null> => {
+  const tentar = async (model: string, v: Variante, sinalPista: AbortSignal): Promise<Response | null> => {
     const ms = Math.min(v.search ? searchMs : FALLBACK_TENTATIVA_TIMEOUT_MS, restante());
     if (ms < 2_000) return null;   // já não dá tempo de nada útil
-    const { signal: sinal, limpar } = comLimiteProprio(signal, ms);
+    const { signal: sinal, limpar } = comLimiteProprio(sinalPista, ms);
     try {
       const r = await chamarGemini(model, v, sinal);
       limpar();
@@ -809,7 +817,7 @@ async function produzirCalendario(
       return r;
     } catch (e) {
       limpar();
-      if (signal.aborted) throw e;   // orçamento geral esgotado, sai já
+      if (sinalPista.aborted) throw e;   // orçamento esgotado ou a outra pista ganhou
       console.log("CALENDARIO tentativa presa (sem resposta):", model, v.label);
       return null;
     }
@@ -823,42 +831,207 @@ async function produzirCalendario(
   // já disparou lá dentro, trata-se como timeout e não como 502 genérico.
   if (signal.aborted) throw new DOMException("timeout", "AbortError");
   console.log("CALENDARIO candidatos:", candidatos.join(", "));
-  let model = candidatos[0] ?? "gemini-flash-latest";
-  let comPesquisa = true;
-  let g: Response | null = null;
 
-  for (let ci = 0; ci < candidatos.length && !signal.aborted; ci++) {
-    model = candidatos[ci];
-    // Escada de variantes: assim que uma responde, fica-se por ela. Não há
-    // retry da MESMA variante — uma tentativa que fica presa não fica presa
-    // "um bocadinho menos" à segunda, e esse tempo rende mais na variante
-    // ou no modelo seguinte.
-    for (const v of VARIANTES) {
-      if (signal.aborted || restante() < 2_000) break;
-      comPesquisa = v.search;
-      g = await tentar(model, v);
-      if (!g) continue;                       // presa/sem tempo — variante seguinte
-      if (g.status === 400) {                 // este modelo não aceita esta variante
-        console.log("CALENDARIO 400:", (await g.clone().text()).slice(0, 300));
-        g = null;
-        continue;
+  // O que fazer com UMA resposta do Gemini: erro HTTP, corpo vazio, JSON
+  // ilegível, sem jogos, ou o calendário. Chamada por cada pista.
+  const interpretar = async (g: Response, model: string, comPesquisa: boolean): Promise<ResCal> => {
+    if (!g.ok) {
+      const status = g.status;
+      const detail = await g.text();
+      console.error("gemini", model, status, detail.slice(0, 500));
+      let msg = "";
+      try { msg = JSON.parse(detail)?.error?.message ?? ""; } catch (_) { /**/ }
+      // O detalhe do Gemini fica REGISTADO mesmo quando a app só mostra "502":
+      // é a diferença entre saber que a quota da pesquisa acabou e andar a
+      // adivinhar.
+      await registar("erro", {
+        passo: "gemini", status, modelo: model, pesquisa: comPesquisa,
+        erro: (msg || detail).slice(0, 800), ms: Date.now() - inicio,
+      }, quem, qualApp);
+      if (transitorio(status)) {
+        return {
+          ok: false,
+          status: 503,
+          erro: "o serviço está com muita procura agora — espera um minuto e tenta outra vez",
+        };
       }
-      if (g.status === 404) { _models = null; g = null; break; }   // saiu do catálogo
-      if (transitorio(g.status)) { await sleep(700); g = null; break; }   // sobrecarga: outro modelo
-      break;                                  // ok, ou erro definitivo
+      return {
+        ok: false,
+        status: 502,
+        erro: `gemini ${status} (${model})${msg ? ": " + msg.slice(0, 200) : ""}`,
+      };
     }
-    if (g && g.ok) break;
-    if (g && !transitorio(g.status) && g.status !== 404) break;   // erro definitivo
-  }
 
-  if (!g) {
-    // NENHUMA tentativa devolveu resposta (ficaram todas presas, ou acabou o
-    // tempo antes de as tentar). Antes isto reportava "gemini 502 (<último
-    // nome da lista>)" — um modelo que nem chegou a ser chamado, o que manda
-    // para o caminho errado quem depois vai ler o log.
+    const gd = await g.json();
+    const cand = gd?.candidates?.[0];
+    const usage = usageMetadata(gd);
+    const motivo = String(cand?.finishReason ?? "");
+    const texto2 = (cand?.content?.parts ?? [])
+      .map((p: any) => p?.text ?? "")
+      .join("")
+      .trim();
+    /* Um 200 com o corpo VAZIO não é o mesmo que uma resposta que não se
+       entendeu: ali houve texto, aqui o modelo gastou o orçamento a pensar e
+       não escreveu uma letra. Os dois já davam erro — o que faltava era dizer
+       QUAL, e é o `finishReason` que o diz (`MAX_TOKENS` e `SAFETY` são
+       avarias muito diferentes). Ver o CLAUDE.md da WineCatalog, "O 200
+       vazio". */
+    if (!texto2) {
+      console.error("CALENDARIO resposta vazia:", model, "finishReason:", motivo || "(nenhum)");
+      await registar("erro", {
+        passo: "gemini_vazio", modelo: model, pesquisa: comPesquisa,
+        finishReason: motivo || null, ms: Date.now() - inicio,
+        ...(usage ? { usageMetadata: usage } : {}),
+      }, quem, qualApp);
+      return { ok: false, status: 502, erro: `o modelo não devolveu resposta (${motivo || "vazia"}) — tenta outra vez` };
+    }
+    const parsed: any = extrairJson(texto2);
+    if (!parsed) {
+      console.error("CALENDARIO resposta ilegível:", texto2.slice(0, 400));
+      await registar("erro", {
+        passo: "json", modelo: model, pesquisa: comPesquisa, amostra: texto2.slice(0, 800),
+        finishReason: motivo || null, ms: Date.now() - inicio,
+        ...(usage ? { usageMetadata: usage } : {}),
+      }, quem, qualApp);
+      return { ok: false, status: 502, erro: "resposta ilegível do modelo" };
+    }
+    const jogos = normalizarJogos(parsed.jogos, epoca);
+    const porDefinir = normalizarPorDefinir(parsed.porDefinir, epoca, jogos);
+    const potenciais = normalizarPotenciais(parsed.potenciais, epoca, jogos, porDefinir);
+    if (!jogos.length) {
+      await registar("erro", {
+        passo: "vazio", modelo: model, pesquisa: comPesquisa, epoca,
+        amostra: texto2.slice(0, 800), ms: Date.now() - inicio,
+        ...(usage ? { usageMetadata: usage } : {}),
+        custo_estimado_eur: CUSTO_CALENDARIO_EUR,
+      }, quem, qualApp);
+      // Sem pesquisa o modelo só conhece o que aprendeu no treino — para uma
+      // época a decorrer/futura isso é normalmente nada, e devolve [] em vez
+      // de inventar (é o que se lhe pede). Não é "não há jogos", é "sem
+      // pesquisa não sei" — mensagens diferentes, para não parecer que a
+      // época desapareceu.
+      return {
+        ok: false,
+        status: comPesquisa ? 404 : 503,
+        erro: comPesquisa
+          ? `não encontrei jogos do Sporting para a época ${epoca}`
+          : "só consegui responder sem pesquisa web, e sem ela o modelo não conhece esta época — tenta outra vez daqui a uns minutos",
+      };
+    }
+    // As fontes que o grounding usou — a app mostra-as para o admin poder
+    // conferir antes de aceitar seja o que for.
+    const fontes: { titulo: string; url: string }[] = [];
+    (cand?.groundingMetadata?.groundingChunks ?? []).forEach((c: any) => {
+      const w = c?.web;
+      if (w?.uri && !fontes.some((f) => f.url === w.uri)) {
+        fontes.push({ titulo: String(w.title ?? w.uri).slice(0, 80), url: String(w.uri) });
+      }
+    });
+    console.log(
+      "CALENDARIO jogos:", jogos.length, "porDefinir:", porDefinir.length,
+      "potenciais:", potenciais.length, "pesquisa:", comPesquisa, "fontes:", fontes.length,
+    );
+    await registar("ok", {
+      epoca, jogos: jogos.length, por_definir: porDefinir.length,
+      potenciais: potenciais.length, modelo: model, pesquisa: comPesquisa,
+      fontes: fontes.map((f) => f.url).slice(0, 8),
+      ms: Date.now() - inicio,
+      ...(usage ? { usageMetadata: usage } : {}),
+      chamadas_gemini: 1, pistas: 2, custo_estimado_eur: CUSTO_CALENDARIO_EUR,
+    }, quem, qualApp);
+    return {
+      ok: true,
+      corpo: {
+        epoca,
+        jogos,
+        porDefinir,
+        potenciais,
+        pesquisa: comPesquisa,
+        fontes: fontes.slice(0, 8),
+        modelo: model,
+        geradoEm: new Date().toISOString(),
+      },
+    };
+  };
+
+  /* ── Duas pistas em paralelo ──
+     Antes era uma escada só: o 1.º modelo levava quase o orçamento todo e,
+     se ficasse pendurado, os outros nunca chegavam a ser tentados (set-nov
+     2026: 8 candidatos, 1 tentado, 110s, "não respondeu a tempo"). Agora os
+     candidatos alternam entre duas pistas — `flash-latest` numa,
+     `2.5-flash` na outra, e assim por diante — que correm AO MESMO TEMPO,
+     cada uma com a sua escada de variantes. Fica a primeira que der um
+     calendário a sério; a outra é cancelada. Custa uma chamada a mais
+     quando as duas respondem, mas é um botão que se carrega meia dúzia de
+     vezes por época — e um modelo novo lento deixa de partir tudo. */
+  const PISTAS = 2;
+  const pistas: string[][] = Array.from({ length: PISTAS }, () => []);
+  candidatos.forEach((m, i) => pistas[i % PISTAS].push(m));
+
+  // Uma pista: o laço de sempre, só sobre os SEUS modelos. Devolve null se
+  // nenhuma tentativa chegou a responder (presas, ou sem tempo).
+  const correrPista = async (modelos: string[], sinalPista: AbortSignal): Promise<ResCal | null> => {
+    let model = modelos[0];
+    let comPesquisa = true;
+    let g: Response | null = null;
+    for (let ci = 0; ci < modelos.length && !sinalPista.aborted; ci++) {
+      model = modelos[ci];
+      // Escada de variantes: assim que uma responde, fica-se por ela. Não há
+      // retry da MESMA variante — uma tentativa que fica presa não fica presa
+      // "um bocadinho menos" à segunda, e esse tempo rende mais na variante
+      // ou no modelo seguinte.
+      for (const v of VARIANTES) {
+        if (sinalPista.aborted || restante() < 2_000) break;
+        comPesquisa = v.search;
+        g = await tentar(model, v, sinalPista);
+        if (!g) continue;                       // presa/sem tempo — variante seguinte
+        if (g.status === 400) {                 // este modelo não aceita esta variante
+          console.log("CALENDARIO 400:", model, v.label, (await g.clone().text()).slice(0, 300));
+          g = null;
+          continue;
+        }
+        if (g.status === 404) { _models = null; g = null; break; }   // saiu do catálogo
+        if (transitorio(g.status)) { await sleep(700); g = null; break; }   // sobrecarga: outro modelo
+        break;                                  // ok, ou erro definitivo
+      }
+      if (g && g.ok) break;
+      if (g && !transitorio(g.status) && g.status !== 404) break;   // erro definitivo
+    }
+    if (!g || sinalPista.aborted) return null;
+    return await interpretar(g, model, comPesquisa);
+  };
+
+  const controlos = pistas.map(() => {
+    const c = new AbortController();
+    signal.addEventListener("abort", () => c.abort(), { once: true });
+    return c;
+  });
+  const resultado = await new Promise<ResCal | null>((resolve) => {
+    let porAcabar = pistas.length;
+    const falhas: ResCal[] = [];
+    pistas.forEach((modelos, i) => {
+      correrPista(modelos, controlos[i].signal)
+        .then((r) => {
+          if (r?.ok) {
+            controlos.forEach((c) => c.abort());   // a outra pista já não interessa
+            resolve(r);
+          } else if (r) {
+            falhas.push(r);
+          }
+        })
+        .catch((e) => console.log("CALENDARIO pista", i, "abortada:", String((e as Error)?.name ?? e)))
+        .finally(() => {
+          if (--porAcabar === 0) resolve(falhas[0] ?? null);
+        });
+    });
+  });
+
+  if (!resultado) {
+    // NENHUMA tentativa devolveu resposta, em nenhuma das pistas (ficaram
+    // todas presas, ou acabou o tempo antes de as tentar).
     await registar("erro", {
       passo: "sem-resposta", epoca, modelos: candidatos.length,
-      orcamento_ms: budgetMs,
+      pistas: PISTAS, orcamento_ms: budgetMs,
     }, quem, qualApp);
     return {
       ok: false,
@@ -866,124 +1039,7 @@ async function produzirCalendario(
       erro: "o Gemini não respondeu a tempo — tenta outra vez daqui a pouco",
     };
   }
-
-  if (!g.ok) {
-    const status = g.status;
-    const detail = await g.text();
-    console.error("gemini", model, status, detail.slice(0, 500));
-    let msg = "";
-    try { msg = JSON.parse(detail)?.error?.message ?? ""; } catch (_) { /**/ }
-    // O detalhe do Gemini fica REGISTADO mesmo quando a app só mostra "502":
-    // é a diferença entre saber que a quota da pesquisa acabou e andar a
-    // adivinhar.
-    await registar("erro", {
-      passo: "gemini", status, modelo: model, pesquisa: comPesquisa,
-      erro: (msg || detail).slice(0, 800), ms: Date.now() - inicio,
-    }, quem, qualApp);
-    if (transitorio(status)) {
-      return {
-        ok: false,
-        status: 503,
-        erro: "o serviço está com muita procura agora — espera um minuto e tenta outra vez",
-      };
-    }
-    return {
-      ok: false,
-      status: 502,
-      erro: `gemini ${status} (${model})${msg ? ": " + msg.slice(0, 200) : ""}`,
-    };
-  }
-
-  const gd = await g.json();
-  const cand = gd?.candidates?.[0];
-  const usage = usageMetadata(gd);
-  const motivo = String(cand?.finishReason ?? "");
-  const texto2 = (cand?.content?.parts ?? [])
-    .map((p: any) => p?.text ?? "")
-    .join("")
-    .trim();
-  /* Um 200 com o corpo VAZIO não é o mesmo que uma resposta que não se
-     entendeu: ali houve texto, aqui o modelo gastou o orçamento a pensar e
-     não escreveu uma letra. Os dois já davam erro — o que faltava era dizer
-     QUAL, e é o `finishReason` que o diz (`MAX_TOKENS` e `SAFETY` são
-     avarias muito diferentes). Ver o CLAUDE.md da WineCatalog, "O 200
-     vazio". */
-  if (!texto2) {
-    console.error("CALENDARIO resposta vazia:", model, "finishReason:", motivo || "(nenhum)");
-    await registar("erro", {
-      passo: "gemini_vazio", modelo: model, pesquisa: comPesquisa,
-      finishReason: motivo || null, ms: Date.now() - inicio,
-      ...(usage ? { usageMetadata: usage } : {}),
-    }, quem, qualApp);
-    return { ok: false, status: 502, erro: `o modelo não devolveu resposta (${motivo || "vazia"}) — tenta outra vez` };
-  }
-  const parsed: any = extrairJson(texto2);
-  if (!parsed) {
-    console.error("CALENDARIO resposta ilegível:", texto2.slice(0, 400));
-    await registar("erro", {
-      passo: "json", modelo: model, pesquisa: comPesquisa, amostra: texto2.slice(0, 800),
-      finishReason: motivo || null, ms: Date.now() - inicio,
-      ...(usage ? { usageMetadata: usage } : {}),
-    }, quem, qualApp);
-    return { ok: false, status: 502, erro: "resposta ilegível do modelo" };
-  }
-  const jogos = normalizarJogos(parsed.jogos, epoca);
-  const porDefinir = normalizarPorDefinir(parsed.porDefinir, epoca, jogos);
-  const potenciais = normalizarPotenciais(parsed.potenciais, epoca, jogos, porDefinir);
-  if (!jogos.length) {
-    await registar("erro", {
-      passo: "vazio", modelo: model, pesquisa: comPesquisa, epoca,
-      amostra: texto2.slice(0, 800), ms: Date.now() - inicio,
-      ...(usage ? { usageMetadata: usage } : {}),
-      custo_estimado_eur: CUSTO_CALENDARIO_EUR,
-    }, quem, qualApp);
-    // Sem pesquisa o modelo só conhece o que aprendeu no treino — para uma
-    // época a decorrer/futura isso é normalmente nada, e devolve [] em vez
-    // de inventar (é o que se lhe pede). Não é "não há jogos", é "sem
-    // pesquisa não sei" — mensagens diferentes, para não parecer que a
-    // época desapareceu.
-    return {
-      ok: false,
-      status: comPesquisa ? 404 : 503,
-      erro: comPesquisa
-        ? `não encontrei jogos do Sporting para a época ${epoca}`
-        : "só consegui responder sem pesquisa web, e sem ela o modelo não conhece esta época — tenta outra vez daqui a uns minutos",
-    };
-  }
-  // As fontes que o grounding usou — a app mostra-as para o admin poder
-  // conferir antes de aceitar seja o que for.
-  const fontes: { titulo: string; url: string }[] = [];
-  (cand?.groundingMetadata?.groundingChunks ?? []).forEach((c: any) => {
-    const w = c?.web;
-    if (w?.uri && !fontes.some((f) => f.url === w.uri)) {
-      fontes.push({ titulo: String(w.title ?? w.uri).slice(0, 80), url: String(w.uri) });
-    }
-  });
-  console.log(
-    "CALENDARIO jogos:", jogos.length, "porDefinir:", porDefinir.length,
-    "potenciais:", potenciais.length, "pesquisa:", comPesquisa, "fontes:", fontes.length,
-  );
-  await registar("ok", {
-    epoca, jogos: jogos.length, por_definir: porDefinir.length,
-    potenciais: potenciais.length, modelo: model, pesquisa: comPesquisa,
-    fontes: fontes.map((f) => f.url).slice(0, 8),
-    ms: Date.now() - inicio,
-    ...(usage ? { usageMetadata: usage } : {}),
-    chamadas_gemini: 1, custo_estimado_eur: CUSTO_CALENDARIO_EUR,
-  }, quem, qualApp);
-  return {
-    ok: true,
-    corpo: {
-      epoca,
-      jogos,
-      porDefinir,
-      potenciais,
-      pesquisa: comPesquisa,
-      fontes: fontes.slice(0, 8),
-      modelo: model,
-      geradoEm: new Date().toISOString(),
-    },
-  };
+  return resultado;
 }
 
 Deno.serve(async (req) => {

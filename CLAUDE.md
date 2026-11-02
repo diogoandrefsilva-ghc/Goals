@@ -229,11 +229,18 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   com o mesmo tecto de 55s, por isso mais dia menos dia precisa do mesmo
   tratamento.
 - Os modelos recentes trazem o **"pensamento" ligado por omissão** e, com o tool
-  de pesquisa, isso é um custo de latência grande. A primeira variante vai
-  sempre com `thinkingConfig:{thinkingBudget:0}` (ver `VARIANTES`: pesquisa+sem-
-  pensar → pesquisa → sem-pesquisa). Atenção: `gemini-flash-latest` é um alias
-  que se atualiza sozinho — quando ele salta para um modelo novo, a latência
-  desta chamada pode mudar sem ninguém ter mexido em código.
+  de pesquisa, isso é um custo de latência grande. O pensamento vai sempre com
+  **tecto** (`PENSAR_TECTO`, `thinkingBudget:4096`) ou desligado (`0`), nunca
+  no "dinâmico" por omissão (ver `VARIANTES`). Atenção: `gemini-flash-latest` é
+  um alias que se atualiza sozinho — quando ele salta para um modelo novo, a
+  latência desta chamada pode mudar sem ninguém ter mexido em código. **Foi
+  exatamente isso que a partiu de set a nov/2026**: o alias passou a ficar >96s
+  pendurado com pesquisa+pensamento sem tecto, comia o orçamento todo e os
+  outros 7 modelos candidatos nunca eram tentados (`sync_log`: `sem-resposta`,
+  `modelos: 8`). Por isso os candidatos correm agora em **duas pistas em
+  paralelo** (alternados: `flash-latest` numa, `2.5-flash` na outra, …), cada
+  uma com a sua escada de variantes; fica a primeira que der um calendário a
+  sério e a outra é cancelada.
 - Só o admin pode chamar: a função compara o email do JWT com `ADMIN_EMAIL`
   (secret opcional, por omissão o mesmo email das duas apps). É verificação do
   servidor, não da UI.
