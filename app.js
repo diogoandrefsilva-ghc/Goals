@@ -2052,10 +2052,11 @@ function _calEsc(s) {
 async function calEsperar(id) {
   const btn = document.getElementById('cal-sync-btn');
   const t0 = Date.now();
-  // ~2,5 min de tecto: mais folgado que os 110s de orçamento da função, para
-  // dar margem à última escrita dela. Se nem assim fechar, é porque algo
+  // ~3 min de tecto: mais folgado que os 140s de orçamento da função (o
+  // máximo que o plano gratuito do Supabase deixa correr em segundo plano),
+  // para dar margem à última escrita dela. Se nem assim fechar, é porque algo
   // morreu do lado de lá e mais vale dizê-lo do que esperar para sempre.
-  const LIMITE_MS = 150000;
+  const LIMITE_MS = 175000;
   while (Date.now() - t0 < LIMITE_MS) {
     await new Promise(res => setTimeout(res, 2500));
     if (btn) btn.textContent = '⏳ A procurar… ' + Math.round((Date.now() - t0) / 1000) + 's';
@@ -2070,7 +2071,7 @@ async function calEsperar(id) {
     if (l.estado === 'concluido' && l.resultado) return l.resultado;
     throw new Error(l.erro || 'a procura falhou sem dizer porquê');
   }
-  throw new Error('a procura ainda não terminou ao fim de 2 minutos — vê `goals.calendario_analises` ou tenta outra vez');
+  throw new Error('a procura ainda não terminou ao fim de 3 minutos — vê `goals.calendario_analises` ou tenta outra vez');
 }
 
 async function calSincronizar() {
@@ -2581,8 +2582,12 @@ function _calAvisoSemColuna() {
 }
 function _calFontesHTML() {
   const f = (_calSug && _calSug.fontes) || [];
-  const semPesquisa = _calSug && _calSug.pesquisa === false
-    ? '<p class="calsug-nota aviso">⚠️ Sem pesquisa web nesta leitura — as datas futuras podem estar desactualizadas.</p>' : '';
+  const semPesquisa = (_calSug && _calSug.pesquisa === false
+    ? '<p class="calsug-nota aviso">⚠️ Sem pesquisa web nesta leitura — as datas futuras podem estar desactualizadas.</p>' : '')
+    // A procura vai por blocos (ver calendario-sporting.ts); um que não
+    // responda não deita os outros abaixo, mas a lista fica incompleta.
+    + (_calSug && Array.isArray(_calSug.blocosEmFalta) && _calSug.blocosEmFalta.length
+      ? `<p class="calsug-nota aviso">⚠️ Leitura parcial — não houve resposta para: ${_calSug.blocosEmFalta.map(_calEsc).join(', ')}. O resto está bom; para essa parte, tenta outra vez mais tarde.</p>` : '');
   if (!f.length) return semPesquisa;
   return semPesquisa + `<div class="calsug-fontes">Fontes: ${f.map(x =>
     `<a href="${_calEsc(x.url)}" target="_blank" rel="noopener">${_calEsc(x.titulo)}</a>`).join(' · ')}</div>`;

@@ -222,25 +222,41 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   enquanto foi síncrono dava sempre "demorou demasiado" por mais tempo que se
   lhe desse — o tecto não era nosso. O Goals manda `assincrono: true`; a função
   cria uma linha 'pendente', responde já com o `id` e continua com
-  `EdgeRuntime.waitUntil` (110s de orçamento); a app faz polling
-  (`calEsperar`). É o mesmo padrão da `sugerir-vinho` do WineSelection.
+  `EdgeRuntime.waitUntil` (140s de orçamento — **o plano gratuito do Supabase
+  corta aos 150s**, não há como dar mais); a app faz polling (`calEsperar`,
+  175s). É o mesmo padrão da `sugerir-vinho` do WineSelection.
   **Sem `assincrono` mantém-se o contrato antigo** (resposta completa de uma
   vez) — é isso que deixa o SplitBill a funcionar sem lhe tocar, mas ele fica
   com o mesmo tecto de 55s, por isso mais dia menos dia precisa do mesmo
   tratamento.
-- Os modelos recentes trazem o **"pensamento" ligado por omissão** e, com o tool
-  de pesquisa, isso é um custo de latência grande. O pensamento vai sempre com
-  **tecto** (`PENSAR_TECTO`, `thinkingBudget:4096`) ou desligado (`0`), nunca
-  no "dinâmico" por omissão (ver `VARIANTES`). Atenção: `gemini-flash-latest` é
-  um alias que se atualiza sozinho — quando ele salta para um modelo novo, a
-  latência desta chamada pode mudar sem ninguém ter mexido em código. **Foi
-  exatamente isso que a partiu de set a nov/2026**: o alias passou a ficar >96s
-  pendurado com pesquisa+pensamento sem tecto, comia o orçamento todo e os
-  outros 7 modelos candidatos nunca eram tentados (`sync_log`: `sem-resposta`,
-  `modelos: 8`). Por isso os candidatos correm agora em **duas pistas em
-  paralelo** (alternados: `flash-latest` numa, `2.5-flash` na outra, …), cada
-  uma com a sua escada de variantes; fica a primeira que der um calendário a
-  sério e a outra é cancelada.
+- **A pergunta vai partida em BLOCOS, em paralelo** (`blocosDaEpoca`): a
+  Liga em janelas de datas (~6 semanas, no máximo 5, só entre 20/jul e
+  31/mai), as Taças num bloco, a Europa em dois (jogos / potenciais) — até 8
+  chamadas ao Gemini por clique. E só se pergunta **a partir de há 2 semanas**
+  (`RECUO_DIAS`): o que já se jogou não muda de data e os resultados nunca são
+  importados (época que ainda não começou ou já acabou: toda). Porquê, medido a
+  03/11/2026 com uma função de diagnóstico (linhas `app='diag'` no
+  `goals.sync_log`): o `gemini-flash-latest` (alias que se atualiza sozinho —
+  saltou para um modelo mais lento em set/2026, sem ninguém mexer em código)
+  com a época inteira numa pergunta só **não devolvia um byte ao fim de 140s**;
+  em blocos, cada um responde em 35-80s. Um bloco que falhe não deita os outros
+  abaixo: a app só sugere jogos novos e datas diferentes (nunca apaga por não
+  vir na resposta), por isso parcial é seguro — a resposta leva
+  `blocosEmFalta` e a app avisa "Leitura parcial".
+- **Sempre com pesquisa e `thinkingBudget:4096` (`PENSAR_TECTO`) — não
+  baixar.** Medido: com o pensamento a 0 ou a 1024 o modelo responde em 3-30s
+  mas **não pesquisa** (o `promptTokenCount` não cresce) e devolve datas
+  "plausíveis" de memória (16/08 em vez de 14/08…), que a app ia sugerir como
+  "datas que mudaram". Por isso uma resposta sem `groundingMetadata` é recusada
+  (`passo: "sem-pesquisa"`) e já não há variante sem pesquisa. O tecto não é
+  respeitado à risca com pesquisa (6-11k tokens a pensar, uma ronda por
+  pesquisa), mas impede que fique em aberto.
+- Cada bloco tenta os modelos candidatos por ordem (404 → `_models` volta a
+  ser descoberto; 400/429/5xx → seguinte). O `gemini-2.5-flash` foi
+  **retirado pelo Google** (404 desde nov/2026). Cada chamada ao Gemini deixa
+  a sua linha no `sync_log` e no `ia_uso` (com o campo `bloco`); o resumo final
+  só vai para o `sync_log` (`registar(..., espelhar=false)`), para o custo não
+  contar a dobrar.
 - Só o admin pode chamar: a função compara o email do JWT com `ADMIN_EMAIL`
   (secret opcional, por omissão o mesmo email das duas apps). É verificação do
   servidor, não da UI.
