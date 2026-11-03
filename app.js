@@ -2129,8 +2129,11 @@ async function calSincronizar() {
   } catch (e) {
     const m = String(e && e.message || e);
     const rede = /load failed|failed to fetch|networkerror|timed? ?out/i.test(m) || (e && e.name === 'AbortError');
+    // Sem o convite "volta a tentar daqui a pouco": cada procura gasta crédito
+    // do Gemini, e foi esse convite que levou a várias tentativas seguidas a
+    // 03/11/2026. A função tem um limite de procuras por dia.
     const msg = rede
-      ? 'A procura demorou demasiado ou falhou a ligação ao servidor. Volta a tentar daqui a pouco.'
+      ? 'A procura demorou demasiado ou falhou a ligação ao servidor. Antes de procurar outra vez, recarrega a página: a procura pode ter acabado do lado do servidor (e cada uma gasta crédito do Gemini).'
       : m;
     // O erro FICA no ecrã (ao contrário do toast, que se some em 3s) e vai para
     // a BD — é isso que permite despistar isto mais tarde, sem ser ao vivo.
@@ -2587,7 +2590,10 @@ function _calFontesHTML() {
     // A procura vai por blocos (ver calendario-sporting.ts); um que não
     // responda não deita os outros abaixo, mas a lista fica incompleta.
     + (_calSug && Array.isArray(_calSug.blocosEmFalta) && _calSug.blocosEmFalta.length
-      ? `<p class="calsug-nota aviso">⚠️ Leitura parcial — não houve resposta para: ${_calSug.blocosEmFalta.map(_calEsc).join(', ')}. O resto está bom; para essa parte, tenta outra vez mais tarde.</p>` : '');
+      ? `<p class="calsug-nota aviso">⚠️ Leitura parcial — não houve resposta para: ${_calSug.blocosEmFalta.map(_calEsc).join(', ')}. O resto está bom.</p>` : '')
+    // Quantas procuras já houve nas últimas 24 h (a função tem um teto).
+    + (_calSug && _calSug.procuras && _calSug.procuras.max
+      ? `<p class="calsug-nota">Procuras nas últimas 24 horas: ${Number(_calSug.procuras.feitas) || 0} de ${Number(_calSug.procuras.max) || 0}.</p>` : '');
   if (!f.length) return semPesquisa;
   return semPesquisa + `<div class="calsug-fontes">Fontes: ${f.map(x =>
     `<a href="${_calEsc(x.url)}" target="_blank" rel="noopener">${_calEsc(x.titulo)}</a>`).join(' · ')}</div>`;

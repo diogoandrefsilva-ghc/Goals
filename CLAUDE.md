@@ -207,8 +207,8 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
 - Quem procura é a Edge Function **`calendario-sporting`** (ficheiro
   `calendario-sporting.ts`, na raiz deste repo; deploy à parte com
   `supabase functions deploy calendario-sporting`). É irmã da
-  `fatura-restaurante` do SplitBill — mesmo projeto Supabase, mesma descoberta
-  de modelo e mesmos fallbacks — com duas diferenças: usa **grounding com
+  `fatura-restaurante` do SplitBill — mesmo projeto Supabase — com duas
+  diferenças: usa **grounding com
   pesquisa Google** (`tools:[{google_search:{}}]`; sem isso o modelo inventa
   datas futuras de memória) e, por causa disso, a API recusa
   `response_mime_type: json`, pelo que o JSON vem em texto e é extraído na
@@ -229,34 +229,67 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   vez) — é isso que deixa o SplitBill a funcionar sem lhe tocar, mas ele fica
   com o mesmo tecto de 55s, por isso mais dia menos dia precisa do mesmo
   tratamento.
+- **UM modelo só, o barato: `gemini-flash-lite-latest`** (`MODELO`, 03/11/2026
+  — o mesmo do modo barato da `vinho-info` da Garrafeira). Entre 02/11 e 03/11
+  o calendário gastou **~11 €** e esgotou o crédito pré-pago do Gemini: o
+  `gemini-flash-latest` com pesquisa e `thinkingBudget:4096` pensava 3-12 mil
+  tokens e pesquisava dezenas de fontes por chamada, até 8 blocos em paralelo,
+  com passagem a outro modelo quando um falhava, e uma chamada cortada do
+  nosso lado paga-se na mesma (a Google acaba-a do lado dela). Por isso:
+  - **nunca outro modelo** — não há descoberta de modelos, e o secret
+    `GEMINI_MODEL` (partilhado) é ignorado. Num 429/500/503 tenta-se **uma**
+    vez mais com o mesmo, ao fim de 2s; se falhar, o bloco falha;
+  - **sem `thinkingConfig`** (o lite pensa ~0 por si), e **30s por chamada**
+    (`CHAMADA_TIMEOUT_MS`; o lite responde em 2-6s — uma que chegue aos 30
+    está presa, e não se repete);
+  - **num 402 (sem crédito) param TODOS os blocos** (um `AbortController`
+    comum), com a mensagem a dizer que é preciso carregar saldo;
+  - **no máximo 3 procuras em 24h** (`MAX_POR_DIA`). Cada procura deixa no
+    `sync_log` uma linha `pedido` com `passo: "execucao"` ANTES de chamar o
+    Gemini; a seguinte conta-as e, com 3, recusa à entrada (HTTP 429) a dizer
+    quando volta a dar. **Falha fechada**: sem conseguir contar ou marcar, não
+    procura. A resposta leva `procuras: {feitas, max}` e a app mostra-o;
+  - os erros já não convidam a "tentar outra vez daqui a pouco" — foi esse
+    convite que levou às tentativas seguidas de 03/11.
+  - **Uma procura custa ~0,07-0,09 €** (11-13 chamadas a ~0,7 cêntimos, o que o
+    painel AI-API-Control mediu numa chamada do lite com pesquisa). Um toque
+    com o flash chegava a ~2 €.
+- **A pesquisa fica, sempre.** Uma resposta sem `groundingMetadata` é recusada
+  (`passo: "sem-pesquisa"`): sem pesquisa o modelo devolve datas "plausíveis"
+  de memória (16/08 em vez de 14/08…), que a app ia sugerir como "datas que
+  mudaram".
 - **A pergunta vai partida em BLOCOS, em paralelo** (`blocosDaEpoca`): a
-  Liga em janelas de datas (~6 semanas, no máximo 5, só entre 20/jul e
-  31/mai), as Taças num bloco, a Europa em dois (jogos / potenciais) — até 8
-  chamadas ao Gemini por clique. E só se pergunta **a partir de há 2 semanas**
-  (`RECUO_DIAS`): o que já se jogou não muda de data e os resultados nunca são
-  importados (época que ainda não começou ou já acabou: toda). Porquê, medido a
-  03/11/2026 com uma função de diagnóstico (linhas `app='diag'` no
-  `goals.sync_log`): o `gemini-flash-latest` (alias que se atualiza sozinho —
-  saltou para um modelo mais lento em set/2026, sem ninguém mexer em código)
-  com a época inteira numa pergunta só **não devolvia um byte ao fim de 140s**;
-  em blocos, cada um responde em 35-80s. Um bloco que falhe não deita os outros
-  abaixo: a app só sugere jogos novos e datas diferentes (nunca apaga por não
-  vir na resposta), por isso parcial é seguro — a resposta leva
+  Liga em janelas de **~4 semanas** (no máximo 10, só entre 20/jul e 31/mai),
+  com o pedido a dizer quantas jornadas cabem lá, as Taças num bloco, a Europa
+  em dois (jogos / potenciais) — 11-13 chamadas por clique. E só se pergunta
+  **a partir de há 2 semanas** (`RECUO_DIAS`): o que já se jogou não muda de
+  data e os resultados nunca são importados (época que ainda não começou ou já
+  acabou: toda). As janelas são pequenas por causa do lite: no diagnóstico de
+  03/11 (linhas `app='diag'` no `goals.sync_log`), com J1-J17 numa pergunta só
+  ele devolveu 5 jogos, contra 17 do flash. **Se continuar a vir curto,
+  encurtam-se as janelas — não se volta ao flash.** Um bloco que falhe não
+  deita os outros abaixo: a app só sugere jogos novos e datas diferentes (nunca
+  apaga por não vir na resposta), por isso parcial é seguro — a resposta leva
   `blocosEmFalta` e a app avisa "Leitura parcial".
-- **Sempre com pesquisa e `thinkingBudget:4096` (`PENSAR_TECTO`) — não
-  baixar.** Medido: com o pensamento a 0 ou a 1024 o modelo responde em 3-30s
-  mas **não pesquisa** (o `promptTokenCount` não cresce) e devolve datas
-  "plausíveis" de memória (16/08 em vez de 14/08…), que a app ia sugerir como
-  "datas que mudaram". Por isso uma resposta sem `groundingMetadata` é recusada
-  (`passo: "sem-pesquisa"`) e já não há variante sem pesquisa. O tecto não é
-  respeitado à risca com pesquisa (6-11k tokens a pensar, uma ronda por
-  pesquisa), mas impede que fique em aberto.
-- Cada bloco tenta os modelos candidatos por ordem (404 → `_models` volta a
-  ser descoberto; 400/429/5xx → seguinte). O `gemini-2.5-flash` foi
-  **retirado pelo Google** (404 desde nov/2026). Cada chamada ao Gemini deixa
-  a sua linha no `sync_log` e no `ia_uso` (com o campo `bloco`); o resumo final
-  só vai para o `sync_log` (`registar(..., espelhar=false)`), para o custo não
-  contar a dobrar.
+- **O registo de cada chamada** (o contrato do `db/README.md` da
+  AI-API-Control): **uma linha no `sync_log` e no `ia_uso` por chamada ao
+  Gemini**, sempre — ok, erro, vazia, sem pesquisa, ilegível e **cortada**
+  (`cortada: true`, `pesquisa: true`, tokens a NULL: paga-se, e sem a linha o
+  painel nem sabia que tinha havido uma chamada). `modelo` tal e qual, os
+  tokens do `usageMetadata` (com o `cachedContentTokenCount` no `detalhe`),
+  `detalhe.pesquisa` (booleano) e o número de consultas em
+  `detalhe.consultas_google` — **nunca em `detalhe.pesquisas`**, que é a regra
+  do Claude (paga por pesquisa) e a `ia_uso.pesquisas()` multiplicava-o. Um
+  pedido recusado pela Google (4xx/5xx) vai com `pesquisa: false`; o 402 com
+  `passo: "sem_credito"`. As recusas antes do Gemini (autorização, época, teto)
+  gravam a funcionalidade `entrada`. Os resumos (`resumo`, `todos-os-blocos`,
+  `timeout`, `excecao`) só vão para o `sync_log` (`espelhar=false`), para o
+  custo não contar a dobrar.
+- **Funções de teste ou diagnóstico que chamem o Gemini** (como a
+  `calendario-diag` de 03/11, que fez 29 chamadas — 21 pagas, quase todas ao
+  flash — e só escrevia no `sync_log`) **escrevem no `ia_uso`**, com `funcao` própria, e usam o modelo
+  barato, salvo se o dono pedir outro. **Antes de correr um lote, diz-se ao
+  dono quantas chamadas vão e com que modelo.**
 - Só o admin pode chamar: a função compara o email do JWT com `ADMIN_EMAIL`
   (secret opcional, por omissão o mesmo email das duas apps). É verificação do
   servidor, não da UI.
@@ -335,10 +368,11 @@ preciso saber para não partir nada:
   esse `qualApp` que vai para o `ia_uso` — a pergunta a que ele existe para
   responder é quanto custa cada APP, não quanto custa este ficheiro. No
   `goals.sync_log` a coluna `app` já fazia exactamente isto.
-- **O `custo_estimado_eur` é uma estimativa GROSSEIRA**
-  (`CUSTO_CALENDARIO_EUR`, escrito à mão): não é um preço publicado, e a
-  pesquisa Google é faturada à parte, por pedido. Os TOKENS é que são
-  facto — vêm do `usageMetadata` da API.
+- **O `custo_estimado_eur` é uma estimativa** (`custoEstimado`): os tokens
+  aos preços do lite mais `CUSTO_CALENDARIO_EUR` (0,006 €) por chamada com
+  pesquisa — o que o painel mediu numa chamada do lite com pesquisa. Não é um
+  preço publicado; o euro a sério é o painel que o reparte. Os TOKENS é que
+  são facto — vêm do `usageMetadata` da API.
 
 - **Cada linha grava a `funcionalidade`** (11/10/2026) — a chave curta da
   coisa que a pessoa fez, para o painel da AI-API-Control dar o custo médio

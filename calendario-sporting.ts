@@ -28,9 +28,8 @@
 //                    usa isto, para mostrar esses jogos marcados como
 //                    "potenciais" na listagem sem contarem para a época.
 //
-// É irmã da `fatura-restaurante` do SplitBill (mesmo projeto Supabase, mesmo
-// padrão de descoberta de modelo e de fallback), mas com duas diferenças
-// importantes:
+// É irmã da `fatura-restaurante` do SplitBill (mesmo projeto Supabase), mas
+// com duas diferenças importantes:
 //   1) usa GROUNDING com pesquisa Google (`tools:[{google_search:{}}]`) — sem
 //      isso o modelo responde com o calendário que "lembra" do treino, que para
 //      datas futuras é adivinhação pura;
@@ -49,8 +48,9 @@
 //
 // Secrets necessários (Edge Functions -> Secrets):
 //   GEMINI_API_KEY   chave do Google AI Studio
-//   GEMINI_MODEL     (opcional) fixa um modelo; sem ele descobre o melhor flash
 //   ADMIN_EMAIL      (opcional) sobrepõe-se ao email de admin por omissão
+// O `GEMINI_MODEL` (partilhado com outras funções) é IGNORADO de propósito: o
+// modelo desta função é o `MODELO`, mais abaixo, e não muda sozinho.
 // (SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são injetados automaticamente.)
 //
 // Deploy: supabase functions deploy calendario-sporting
@@ -75,13 +75,48 @@ const GAPI = "https://generativelanguage.googleapis.com/v1beta";
 // minuto neste prompt, e o browser/iOS corta por volta dos 60s. Enquanto foi
 // tudo síncrono, nenhum limite nosso resolvia — o tecto não era nosso. É a
 // mesma solução que a `sugerir-vinho` (WineSelection) já usa aqui ao lado.
-/* Estimativa GROSSEIRA, escrita à mão — não é um preço publicado, e a
-   pesquisa Google é faturada à parte, por pedido. É a mesma ressalva que o
-   Resumo da WineCatalog faz em cima destes números. Serve para dar ordem de
-   grandeza ao `ia_uso`, nunca para se apresentar como fatura. */
-const CUSTO_CALENDARIO_EUR = 0.02;
+/* ── O MODELO: um só, e o barato (03/11/2026) ──
+   O `gemini-flash-lite-latest`, o mesmo que a Garrafeira usa no modo barato
+   da `vinho-info`. Até à v26 isto descobria "o melhor flash" e, se um falhasse,
+   passava ao seguinte; com o `gemini-flash-latest` a pensar 3-12 mil tokens e
+   a pesquisar dezenas de fontes por chamada, até 8 blocos em paralelo e uma
+   chamada cortada do nosso lado paga na mesma (a Google acaba-a do lado
+   dela), um toque no botão chegou a 8-16 chamadas caras. Entre 02/11 e 03/11
+   o calendário gastou ~11 € e esgotou o crédito pré-pago. Por isso:
+     · NUNCA outro modelo. Num 429/500/503 tenta-se UMA vez mais com este,
+       ao fim de 2 s; se falhar, o bloco falha (vai em `blocosEmFalta`);
+     · sem `thinkingConfig` (o lite pensa ~0 por si);
+     · 30 s por chamada (o lite responde em 2-6 s: uma que chegue aos 30 está
+       presa, e não vale a pena pagar mais);
+     · num 402 (crédito esgotado) param TODOS os blocos;
+     · no máximo `MAX_POR_DIA` procuras em 24 h, contadas na BD.
+   A pesquisa Google fica, e uma resposta sem ela continua a ser recusada:
+   sem pesquisa o modelo dá datas de memória. */
+const MODELO = "gemini-flash-lite-latest";
+const CHAMADA_TIMEOUT_MS = 30_000;
+const MAX_POR_DIA = 3;
+const MSG_SEM_CREDITO =
+  "acabou o crédito do Gemini (Google AI Studio) — é preciso carregar saldo na conta da chave";
+/* Estimativa por chamada COM pesquisa — não é um preço publicado. É o que o
+   painel AI-API-Control mediu (saldo real a 30 dias) numa chamada do lite com
+   pesquisa: ~0,0066 €. Serve para dar ordem de grandeza ao `ia_uso`; o euro a
+   sério é o painel que o reparte pelos tokens. Os tokens somam-se por cima,
+   aos preços do lite (`custoEstimado`). */
+const CUSTO_CALENDARIO_EUR = 0.006;
+const EUR_ENTRADA_1M = 0.10;
+const EUR_SAIDA_1M = 0.40;
+function custoEstimado(usage: UsageMetadata | null, pesquisou: boolean): number {
+  const tokens = usage
+    ? (usage.promptTokenCount * EUR_ENTRADA_1M +
+      (usage.candidatesTokenCount + usage.thoughtsTokenCount) * EUR_SAIDA_1M) / 1e6
+    : 0;
+  return Math.round(((pesquisou ? CUSTO_CALENDARIO_EUR : 0) + tokens) * 1e6) / 1e6;
+}
 
-type UsageMetadata = { promptTokenCount: number; candidatesTokenCount: number; thoughtsTokenCount: number; totalTokenCount: number };
+type UsageMetadata = {
+  promptTokenCount: number; candidatesTokenCount: number; thoughtsTokenCount: number;
+  totalTokenCount: number; cachedContentTokenCount: number;
+};
 function usageMetadata(raw: any): UsageMetadata | null {
   const toInt = (v: unknown) => {
     const n = typeof v === "number" ? v : Number(v);
@@ -94,6 +129,7 @@ function usageMetadata(raw: any): UsageMetadata | null {
     candidatesTokenCount: toInt(src.candidatesTokenCount),
     thoughtsTokenCount: toInt(src.thoughtsTokenCount),
     totalTokenCount: toInt(src.totalTokenCount),
+    cachedContentTokenCount: toInt(src.cachedContentTokenCount),
   };
   return (out.promptTokenCount || out.candidatesTokenCount || out.totalTokenCount) ? out : null;
 }
@@ -104,21 +140,9 @@ const TIMEOUT_MS = 55_000;        // modo antigo (síncrono), preso ao browser
 // cabe com margem para ainda fechar a linha em `calendario_analises`. Não
 // adianta subir isto sem mudar de plano: é o tecto da plataforma.
 const PROC_TIMEOUT_MS = 140_000;
-// "Pensamento" (thinkingBudget) de cada chamada. NÃO baixar: medido a
-// 03/11/2026, com 1024 (e com 0) o modelo deixa de usar a pesquisa e
-// responde de memória, com datas erradas. Com pesquisa, os modelos atuais
-// passam este valor (6-11k tokens a pensar, uma ronda por pesquisa) — o
-// tecto não encurta muito o tempo, mas impede que fique em aberto.
-const PENSAR_TECTO = 4096;
-
-/* ── Escolha do modelo (mesma estratégia da `fatura-restaurante`) ──
-   Os nomes dos modelos Gemini mudam com o tempo. Em vez de fixar um, pergunta-se
-   à API que modelos a chave tem e ordenam-se os "flash" do melhor para o pior;
-   devolve-se a LISTA para se poder cair no seguinte quando o preferido falha
-   (404 se foi reformado, 503 se está sobrecarregado). */
 // Sinal derivado com relógio próprio, que também aborta se `sinalPai` abortar
-// primeiro — usado para não deixar UMA chamada externa (ListModels, Gemini)
-// gastar sozinha todo o orçamento partilhado quando fica presa sem responder.
+// primeiro — usado para não deixar UMA chamada ao Gemini gastar sozinha todo o
+// orçamento partilhado quando fica presa sem responder.
 function comLimiteProprio(sinalPai: AbortSignal, ms: number): { signal: AbortSignal; limpar: () => void } {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), ms);
@@ -128,64 +152,6 @@ function comLimiteProprio(sinalPai: AbortSignal, ms: number): { signal: AbortSig
     signal: c.signal,
     limpar: () => { clearTimeout(t); sinalPai.removeEventListener("abort", propagar); },
   };
-}
-
-let _models: string[] | null = null;
-function rankFlash(names: string[]): string[] {
-  const ok = [...new Set(names.filter((n) =>
-    n.includes("flash") &&
-    !/(lite|8b|image|tts|live|audio|embed|exp|preview|thinking)/.test(n)
-  ))];
-  const score = (n: string): number => {
-    if (n === "gemini-flash-latest") return 100; // apontador sempre atualizado
-    const m = n.match(/^gemini-(\d+(?:\.\d+)?)-flash$/);
-    return m ? parseFloat(m[1]) : 0;
-  };
-  return ok.sort((a, b) => score(b) - score(a) || a.localeCompare(b));
-}
-async function descobrirFlash(signal: AbortSignal): Promise<string[]> {
-  if (_models) return _models;
-  try {
-    const names: string[] = [];
-    let page = "";
-    for (let i = 0; i < 3; i++) {
-      // 8s por página: se o ListModels ficar preso, cai-se depressa no
-      // fallback (ESTAVEIS) em vez de gastar aqui o orçamento dos 55s todo.
-      const { signal: sinalPagina, limpar } = comLimiteProprio(signal, 8_000);
-      let r: Response;
-      try {
-        r = await fetch(
-          `${GAPI}/models?pageSize=200${page ? `&pageToken=${page}` : ""}&key=${GEMINI_KEY}`,
-          { signal: sinalPagina },
-        );
-      } catch (_) {
-        limpar();
-        break;   // presa ou abortada — fica-se com o que já se tinha (ou nada)
-      }
-      limpar();
-      if (!r.ok) break;
-      const d = await r.json();
-      (d.models ?? []).forEach((m: any) => {
-        if ((m.supportedGenerationMethods ?? []).includes("generateContent")) {
-          names.push(String(m.name).replace(/^models\//, ""));
-        }
-      });
-      page = d.nextPageToken ?? "";
-      if (!page) break;
-    }
-    const ranked = rankFlash(names);
-    if (ranked.length) _models = ranked;
-  } catch (_) { /* fica o fallback (inclui abort do timeout) */ }
-  return _models ?? [];
-}
-const ESTAVEIS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
-async function candidatosModelo(signal: AbortSignal): Promise<string[]> {
-  const pinned = Deno.env.get("GEMINI_MODEL");
-  const descobertos = await descobrirFlash(signal);
-  const vistos = new Set<string>();
-  const lista = [...(pinned ? [pinned] : []), ...ESTAVEIS, ...descobertos]
-    .filter((m) => (vistos.has(m) ? false : vistos.add(m)));
-  return lista.length ? lista : ["gemini-flash-latest"];
 }
 
 // As duas apps correm no GitHub Pages (origem diferente) → CORS obrigatório
@@ -585,14 +551,30 @@ async function registar(
    apps, e a pergunta a que o `ia_uso` existe para responder é quanto custa
    cada APP — não quanto custa este ficheiro.
 
+   O contrato (db/README.md do AI-API-Control, "O contrato do registo"):
+     · UMA linha por chamada ao Gemini, sempre — ok, erro, vazia, sem
+       pesquisa, ilegível e CORTADA por tempo (essa sem tokens, mas com
+       `cortada: true` e `pesquisa: true`: paga-se na mesma, e sem a linha o
+       painel nem sabia que tinha havido uma chamada). Os resumos de uma
+       procura ficam só no `sync_log` (`espelhar=false`);
+     · nada de linhas `pedido` aqui;
+     · `detalhe.pesquisa` (booleano) diz se a chamada pesquisou; o número de
+       consultas vai em `detalhe.consultas_google` e NUNCA em
+       `detalhe.pesquisas` — esse é a regra do Claude (paga por pesquisa), e a
+       `ia_uso.pesquisas()` multiplicava-o pelo preço de uma pesquisa;
+     · uma recusa antes de chegar ao Gemini (sem autorização, época inválida,
+       o teto diário) grava a funcionalidade `entrada`.
+
    Nunca deita a chamada principal abaixo por isto falhar: é registo, não é
    o trabalho. */
+const PASSOS_ENTRADA = new Set(["autorizacao", "epoca", "teto_diario", "teto_sem_contagem"]);
 async function registarIaUso(
   estado: string,
   detalhe: Record<string, unknown>,
   quem: string | null,
   app: string,
 ): Promise<void> {
+  if (estado === "pedido") return;   // o contrato: só usos que chegaram ao fim
   try {
     const usage = (detalhe.usageMetadata ?? null) as
       | { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number }
@@ -612,8 +594,8 @@ async function registarIaUso(
         funcao: "calendario-sporting",
         // Uma funcionalidade só, venha do Goals ou do SplitBill. O painel de
         // custos (AI-API-Control) conta o custo médio por funcionalidade.
-        funcionalidade: "calendario",
-        estado: estado === "pedido" || estado === "erro" ? estado : "ok",
+        funcionalidade: PASSOS_ENTRADA.has(String(detalhe.passo ?? "")) ? "entrada" : "calendario",
+        estado: estado === "erro" ? "erro" : "ok",
         modelo: (detalhe.modelo as string | undefined) ?? null,
         pesquisa_web: typeof pesquisa === "boolean" ? pesquisa : null,
         tokens_entrada: usage?.promptTokenCount ?? null,
@@ -632,6 +614,74 @@ async function registarIaUso(
   } catch (_e) {
     // nunca deita a chamada principal abaixo
   }
+}
+
+/* ── O TETO POR DIA ──
+   Cada procura (um toque no botão, ou um pedido do SplitBill) deixa no
+   `sync_log` uma linha `pedido` com `passo: "execucao"`, escrita ANTES de se
+   chamar o Gemini; antes de começar outra contam-se as das últimas 24 h, e
+   com `MAX_POR_DIA` já não se chama nada. Falha FECHADA: sem conseguir contar
+   (ou marcar), não se procura — é dinheiro, e foi às cegas que se gastou. */
+const SB_SRV_HEADERS = {
+  apikey: SB_SRV,
+  Authorization: `Bearer ${SB_SRV}`,
+  "Accept-Profile": "goals",
+  "Content-Profile": "goals",
+  "Content-Type": "application/json",
+};
+async function execucoesRecentes(): Promise<string[] | null> {
+  try {
+    const desde = new Date(Date.now() - 24 * 3600_000).toISOString();
+    const r = await fetch(
+      `${SB_URL}/rest/v1/sync_log?select=criado_em&acao=eq.calendario&origem=eq.function` +
+        `&estado=eq.pedido&detalhe->>passo=eq.execucao&criado_em=gte.${encodeURIComponent(desde)}` +
+        `&order=criado_em.asc`,
+      { headers: SB_SRV_HEADERS },
+    );
+    if (!r.ok) {
+      console.log("CALENDARIO contar execuções falhou:", r.status, (await r.text().catch(() => "")).slice(0, 200));
+      return null;
+    }
+    const rows = await r.json();
+    return Array.isArray(rows) ? rows.map((x: any) => String(x?.criado_em ?? "")) : null;
+  } catch (e) {
+    console.log("CALENDARIO contar execuções erro:", String((e as Error).message).slice(0, 200));
+    return null;
+  }
+}
+async function marcarExecucao(
+  detalhe: Record<string, unknown>,
+  quem: string | null,
+  app: string,
+): Promise<boolean> {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/sync_log`, {
+      method: "POST",
+      headers: { ...SB_SRV_HEADERS, Prefer: "return=minimal" },
+      body: JSON.stringify({
+        origem: "function", app, acao: "calendario", estado: "pedido", quem,
+        detalhe: { passo: "execucao", ...detalhe },
+      }),
+    });
+    if (!r.ok) console.log("CALENDARIO marcar execução falhou:", r.status);
+    return r.ok;
+  } catch (_) {
+    return false;
+  }
+}
+// "hoje às 09:22", "amanhã às 09:22" ou "05/11 às 09:22", na hora de Lisboa.
+function quandoLisboa(d: Date): string {
+  const dia = (x: Date) =>
+    new Intl.DateTimeFormat("pt-PT", {
+      timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(x);
+  const hora = new Intl.DateTimeFormat("pt-PT", {
+    timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(d);
+  const alvo = dia(d);
+  if (alvo === dia(new Date())) return `hoje às ${hora}`;
+  if (alvo === dia(new Date(Date.now() + 86400_000))) return `amanhã às ${hora}`;
+  return `${alvo.slice(0, 5)} às ${hora}`;
 }
 
 /* Cria a linha em `goals.calendario_analises` (estado 'pendente' por omissão)
@@ -726,8 +776,8 @@ async function ehAdmin(
 
 
 /* ── O TRABALHO A SÉRIO ──
-   Toda a conversa com o Gemini num só sítio (escolher modelo, escada de
-   variantes, ler o JSON, normalizar, registar), para poder correr nos DOIS
+   Toda a conversa com o Gemini num só sítio (os blocos, a chamada e a sua
+   repetição, ler o JSON, normalizar, registar), para poder correr nos DOIS
    modos: à espera (contrato antigo, SplitBill) ou em segundo plano (Goals).
    Nunca escreve na resposta HTTP — devolve o corpo final, ou o erro já com o
    status certo. É isso que a torna reutilizável pelos dois caminhos. */
@@ -756,12 +806,15 @@ type ResCal =
        novos e datas diferentes (nunca apaga nada por não vir na resposta),
        por isso uma resposta parcial é útil e segura. Os que faltaram vão em
        `blocosEmFalta` e a app avisa.
-   Custa uma chamada ao Gemini por bloco (até 8 no início da época, 4-5 a
-   meio) em vez de uma — é um botão do admin, carregado meia dúzia de vezes
-   por época. */
+   Com o lite (03/11/2026) as janelas da Liga passaram de ~6 para ~4 semanas:
+   no diagnóstico desse dia, o lite com J1-J17 numa pergunta só devolveu 5
+   jogos (o flash, 17). Numa janela de 4 semanas cabem ~4 jornadas, e o pedido
+   diz quantas esperar. São mais chamadas (até 10 da Liga + 3 das provas), mas
+   cada uma do lite com pesquisa custa ~0,7 cêntimos — uma procura inteira
+   fica perto dos 10 cêntimos, contra os ~2 € de um toque com o flash. */
 const RECUO_DIAS = 14;
-const JANELA_LIGA_DIAS = 42;
-const MAX_BLOCOS_LIGA = 5;
+const JANELA_LIGA_DIAS = 28;
+const MAX_BLOCOS_LIGA = 10;
 type Bloco = { id: string; ambito: string };
 const somaDias = (d: string, n: number) =>
   new Date(Date.parse(`${d}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
@@ -786,10 +839,16 @@ function blocosDaEpoca(epoca: string, hoje: string): Bloco[] {
     if (a > ligaFim) break;
     const b0 = somaDias(ligaIni, (i + 1) * passo - 1);
     const b = b0 > ligaFim ? ligaFim : b0;
+    const jornadas = Math.max(1, Math.round(
+      ((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000 + 1) / 7,
+    ));
     out.push({
       id: `Liga ${a} a ${b}`,
       ambito: `ÂMBITO DESTE PEDIDO (sobrepõe-se ao INCLUI de cima): responde APENAS sobre
 os jogos da Liga Portugal com data entre ${a} e ${b} (inclusive) — e só isso.
+Nesta janela cabem cerca de ${jornadas} jornada(s) (a Liga joga-se quase todas
+as semanas): devolve TODOS os jogos do Sporting que encontrares nela, uma
+entrada por jornada, e não só alguns.
 Todas as outras competições e datas ficam de fora, e "porDefinir" e
 "potenciais" vão vazios ([]) — há outros pedidos a tratar disso.`,
     });
@@ -838,6 +897,9 @@ async function produzirCalendario(
   qualApp: string,
   signal: AbortSignal,
   budgetMs: number,
+  // Quantas procuras já houve nas últimas 24 h (esta incluída), para a app o
+  // dizer — e para quem lê um erro saber se ainda pode tentar.
+  procuras: { feitas: number; max: number },
 ): Promise<ResCal> {
   const inicio = Date.now();
   // O que sobra do orçamento, com margem para ainda fechar as contas.
@@ -847,85 +909,102 @@ async function produzirCalendario(
   const blocos = blocosDaEpoca(epoca, hoje);
   const transitorio = (s: number) => s === 429 || s === 500 || s === 503;
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+  /* Um interruptor comum a TODOS os blocos: num 402 (crédito esgotado) um
+     bloco desliga-o e os outros param — em vez de cada um continuar a mandar
+     pedidos (e a tentar outra vez) a uma conta que já não tem saldo. Também
+     dispara se o orçamento de fora (`signal`) acabar. */
+  const geral = new AbortController();
+  let semCredito = false;
+  const pararTudo = () => geral.abort();
+  if (signal.aborted) pararTudo();
+  else signal.addEventListener("abort", pararTudo, { once: true });
+  console.log("CALENDARIO modelo:", MODELO, "| blocos:", blocos.map((b) => b.id).join(" · "));
 
-  const candidatos = await candidatosModelo(signal);
-  // A descoberta engole o AbortError (fica só com o fallback) — se o timeout
-  // já disparou lá dentro, trata-se como timeout e não como 502 genérico.
-  if (signal.aborted) throw new DOMException("timeout", "AbortError");
-  console.log("CALENDARIO candidatos:", candidatos.join(", "), "| blocos:", blocos.map((b) => b.id).join(" · "));
-
-  /* Sempre COM pesquisa e com o pensamento no tecto. Medido: com o
-     pensamento a 0 ou a 1024 o modelo responde depressa mas NÃO pesquisa —
-     devolve datas "plausíveis" de memória (16/08 em vez de 14/08, 30/08 em
-     vez de 28/08), que a app ia sugerir como "datas que mudaram". Por isso
-     já não há variante sem pesquisa, e uma resposta sem sinal de pesquisa
-     (`groundingMetadata` vazio) é recusada como se não tivesse vindo. */
-  const chamar = (model: string, texto: string, sinal: AbortSignal) =>
-    fetch(`${GAPI}/models/${model}:generateContent?key=${GEMINI_KEY}`, {
+  /* Sempre COM pesquisa e sem `thinkingConfig`. Uma resposta sem sinal de
+     pesquisa (`groundingMetadata` vazio) é recusada: sem pesquisa o modelo
+     devolve datas "plausíveis" de memória, que a app ia sugerir como "datas
+     que mudaram". */
+  const chamar = (texto: string, sinal: AbortSignal) =>
+    fetch(`${GAPI}/models/${MODELO}:generateContent?key=${GEMINI_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: sinal,
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: texto }] }],
-        generationConfig: { temperature: 0, thinkingConfig: { thinkingBudget: PENSAR_TECTO } },
+        generationConfig: { temperature: 0 },
         tools: [{ google_search: {} }],
       }),
     });
+  const msgErro = (corpo: string) => {
+    let msg = "";
+    try { msg = JSON.parse(corpo)?.error?.message ?? ""; } catch (_) { /**/ }
+    return (msg || corpo).slice(0, 800);
+  };
 
-  // Um bloco: tenta os modelos por ordem até um responder COM pesquisa.
-  // Cada chamada registada à parte (sync_log + ia_uso): cada uma custa.
+  // Um bloco: UMA chamada ao modelo, e só mais uma se a Google disser que está
+  // sobrecarregada (429/500/503). Nunca outro modelo. Cada chamada deixa a sua
+  // linha (sync_log + ia_uso): cada uma custa.
   const correrBloco = async (b: Bloco): Promise<ResBloco> => {
     const texto = base + (b.ambito ? "\n\n" + b.ambito : "");
-    let ultimoErro = "nenhum modelo respondeu";
-    let ultimoStatus: number | undefined;
-    for (const model of candidatos) {
-      const ms = restante();
-      if (signal.aborted || ms < 5_000) break;
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
+      if (semCredito) return { ok: false, bloco: b.id, status: 402, erro: MSG_SEM_CREDITO };
+      if (geral.signal.aborted || restante() < 5_000) {
+        return { ok: false, bloco: b.id, erro: "acabou o tempo antes de perguntar" };
+      }
+      const ms = Math.min(CHAMADA_TIMEOUT_MS, restante());
       const t0 = Date.now();
-      const { signal: sinal, limpar } = comLimiteProprio(signal, ms);
+      const { signal: sinal, limpar } = comLimiteProprio(geral.signal, ms);
       let status = 0, corpo = "";
       try {
-        const g = await chamar(model, texto, sinal);
+        const g = await chamar(texto, sinal);
         status = g.status;
         corpo = await g.text();   // o corpo também fica debaixo do relógio
       } catch (_) {
         limpar();
-        // Presa até ao fim do orçamento: já não há tempo para outro modelo.
+        /* CORTADA do nosso lado. A Google acaba-a do lado dela e cobra-a, por
+           isso fica uma linha com `pesquisa: true` e o custo estimado, sem
+           tokens (não se sabem). Não se tenta outra vez: uma chamada que chega
+           aos 30 s está presa, e repetir era pagar duas. */
+        const porque = semCredito ? "sem_credito_noutro_bloco"
+          : signal.aborted ? "orcamento" : `limite_${Math.round(ms / 1000)}s`;
         await registar("erro", {
-          passo: "sem-resposta", bloco: b.id, modelo: model, pesquisa: true, ms: Date.now() - t0,
+          passo: "cortada", bloco: b.id, modelo: MODELO, pesquisa: true, cortada: true, porque,
+          tentativa, ms: Date.now() - t0, custo_estimado_eur: custoEstimado(null, true),
         }, quem, qualApp);
-        return { ok: false, bloco: b.id, erro: "o Gemini não respondeu a tempo" };
+        return semCredito
+          ? { ok: false, bloco: b.id, status: 402, erro: MSG_SEM_CREDITO }
+          : { ok: false, bloco: b.id, erro: "o Gemini não respondeu a tempo" };
       }
       limpar();
-      console.log("CALENDARIO bloco:", b.id, model, "->", status, `${Date.now() - t0}ms`);
-      if (status === 404) { _models = null; continue; }            // saiu do catálogo
-      if (status === 400 || transitorio(status)) {                 // não aceita / sobrecarga: outro modelo
-        let msg = "";
-        try { msg = JSON.parse(corpo)?.error?.message ?? ""; } catch (_) { /**/ }
+      console.log("CALENDARIO bloco:", b.id, `#${tentativa}`, "->", status, `${Date.now() - t0}ms`);
+
+      if (status === 402) {
+        // Acabou o crédito pré-pago da chave (Google AI Studio). A Google recusa
+        // à porta (não cobra), mas a linha fica: mostra no painel quando acabou.
+        semCredito = true;
+        pararTudo();
         await registar("erro", {
-          passo: "gemini", bloco: b.id, status, modelo: model, pesquisa: true,
-          erro: (msg || corpo).slice(0, 800), ms: Date.now() - t0,
+          passo: "sem_credito", bloco: b.id, status, modelo: MODELO, pesquisa: false,
+          erro: msgErro(corpo), tentativa, ms: Date.now() - t0, custo_estimado_eur: 0,
         }, quem, qualApp);
-        ultimoErro = `gemini ${status} (${model})${msg ? ": " + msg.slice(0, 200) : ""}`;
-        ultimoStatus = transitorio(status) ? 503 : 502;
-        if (transitorio(status)) await sleep(700);
-        continue;
+        return { ok: false, bloco: b.id, status: 402, erro: MSG_SEM_CREDITO };
       }
       if (status < 200 || status >= 300) {
-        let msg = "";
-        try { msg = JSON.parse(corpo)?.error?.message ?? ""; } catch (_) { /**/ }
+        // Um pedido recusado pela Google não pesquisou nem se paga.
+        const erro = msgErro(corpo);
         await registar("erro", {
-          passo: "gemini", bloco: b.id, status, modelo: model, pesquisa: true,
-          erro: (msg || corpo).slice(0, 800), ms: Date.now() - t0,
+          passo: "gemini", bloco: b.id, status, modelo: MODELO, pesquisa: false,
+          erro, tentativa, ms: Date.now() - t0, custo_estimado_eur: 0,
         }, quem, qualApp);
-        // 402 = acabou o crédito pré-pago da chave (Google AI Studio). Não
-        // adianta tentar outro modelo — é a mesma conta — e a mensagem crua do
-        // Google ("prepayment credits are depleted") não diz o que fazer.
-        if (status === 402) {
-          return { ok: false, bloco: b.id, status: 402, erro: "acabou o crédito do Gemini (Google AI Studio) — é preciso carregar saldo na conta da chave" };
-        }
-        return { ok: false, bloco: b.id, status: 502, erro: `gemini ${status} (${model})${msg ? ": " + msg.slice(0, 200) : ""}` };
+        if (transitorio(status) && tentativa === 1) { await sleep(2_000); continue; }
+        return {
+          ok: false, bloco: b.id, status: transitorio(status) ? 503 : 502,
+          erro: status === 404
+            ? `o modelo ${MODELO} deixou de existir na API do Gemini — é preciso mudar o MODELO no código`
+            : `gemini ${status}${erro ? ": " + erro.slice(0, 200) : ""}`,
+        };
       }
+
       let gd: any = null;
       try { gd = JSON.parse(corpo); } catch (_) { /**/ }
       const cand = gd?.candidates?.[0];
@@ -933,29 +1012,30 @@ async function produzirCalendario(
       const motivo = String(cand?.finishReason ?? "");
       const texto2 = (cand?.content?.parts ?? []).map((p: any) => p?.text ?? "").join("").trim();
       const gm = cand?.groundingMetadata;
-      const pesquisou = (gm?.webSearchQueries?.length ?? 0) > 0 || (gm?.groundingChunks?.length ?? 0) > 0;
+      const consultas = Array.isArray(gm?.webSearchQueries) ? gm.webSearchQueries.length : 0;
+      const nFontes = Array.isArray(gm?.groundingChunks) ? gm.groundingChunks.length : 0;
+      const pesquisou = consultas > 0 || nFontes > 0;
       const comum = {
-        bloco: b.id, modelo: model, pesquisa: pesquisou, finishReason: motivo || null,
+        bloco: b.id, modelo: MODELO, pesquisa: pesquisou, consultas_google: consultas,
+        fontes_n: nFontes, finishReason: motivo || null, tentativa,
         ms: Date.now() - t0, ...(usage ? { usageMetadata: usage } : {}),
-        custo_estimado_eur: CUSTO_CALENDARIO_EUR,
+        custo_estimado_eur: custoEstimado(usage, pesquisou),
       };
       /* Um 200 com o corpo VAZIO não é o mesmo que uma resposta que não se
-         entendeu (ver o CLAUDE.md da WineCatalog, "O 200 vazio"). */
+         entendeu (ver o CLAUDE.md da WineCatalog, "O 200 vazio"). Nenhum dos
+         três casos se repete: o bloco falha e a app diz que a leitura é parcial. */
       if (!texto2) {
         await registar("erro", { passo: "gemini_vazio", ...comum }, quem, qualApp);
-        ultimoErro = `o modelo não devolveu resposta (${motivo || "vazia"})`;
-        continue;
+        return { ok: false, bloco: b.id, erro: `o modelo não devolveu resposta (${motivo || "vazia"})` };
       }
       if (!pesquisou) {
         await registar("erro", { passo: "sem-pesquisa", amostra: texto2.slice(0, 400), ...comum }, quem, qualApp);
-        ultimoErro = "o modelo respondeu sem pesquisar (datas de memória, recusadas)";
-        continue;
+        return { ok: false, bloco: b.id, erro: "o modelo respondeu sem pesquisar (datas de memória, recusadas)" };
       }
       const parsed: any = extrairJson(texto2);
       if (!parsed) {
         await registar("erro", { passo: "json", amostra: texto2.slice(0, 800), ...comum }, quem, qualApp);
-        ultimoErro = "resposta ilegível do modelo";
-        continue;
+        return { ok: false, bloco: b.id, erro: "resposta ilegível do modelo" };
       }
       const fontes: { titulo: string; url: string }[] = [];
       (gm?.groundingChunks ?? []).forEach((c: any) => {
@@ -968,38 +1048,42 @@ async function produzirCalendario(
       await registar("ok", {
         ...comum,
         jogos: arr(parsed.jogos).length, por_definir: arr(parsed.porDefinir).length,
-        potenciais: arr(parsed.potenciais).length, chamadas_gemini: 1,
+        potenciais: arr(parsed.potenciais).length,
       }, quem, qualApp);
       return {
-        ok: true, bloco: b.id, modelo: model,
+        ok: true, bloco: b.id, modelo: MODELO,
         jogos: arr(parsed.jogos), porDefinir: arr(parsed.porDefinir), potenciais: arr(parsed.potenciais),
         fontes,
       };
     }
-    return { ok: false, bloco: b.id, erro: ultimoErro, status: ultimoStatus };
+    return { ok: false, bloco: b.id, erro: "o Gemini continuou sobrecarregado" };
   };
 
   const res = await Promise.all(blocos.map((b) =>
     correrBloco(b).catch((e) => ({ ok: false as const, bloco: b.id, erro: String((e as Error)?.message ?? e) }))
   ));
+  signal.removeEventListener("abort", pararTudo);
   const bons = res.filter((r) => r.ok) as Extract<ResBloco, { ok: true }>[];
   const maus = res.filter((r) => !r.ok) as Extract<ResBloco, { ok: false }>[];
   const resumo = {
-    epoca, blocos: blocos.length, ok: bons.map((r) => r.bloco),
+    epoca, modelo: MODELO, blocos: blocos.length, ok: bons.map((r) => r.bloco),
     falharam: maus.map((r) => `${r.bloco}: ${r.erro}`.slice(0, 200)), ms: Date.now() - inicio,
+    sem_credito: semCredito, procuras,
   };
+  const contas = `(procuras nas últimas 24 h: ${procuras.feitas} de ${procuras.max})`;
 
   if (!bons.length) {
     // Resumo só no sync_log: cada chamada ao Gemini já deixou a sua linha no ia_uso.
     await registar("erro", { passo: "todos-os-blocos", ...resumo }, quem, qualApp, false);
+    if (semCredito) return { ok: false, status: 402, erro: MSG_SEM_CREDITO };
     const primeiro = maus[0];
     const tudoTempo = maus.every((r) => r.erro === "o Gemini não respondeu a tempo");
+    // Sem o convite "tenta outra vez daqui a pouco": foi ele que, a 03/11,
+    // levou a várias tentativas seguidas — e cada uma paga-se.
     return {
       ok: false,
       status: tudoTempo ? 504 : (maus.find((r) => r.status)?.status ?? 502),
-      erro: tudoTempo
-        ? "o Gemini não respondeu a tempo — tenta outra vez daqui a pouco"
-        : (primeiro?.erro ?? "a procura falhou"),
+      erro: `${tudoTempo ? "o Gemini não respondeu a tempo" : (primeiro?.erro ?? "a procura falhou")} ${contas}`,
     };
   }
 
@@ -1014,7 +1098,7 @@ async function produzirCalendario(
   });
   if (!jogos.length && !porDefinir.length && !potenciais.length) {
     await registar("erro", { passo: "vazio", ...resumo }, quem, qualApp, false);
-    return { ok: false, status: 404, erro: `não encontrei jogos do Sporting para a época ${epoca}` };
+    return { ok: false, status: 404, erro: `não encontrei jogos do Sporting para a época ${epoca} ${contas}` };
   }
   console.log("CALENDARIO jogos:", jogos.length, "porDefinir:", porDefinir.length,
     "potenciais:", potenciais.length, "blocos ok:", bons.length, "/", blocos.length);
@@ -1034,6 +1118,8 @@ async function produzirCalendario(
       modelo: [...new Set(bons.map((r) => r.modelo))].join(", "),
       // Aditivo: blocos que não responderam (a app avisa que a leitura é parcial).
       blocosEmFalta: maus.map((r) => r.bloco),
+      // Aditivo: quantas procuras já houve em 24 h, e o teto (a app mostra-o).
+      procuras,
       geradoEm: new Date().toISOString(),
     },
   };
@@ -1048,7 +1134,7 @@ Deno.serve(async (req) => {
     });
 
   const authHeader = req.headers.get("Authorization") ?? "";
-  // Criado à entrada e passado a TODOS os fetch (auth, ListModels, Gemini):
+  // Criado à entrada e passado a TODOS os fetch (auth, Gemini):
   // um único fetch sem este signal já chegou, na função irmã, para a deixar
   // pendurada sem nunca responder ao browser.
   const ctrl = new AbortController();
@@ -1076,6 +1162,37 @@ Deno.serve(async (req) => {
     }
     const conhecidos = lerConhecidos(body?.conhecidos);
 
+    /* ── O teto por dia, ANTES de qualquer chamada ao Gemini ── */
+    const recentes = await execucoesRecentes();
+    if (recentes == null) {
+      await registar("erro", { passo: "teto_sem_contagem", epoca }, quem, qualApp);
+      return json({
+        error: "não consegui confirmar quantas procuras já houve hoje, por isso não procurei " +
+          "(para não gastar às cegas). Vê o goals.sync_log.",
+      }, 503);
+    }
+    if (recentes.length >= MAX_POR_DIA) {
+      const livre = new Date(Date.parse(recentes[recentes.length - MAX_POR_DIA]) + 24 * 3600_000);
+      await registar("erro", {
+        passo: "teto_diario", epoca, feitas: recentes.length, max: MAX_POR_DIA,
+        livre_em: livre.toISOString(),
+      }, quem, qualApp);
+      return json({
+        error: `o calendário já foi procurado ${recentes.length} vezes nas últimas 24 horas ` +
+          `(o limite é ${MAX_POR_DIA}, porque cada procura gasta crédito do Gemini). ` +
+          `Podes voltar a procurar ${quandoLisboa(livre)}.`,
+        teto: { feitas: recentes.length, max: MAX_POR_DIA, livreEm: livre.toISOString() },
+      }, 429);
+    }
+    if (!(await marcarExecucao({ epoca, modelo: MODELO }, quem, qualApp))) {
+      await registar("erro", { passo: "teto_sem_contagem", epoca, marcar: false }, quem, qualApp);
+      return json({
+        error: "não consegui registar esta procura no goals.sync_log, por isso não procurei " +
+          "(sem esse registo o limite diário deixava de contar).",
+      }, 503);
+    }
+    const procuras = { feitas: recentes.length + 1, max: MAX_POR_DIA };
+
     /* ── MODO ASSÍNCRONO (só quem o pedir) ──
        Responde já com o `id` e faz o trabalho a sério depois, com muito mais
        tempo do que um pedido HTTP aguenta. Quem não mandar `assincrono` fica
@@ -1093,7 +1210,7 @@ Deno.serve(async (req) => {
           const t = setTimeout(() => c.abort(), PROC_TIMEOUT_MS);
           try {
             const res = await produzirCalendario(
-              epoca, conhecidos, dono, qualApp, c.signal, PROC_TIMEOUT_MS,
+              epoca, conhecidos, dono, qualApp, c.signal, PROC_TIMEOUT_MS, procuras,
             );
             await fecharAnalise(analiseId, dono, res.ok
               ? { estado: "concluido", resultado: res.corpo }
@@ -1101,14 +1218,15 @@ Deno.serve(async (req) => {
           } catch (e) {
             const err = e as Error;
             const timeout = err.name === "AbortError";
+            // Só no sync_log: as chamadas ao Gemini já deixaram a sua linha no ia_uso.
             await registar("erro", {
               passo: timeout ? "timeout" : "excecao",
               erro: String(err.message).slice(0, 500),
-            }, dono, qualApp);
+            }, dono, qualApp, false);
             await fecharAnalise(analiseId, dono, {
               estado: "erro",
               erro: timeout
-                ? "o modelo demorou demasiado a procurar o calendário — tenta outra vez daqui a pouco"
+                ? "o modelo demorou demasiado a procurar o calendário"
                 : (err.message || "erro inesperado"),
             });
           } finally {
@@ -1122,20 +1240,20 @@ Deno.serve(async (req) => {
 
     // ── MODO SÍNCRONO (contrato antigo) ──
     const res = await produzirCalendario(
-      epoca, conhecidos, quem, qualApp, ctrl.signal, TIMEOUT_MS,
+      epoca, conhecidos, quem, qualApp, ctrl.signal, TIMEOUT_MS, procuras,
     );
     return res.ok ? json(res.corpo) : json({ error: res.erro }, res.status);
   } catch (e) {
     const err = e as Error;
     const timeout = err.name === "AbortError";
+    // Só no sync_log: uma chamada ao Gemini que tenha chegado a sair já deixou
+    // a sua linha no ia_uso.
     await registar("erro", {
       passo: timeout ? "timeout" : "excecao",
       erro: String(err.message).slice(0, 500),
-    }, quem, qualApp);
+    }, quem, qualApp, false);
     if (timeout) {
-      return json({
-        error: "o modelo demorou demasiado a procurar o calendário — tenta outra vez daqui a pouco",
-      }, 504);
+      return json({ error: "o modelo demorou demasiado a procurar o calendário" }, 504);
     }
     return json({ error: err.message }, 500);
   } finally {
