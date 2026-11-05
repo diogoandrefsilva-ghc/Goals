@@ -1862,12 +1862,18 @@ function scrollJogoMaisRecenteParaVista(){
   if(r.top<0||r.bottom>window.innerHeight)_scrollSuaveAte(alvo,{block:'center'});
 }
 
-/* ── SINCRONIZAR CALENDÁRIO (Edge Function `calendario-sporting` + Gemini) ──
-   Um botão em Config → "Calendário do Sporting" vai buscar o calendário oficial
-   da época activa e SUGERE duas coisas: jogos que faltam e datas que mudaram
-   (adiamentos, remarcações da TV). Nada é gravado sem o admin confirmar linha a
-   linha — as datas aqui mexem em dinheiro e o calendário vem de uma leitura por
-   IA, que acerta na maioria mas não sempre.
+/* ── SINCRONIZAR CALENDÁRIO (Edge Function `calendario-sporting`) ──
+   Dois botões em Config → "Calendário do Sporting", cada um com a sua fonte:
+     · "Jogos confirmados" (`modo: 'confirmados'`) — o calendário do FotMob:
+       grátis, ~1 s, sem IA. Sugere jogos que faltam, datas/hora/estádio que
+       mudaram e jogos "por definir"/"potenciais" que já têm adversário.
+     · "Jogos potenciais" (`modo: 'potenciais'`) — as rondas ainda sem
+       adversário (por sortear, ou dependentes de um resultado), lidas pelo
+       Gemini com pesquisa Google: ~2 cêntimos, no máximo 3 por dia, e em
+       segundo plano (polling a `goals.calendario_analises`).
+   Cada botão só mostra as secções que lhe dizem respeito (calPreparar). Nada é
+   gravado sem o admin confirmar linha a linha — as datas aqui mexem em
+   dinheiro, o FotMob tem datas provisórias e a IA engana-se.
 
    A mesma Edge Function serve o SplitBill (que só quer os jogos em Alvalade);
    o ficheiro da função vive neste repo, em `calendario-sporting.ts`. Devolve a
@@ -1898,6 +1904,8 @@ let _calSel = {
 };
 let _calALer = false;
 let _calErro = null;     // {msg, passo, quando, gravado} — fica no ecrã até se fechar
+let _calModo = 'confirmados'; // o botão da última leitura: 'confirmados' | 'potenciais'
+let _calOcultos = 0;     // sugestões de jogos marcados escondidas no modo potenciais
 
 /* Regista a tentativa em `goals.sync_log` (migração db/sync-log.sql). O botão
    atravessa três sítios (browser → Edge Function → Gemini) e um toast que
@@ -2001,6 +2009,15 @@ function _calNormJorn(s) {
     .replace(/[^a-z0-9]+/g, ' ').trim();
   t = t.replace(/\b(primeira|segunda|terceira|quarta|quinta|sexta|setima|oitava)\b/g, m => _CAL_ORD[m]);
   t = t.replace(/\bjornada\s*(\d+)\b/g, 'j$1').replace(/\b(\d+)\s*jornada\b/g, 'j$1');
+  // As fases a eliminar também ficam numa forma só, venham da IA (que corta
+  // aos 24 caracteres: "Oitavos-de-final · 1.ª m") ou escritas à mão
+  // ("Oitavos · 1.ª mão", "Oitavos (ida)") → "oitavos 1mao". Sem isto, um
+  // potencial criado à mão voltava a ser sugerido pela IA como ronda nova.
+  t = t.replace(/\b(oitavos|quartos)\s+de\s+final\b/g, '$1')
+    .replace(/\bmeias?\s+fina(?:l|is)\b/g, 'meia')
+    .replace(/\bplay\s*off\b/g, 'playoff')
+    .replace(/\bida\b/g, '1mao').replace(/\bvolta\b/g, '2mao')
+    .replace(/\b([12])\s*a?\s*m(?:ao)?\b/g, '$1mao');
   return t.replace(/\b[ao]\b/g, ' ').replace(/\s+/g, ' ').trim();
 }
 function _calChaveRonda(comp, jorn) { return _calNormComp(comp) + '|' + _calNormJorn(jorn); }
@@ -2049,8 +2066,7 @@ function _calEsc(s) {
    atira o erro guardado quando 'erro'.
    O botão vai contando os segundos enquanto isto corre — a procura demora
    perto de um minuto e um botão parado dá a sensação de estar pendurado. */
-async function calEsperar(id) {
-  const btn = document.getElementById('cal-sync-btn');
+async function calEsperar(id, btn) {
   const t0 = Date.now();
   // ~3 min de tecto: mais folgado que os 140s de orçamento da função (o
   // máximo que o plano gratuito do Supabase deixa correr em segundo plano),
@@ -2074,23 +2090,28 @@ async function calEsperar(id) {
   throw new Error('a procura ainda não terminou ao fim de 3 minutos — vê `goals.calendario_analises` ou tenta outra vez');
 }
 
-async function calSincronizar() {
+async function calSincronizar(modo) {
   if (roGuard()) return;
   if (_calALer) return;
   if (!_sbSession) { toast('Inicia sessão primeiro', 1); return; }
-  const btn = document.getElementById('cal-sync-btn');
+  modo = modo === 'potenciais' ? 'potenciais' : 'confirmados';
+  const pot = modo === 'potenciais';
+  const btn = document.getElementById(pot ? 'cal-pot-btn' : 'cal-sync-btn');
+  const outro = document.getElementById(pot ? 'cal-sync-btn' : 'cal-pot-btn');
   const label = btn ? btn.textContent : '';
   _calALer = true;
+  _calModo = modo;
   _calErro = null;
   _calSug = null;
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ A procurar…'; }
+  if (btn) { btn.disabled = true; btn.textContent = pot ? '⏳ A procurar…' : '⏳ A ler…'; }
+  if (outro) outro.disabled = true;  // uma leitura de cada vez
   calRender();                       // mostra já "A procurar" no corpo da página
-  calLog('pedido', { epoca: epocaAtiva, jogos_atuais: db.jogos.length });
+  calLog('pedido', { epoca: epocaAtiva, modo, jogos_atuais: db.jogos.length });
   let passo = 'chamada';
   try {
-    // Rede de segurança própria: o ARRANQUE tem de ser rápido (a função só
-    // autoriza e cria a linha antes de responder), por isso este limite é
-    // curto. O trabalho a sério não vive aqui — ver `assincrono` abaixo.
+    // Rede de segurança própria: o FotMob responde em ~1 s e, nos potenciais,
+    // a função só autoriza e cria a linha antes de responder — por isso este
+    // limite é curto. A procura a sério não vive aqui — ver `assincrono`.
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 30000);
     let r;
@@ -2101,12 +2122,13 @@ async function calSincronizar() {
         body: JSON.stringify({
           epoca: epocaAtiva,
           app: 'goals',
-          // A procura com pesquisa Google demora MAIS do que um pedido HTTP
-          // aguenta (o browser/iOS corta por volta dos 60s), por isso pede-se
-          // o modo assíncrono: a função responde já com um `id` e faz o
-          // trabalho em segundo plano; nós fazemos polling à linha. Sem isto
-          // dava sempre "demorou demasiado", por mais tempo que se lhe desse.
-          assincrono: true,
+          modo,
+          // A procura com pesquisa Google (só nos potenciais) demora MAIS do
+          // que um pedido HTTP aguenta (o browser/iOS corta por volta dos
+          // 60s), por isso pede-se o modo assíncrono: a função responde já com
+          // um `id` e faz o trabalho em segundo plano; nós fazemos polling à
+          // linha. Os confirmados (FotMob) respondem logo, não precisam.
+          assincrono: pot,
           // Os adversários já gravados seguem no pedido para o modelo devolver a
           // MESMA grafia — é o que faz o emparelhamento bater certo.
           conhecidos: [...new Set(db.jogos.map(j => j.adversario).filter(Boolean))]
@@ -2125,19 +2147,20 @@ async function calSincronizar() {
     // (versão antiga publicada, ou migração por correr), usa-se logo — é o
     // que mantém isto a funcionar durante um deploy a meio.
     passo = 'leitura';
-    calPreparar(d && d.id && d.estado === 'pendente' ? await calEsperar(d.id) : d);
+    calPreparar(d && d.id && d.estado === 'pendente' ? await calEsperar(d.id, btn) : d);
   } catch (e) {
     const m = String(e && e.message || e);
     const rede = /load failed|failed to fetch|networkerror|timed? ?out/i.test(m) || (e && e.name === 'AbortError');
-    // Sem o convite "volta a tentar daqui a pouco": cada procura gasta crédito
-    // do Gemini, e foi esse convite que levou a várias tentativas seguidas a
-    // 03/11/2026. A função tem um limite de procuras por dia.
-    const msg = rede
+    // Sem o convite "volta a tentar daqui a pouco" nos potenciais: cada
+    // procura gasta crédito do Gemini, e foi esse convite que levou a várias
+    // tentativas seguidas a 03/11/2026. A função tem um limite por dia.
+    // Os confirmados (FotMob) não custam nada — aí pode tentar-se outra vez.
+    const msg = !rede ? m : pot
       ? 'A procura demorou demasiado ou falhou a ligação ao servidor. Antes de procurar outra vez, recarrega a página: a procura pode ter acabado do lado do servidor (e cada uma gasta crédito do Gemini).'
-      : m;
+      : 'Não consegui ler o calendário do FotMob (falhou a ligação ou demorou demasiado). Este não gasta nada — podes tentar outra vez.';
     // O erro FICA no ecrã (ao contrário do toast, que se some em 3s) e vai para
     // a BD — é isso que permite despistar isto mais tarde, sem ser ao vivo.
-    const gravado = await calLog('erro', { passo, erro: m, nome: (e && e.name) || '', epoca: epocaAtiva });
+    const gravado = await calLog('erro', { passo, modo, erro: m, nome: (e && e.name) || '', epoca: epocaAtiva });
     _calErro = {
       msg, passo, gravado,
       quando: new Date().toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -2145,7 +2168,8 @@ async function calSincronizar() {
     toast('❌ ' + msg.slice(0, 60), 1);
   } finally {
     _calALer = false;
-    if (btn) { btn.disabled = false; btn.textContent = label || '🔄 Procurar jogos'; }
+    if (btn) { btn.disabled = false; btn.textContent = label || (pot ? '🔮 Jogos potenciais' : '🔄 Jogos confirmados'); }
+    if (outro) outro.disabled = false;
     calRender();
   }
 }
@@ -2197,15 +2221,20 @@ function calPreparar(d) {
     // guardar (JOGOS_HE): nada a sugerir para este jogo.
     const dataMuda = j.data !== s.data;
     const horaMuda = JOGOS_HE && !!s.hora && j.hora !== s.hora;
-    const estadioMuda = JOGOS_HE && !!s.estadio && j.estadio !== s.estadio;
+    // O estádio compara-se sem acentos nem maiúsculas: o FotMob escreve
+    // "Estádio Do Dragão", e isso não é um estádio diferente.
+    const estadioMuda = JOGOS_HE && !!s.estadio && _calNormComp(j.estadio) !== _calNormComp(s.estadio);
     if (!dataMuda && !horaMuda && !estadioMuda) return;   // já está tudo certo
     // Alguma coisa diferente. Um jogo com resultado já é história — sugere-se
     // na mesma (pode ter sido gravado com a data errada) mas desmarcado por
     // omissão quando é a DATA que muda; hora/estádio sozinhos são inofensivos
-    // e podem vir marcados mesmo num jogo já jogado.
+    // e podem vir marcados mesmo num jogo já jogado. Uma data PROVISÓRIA da
+    // fonte (o FotMob põe a jornada ao domingo até a Liga marcar a hora) também
+    // vem desmarcada: se cá estiver a data certa, escrita à mão, não se
+    // desfaz por omissão.
     const jogado = !!(j.resultado || (j.golos !== null && j.golos !== undefined && j.golos !== ''));
     _calDatas.push({ jogo: j, sug: s, jogado, dataMuda, horaMuda, estadioMuda });
-    if (!jogado || !dataMuda) _calSel.datas.add(_calDatas.length - 1);
+    if (!dataMuda || (!jogado && s.confirmado !== false)) _calSel.datas.add(_calDatas.length - 1);
   });
   /* Rondas em que o Sporting joga de certeza mas ainda sem adversário sorteado.
      Só entram as que não estão cá de nenhuma forma — por ronda, não por data:
@@ -2254,10 +2283,30 @@ function calPreparar(d) {
     ...pdSugs.map(s => _calChaveRonda(s.competicao, s.jornada)),
     ...potSugs.map(s => _calChaveRonda(s.competicao, s.jornada)),
   ]);
-  potPendentes.forEach(j => {
+  // Um potencial que um jogo marcado já apanhou (pela janela de datas — o
+  // FotMob não traz a ronda) não desapareceu: passou a jogo a sério. E sem os
+  // jogos marcados nesta resposta (`jogosEmFalta`) não há como distinguir
+  // "eliminado" de "já marcado", por isso não se sugere apagar nada.
+  const jaApanhados = new Set([...mapPend.values()].map(j => j.id));
+  if (!(d && d.jogosEmFalta)) potPendentes.forEach(j => {
+    if (jaApanhados.has(j.id)) return;
     if (mencionadas.has(_calChaveRonda(j.competicao, j.jornada))) return;
     _calPotRem.push({ jogo: j });   // por omissão desmarcado — apagar é destrutivo
   });
+  /* Cada botão só mostra o que é seu. "Jogos confirmados" (FotMob) não lê
+     rondas nenhumas — sem isto, todos os potenciais apareciam "a remover".
+     "Jogos potenciais" traz os jogos do FotMob só para saber que rondas já
+     passaram a jogo; o que eles sugerem fica para o outro botão (conta-se,
+     para o painel avisar). Uma função antiga sem `modo` mostra tudo. */
+  _calOcultos = 0;
+  const limpar = (lista, tipo) => { const n = lista.length; lista.length = 0; _calSel[tipo] = new Set(); return n; };
+  if (d && d.modo === 'confirmados') {
+    limpar(_calPD, 'pd'); limpar(_calPot, 'pot'); limpar(_calPotPD, 'potPD'); limpar(_calPotRem, 'potRem');
+    _calPDsemColuna = 0; _calPOTsemColuna = 0;
+  } else if (d && d.modo === 'potenciais') {
+    _calOcultos = limpar(_calNovos, 'novos') + limpar(_calDatas, 'datas') +
+      limpar(_calPromo, 'promo') + limpar(_calPotProm, 'potProm');
+  }
   calRender();
   const box = document.getElementById('cal-sync-box');
   if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2278,6 +2327,7 @@ function calTodos(tipo, ligar) {
   calRender();
 }
 function calFechar() {
+  _calOcultos = 0;
   _calSug = null; _calNovos = []; _calDatas = []; _calPD = []; _calPromo = [];
   _calPot = []; _calPotProm = []; _calPotPD = []; _calPotRem = [];
   _calPDsemColuna = 0; _calPOTsemColuna = 0; _calErro = null;
@@ -2298,7 +2348,9 @@ function calAtualizarBotao() {
 
 function _calLinhaNova(o, i) {
   const s = o.sug;
-  const meta = [s.competicao, s.jornada, s.local, s.hora, s.estadio].filter(Boolean).join(' · ');
+  // "Outro" diz pouco: o FotMob manda o nome original (ex.: "Europa League").
+  const comp = s.competicao === 'Outro' && s.competicaoFonte ? `Outro (${s.competicaoFonte})` : s.competicao;
+  const meta = [comp, s.jornada, s.local, s.hora, s.estadio].filter(Boolean).join(' · ');
   return `<label class="calsug-row">
     <input type="checkbox" ${_calSel.novos.has(i) ? 'checked' : ''} onchange="calToggle('novos',${i},this)">
     <span class="calsug-dt">${_calEsc(_calDataCurta(s.data))}</span>
@@ -2459,8 +2511,12 @@ function calRender() {
   // parecia que carregar não fazia nada.
   if (_calALer) {
     box.style.display = 'block';
-    box.innerHTML = `<div class="calsug-head"><strong>A procurar o calendário…</strong></div>
-      <p class="calsug-nota">A confirmar as datas oficiais do Sporting para ${_calEsc(epocaAtiva)}. Pode demorar até um minuto.</p>
+    box.innerHTML = _calModo === 'potenciais'
+      ? `<div class="calsug-head"><strong>A procurar jogos potenciais…</strong></div>
+      <p class="calsug-nota">A procurar as rondas ainda sem adversário (sorteios e eliminatórias) para ${_calEsc(epocaAtiva)}. Pode demorar até um minuto.</p>
+      <div class="calsug-barra"><span></span></div>`
+      : `<div class="calsug-head"><strong>A ler o calendário…</strong></div>
+      <p class="calsug-nota">A comparar os jogos marcados do Sporting (FotMob) com os que já cá estão para ${_calEsc(epocaAtiva)}.</p>
       <div class="calsug-barra"><span></span></div>`;
     return;
   }
@@ -2477,20 +2533,28 @@ function calRender() {
   box.style.display = 'block';
   if (!_calNovos.length && !_calDatas.length && !_calPD.length && !_calPromo.length &&
       !_calPot.length && !_calPotProm.length && !_calPotPD.length && !_calPotRem.length) {
+    const ep = _calEsc(_calSug.epoca || epocaAtiva);
+    const conferido = _calSug.modo === 'potenciais'
+      ? `Não há rondas novas por sortear nem jogos potenciais a acrescentar, confirmar ou tirar para ${ep}.`
+      : `Os ${(_calSug.jogos || []).length} jogos marcados para ${ep} já estão todos cá, com as datas certas.`;
     box.innerHTML = `<div class="calsug-head">
         <strong>Calendário conferido</strong>
         <button class="calsug-x" onclick="calFechar()" title="Fechar">✕</button>
       </div>
-      <p class="calsug-nota">Os ${(_calSug.jogos || []).length} jogos encontrados para ${_calEsc(_calSug.epoca || epocaAtiva)} já estão todos cá, com as datas certas.</p>
+      <p class="calsug-nota">${conferido}</p>
+      ${_calOcultosHTML()}
       ${_calAvisoSemColuna()}
       ${_calFontesHTML()}`;
     return;
   }
+  const origem = _calSug.modo === 'potenciais'
+    ? 'Rondas lidas por IA a partir de fontes públicas'
+    : _calSug.fonte === 'fotmob' ? 'Jogos lidos do calendário do FotMob' : 'Lido por IA a partir de fontes públicas';
   const partes = [`<div class="calsug-head">
       <strong>Sugestões do calendário</strong>
       <button class="calsug-x" onclick="calFechar()" title="Fechar">✕</button>
     </div>
-    <p class="calsug-nota">Lido por IA a partir de fontes públicas — <strong>confere antes de aplicar</strong>. Nada é gravado até carregares em Aplicar.</p>`];
+    <p class="calsug-nota">${origem} — <strong>confere antes de aplicar</strong>. Nada é gravado até carregares em Aplicar.</p>`];
   if (_calNovos.length) {
     partes.push(`<div class="calsug-sec">
       <div class="calsug-sec-hd"><span>Jogos em falta (${_calNovos.length})</span>
@@ -2560,6 +2624,7 @@ function calRender() {
       ${_calPotRem.map(_calLinhaPotRem).join('')}
     </div>`);
   }
+  partes.push(_calOcultosHTML());
   partes.push(_calAvisoSemColuna());
   partes.push(_calFontesHTML());
   partes.push(`<div class="calsug-acoes">
@@ -2583,10 +2648,20 @@ function _calAvisoSemColuna() {
   }
   return partes.map(p => `<p class="calsug-nota aviso">${p}</p>`).join('');
 }
+// No modo potenciais, as sugestões de jogos marcados (que vêm na mesma
+// resposta) ficam escondidas — mas diz-se que existem, e onde vê-las.
+function _calOcultosHTML() {
+  if (!_calOcultos) return '';
+  return `<p class="calsug-nota">Há também ${_calOcultos} alteraç${_calOcultos === 1 ? 'ão' : 'ões'} de jogos já marcados (jogos em falta, datas, adversários sorteados) — vê-${_calOcultos === 1 ? 'a' : 'as'} em <strong>🔄 Jogos confirmados</strong>, que é grátis.</p>`;
+}
 function _calFontesHTML() {
   const f = (_calSug && _calSug.fontes) || [];
   const semPesquisa = (_calSug && _calSug.pesquisa === false
     ? '<p class="calsug-nota aviso">⚠️ Sem pesquisa web nesta leitura — as datas futuras podem estar desactualizadas.</p>' : '')
+    // Nos potenciais, o FotMob falhou: sem os jogos marcados não se sabe se
+    // uma ronda potencial desapareceu por eliminação ou por já ser jogo.
+    + (_calSug && _calSug.jogosEmFalta
+      ? `<p class="calsug-nota aviso">⚠️ Não consegui ler os jogos marcados (FotMob${_calSug.erroJogos ? ': ' + _calEsc(_calSug.erroJogos) : ''}) — por isso não sugiro apagar jogos potenciais desta vez.</p>` : '')
     // A procura vai por blocos (ver calendario-sporting.ts); um que não
     // responda não deita os outros abaixo, mas a lista fica incompleta.
     + (_calSug && Array.isArray(_calSug.blocosEmFalta) && _calSug.blocosEmFalta.length
@@ -3086,33 +3161,131 @@ function selLocal(btn){
   btn.classList.add('on');
   document.getElementById('cal-local').value=btn.dataset.val;
 }
+/* ── NOVO JOGO À MÃO: marcado, por sortear ou potencial ──
+   Os três tipos que o calendário também cria (ver SINCRONIZAR CALENDÁRIO),
+   para não ser preciso gastar uma procura ao Gemini só para pôr uma ronda:
+     · marcado     — adversário e data conhecidos (+ hora/estádio, opcionais);
+     · por sortear — `por_definir`: joga-se de certeza, adversário por sortear.
+                     Conta para a Previsão; "Jogos confirmados" preenche-o
+                     quando o sorteio sair (emparelha pela janela de datas);
+     · potencial   — `potencial`: só se o Sporting passar a ronda anterior.
+                     NÃO conta para a Previsão até ser confirmado.
+   Nos dois últimos a jornada é obrigatória — é ela (com a competição) que
+   identifica a ronda e evita que a procura por IA a sugira outra vez. */
+let _tipoAdd='normal';
+const _CAL_TIPO_AJUDA={
+  normal:'Adversário e data já conhecidos.',
+  pd:'O Sporting joga de certeza, mas o adversário sai num sorteio (ex.: fase de liga da Champions). Conta já para a Previsão; o nome preenche-se com «Jogos confirmados» quando o sorteio sair.',
+  pot:'Só acontece se o Sporting passar a ronda anterior. Aparece na lista, mas não conta para a Previsão nem para o total da época até ser confirmado.'
+};
+// Atalhos para os potenciais, com os nomes que a procura por IA usa (é o
+// que faz a ronda bater certo depois — ver _calNormJorn).
+const _CAL_MODELOS=[
+  ['Liga dos Campeões','Play-off · 1.ª mão','se ficar fora do top 8 da fase de liga'],
+  ['Liga dos Campeões','Play-off · 2.ª mão','se ficar fora do top 8 da fase de liga'],
+  ['Liga dos Campeões','Oitavos-de-final · 1.ª mão','se chegar aos oitavos-de-final'],
+  ['Liga dos Campeões','Oitavos-de-final · 2.ª mão','se chegar aos oitavos-de-final'],
+  ['Liga dos Campeões','Quartos-de-final · 1.ª mão','se vencer os oitavos-de-final'],
+  ['Liga dos Campeões','Quartos-de-final · 2.ª mão','se vencer os oitavos-de-final'],
+  ['Liga dos Campeões','Meia-final · 1.ª mão','se vencer os quartos-de-final'],
+  ['Liga dos Campeões','Meia-final · 2.ª mão','se vencer os quartos-de-final'],
+  ['Liga dos Campeões','Final','se vencer a meia-final'],
+  ['Taça de Portugal','Oitavos-de-final','se vencer a eliminatória anterior'],
+  ['Taça de Portugal','Quartos-de-final','se vencer os oitavos-de-final'],
+  ['Taça de Portugal','Meia-final · 1.ª mão','se vencer os quartos-de-final'],
+  ['Taça de Portugal','Meia-final · 2.ª mão','se vencer os quartos-de-final'],
+  ['Taça de Portugal','Final','se vencer a meia-final'],
+  ['Taça da Liga','Meia-final','se vencer os quartos-de-final'],
+  ['Taça da Liga','Final','se vencer a meia-final']
+];
+function _calPreencherModelos(){
+  const sel=document.getElementById('cal-modelo');if(!sel)return;
+  // As rondas que já existem nesta época vêm marcadas — o mais provável é
+  // não ser preciso criá-las outra vez.
+  const ja=new Set(db.jogos.map(j=>_calChaveRonda(j.competicao,j.jornada)));
+  const grupos={};
+  _CAL_MODELOS.forEach((m,i)=>{(grupos[m[0]]=grupos[m[0]]||[]).push(
+    `<option value="${i}">${_calEsc(m[1])}${ja.has(_calChaveRonda(m[0],m[1]))?' — já existe':''}</option>`);});
+  sel.innerHTML='<option value="">— escolher (ou escreve à mão) —</option>'+
+    Object.keys(grupos).map(g=>`<optgroup label="${_calEsc(g)}">${grupos[g].join('')}</optgroup>`).join('');
+}
+function aplicarModeloRonda(v){
+  const m=_CAL_MODELOS[parseInt(v,10)];if(!m)return;
+  const selComp=document.getElementById('cal-comp');
+  [...selComp.options].forEach(o=>o.selected=o.value===m[0]);
+  document.getElementById('cal-jorn').value=m[1];
+  document.getElementById('cal-cond').value=m[2];
+}
+function selTipoAdd(btn){
+  _tipoAdd=btn.dataset.val;
+  document.querySelectorAll('#cal-tipo-btns .local-btn').forEach(b=>b.classList.toggle('on',b===btn));
+  const normal=_tipoAdd==='normal',pot=_tipoAdd==='pot';
+  const mostra=(id,sim)=>{const el=document.getElementById(id);if(el)el.style.display=sim?'':'none';};
+  mostra('cal-adv-wrap',normal);
+  mostra('cal-local-wrap',normal);
+  mostra('cal-hora-wrap',normal&&JOGOS_HE);
+  mostra('cal-estadio-wrap',normal&&JOGOS_HE);
+  mostra('cal-data-ate-wrap',!normal);
+  mostra('cal-cond-wrap',pot);
+  mostra('cal-modelo-wrap',pot);
+  if(pot)_calPreencherModelos();
+  document.getElementById('cal-data-lbl').textContent=normal?'Data':'Data (ou início)';
+  document.getElementById('cal-jorn').placeholder=normal?'ex: J32':pot?'ex: Quartos-de-final':'ex: J1 ou 3.ª eliminatória';
+  document.getElementById('cal-tipo-ajuda').textContent=_CAL_TIPO_AJUDA[_tipoAdd]||'';
+}
 function limparFormAdd(){
-  document.getElementById('cal-adv').value='';
-  document.getElementById('cal-jorn').value='';
+  ['cal-adv','cal-jorn','cal-hora','cal-estadio','cal-data-ate','cal-cond'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';});
+  const mod=document.getElementById('cal-modelo');if(mod)mod.value='';
   document.querySelectorAll('#cal-local-btns .local-btn').forEach(b=>b.classList.remove('on'));
   const btnCasa=document.querySelector('#cal-local-btns .local-btn[data-val="Casa"]');
   if(btnCasa)btnCasa.classList.add('on');
   document.getElementById('cal-local').value='Casa';
-  limparGolos();
+  // (Já não há contador de golos neste formulário — o resultado põe-se no
+  // editar. O limparGolos() que aqui estava rebentava por falta dos elementos,
+  // e com ele o toast e a lista por actualizar depois de gravar.)
+  if(_tipoAdd==='pot')_calPreencherModelos();
 }
 
 async function addJogoCal(){
   if(roGuard())return;
-  const data=document.getElementById('cal-data').value;
-  const adv=document.getElementById('cal-adv').value.trim();
-  const comp=document.getElementById('cal-comp').value;
-  const jorn=document.getElementById('cal-jorn').value.trim();
-  const local=document.getElementById('cal-local').value||'Casa';
-  if(!data||!adv)return toast('Preenche data e adversário!',1);
+  const tipo=_tipoAdd;
+  const v=id=>(document.getElementById(id)?.value||'').trim();
+  const data=v('cal-data'),adv=v('cal-adv'),comp=v('cal-comp'),jorn=v('cal-jorn');
+  const local=v('cal-local')||'Casa',hora=v('cal-hora'),estadio=v('cal-estadio');
+  const dataAte=v('cal-data-ate'),cond=v('cal-cond');
+  const linha={epoca_nome:epocaAtiva,data,competicao:comp,jornada:jorn,golos:null,resultado:''};
+  if(tipo==='normal'){
+    if(!data||!adv)return toast('Preenche data e adversário!',1);
+    Object.assign(linha,{adversario:adv,local});
+    if(JOGOS_HE){if(hora)linha.hora=hora;if(estadio)linha.estadio=estadio;}
+  }else{
+    // Sem as migrações, a BD nem tem onde guardar isto.
+    if(!JOGOS_PD)return toast('Falta correr db/jogos-por-definir.sql no Supabase',1);
+    if(tipo==='pot'&&!JOGOS_POT)return toast('Falta correr db/jogos-potenciais.sql no Supabase',1);
+    if(!data||!jorn)return toast('Preenche a data e a jornada/ronda!',1);
+    if(tipo==='pot'&&!cond)return toast('Escreve a condição (ex.: se vencer os oitavos)',1);
+    if(dataAte&&dataAte<data)return toast('O «até» não pode ser antes da data',1);
+    const k=_calChaveRonda(comp,jorn);
+    if(db.jogos.some(j=>_calChaveRonda(j.competicao,j.jornada)===k)&&
+       !confirm(`Já há um jogo de ${comp} · ${jorn} nesta época. Criar outro na mesma?`))return;
+    Object.assign(linha,{adversario:'',local:null,data_ate:dataAte&&dataAte!==data?dataAte:null});
+    if(tipo==='pd')linha.por_definir=true;
+    else{linha.potencial=true;linha.condicao=cond;}
+  }
   let ins;
   try{
-    ins=await sbReq('POST','jogos',{epoca_nome:epocaAtiva,data,adversario:adv,competicao:comp,jornada:jorn,local,golos:null,resultado:''},{Prefer:'return=representation'});
+    ins=await sbReq('POST','jogos',linha,{Prefer:'return=representation'});
   }catch(e){toast('Erro ao criar jogo: '+e.message,1);return;}
   const novo=ins&&ins[0];if(!novo)return;
-  db.jogos.push({id:novo.id,data,adversario:adv,golos:null,resultado:'',competicao:comp,jornada:jorn,local});
+  db.jogos.push({id:novo.id,data,adversario:linha.adversario,golos:null,resultado:'',competicao:comp,
+    jornada:jorn,local:linha.local,porDefinir:tipo==='pd',dataAte:linha.data_ate||null,
+    potencial:tipo==='pot',condicao:linha.condicao||'',hora:linha.hora||null,estadio:linha.estadio||null});
   db.pagosPorJogo[String(novo.id)]=[];
   limparFormAdd();
-  toast(`Jogo vs ${adv} agendado ✓`);
+  rDash();renderJogosList();
+  toast(tipo==='normal'?`Jogo vs ${adv} agendado ✓`
+    :tipo==='pd'?`${comp} · ${jorn} (por sortear) criado ✓`:`${comp} · ${jorn} (potencial) criado ✓`);
 }
 
 /* ── MODAL EDITAR JOGO ── */

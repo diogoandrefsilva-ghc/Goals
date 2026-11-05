@@ -172,7 +172,7 @@ UM pedido com a lista de `jogo_ids`; fica `pendente` e **não mexe em
   pedidos pendentes não têm de aparecer lá — só estes dois blocos.
 
 ## `goals.jogos` é o calendário das DUAS apps (`db/jogos-leitura-partilhada.sql`)
-**Este repo é o dono do calendário.** A pergunta à IA acontece só aqui: o
+**Este repo é o dono do calendário.** A leitura (FotMob + IA) acontece só aqui: o
 SplitBill deixou de ter sincronização própria (não chama a Edge Function, não
 tem botão) e passou a **ler `goals.jogos`**. Ele mostra "Próximos Jogos em
 Alvalade" — os mesmos jogos que já estão aqui, com hora, competição, jornada e
@@ -200,10 +200,71 @@ Um calendário, um dono — **sincronizar aqui é o que põe os dois lados em di
   `por_definir=is.false`). Do lado dele isto é tolerante — sem acesso ou sem
   colunas, o cartão degrada para o nome e a data do evento.
 
-## Calendário do Sporting sugerido por IA (Config › Calendário do Sporting)
-Botão só do admin que vai buscar o calendário oficial da época activa e **sugere**
-(1) jogos que faltam e (2) datas que mudaram. **Nada é gravado sem confirmação
-linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
+## Calendário do Sporting (Config › Calendário do Sporting)
+Dois botões só do admin, cada um com a sua fonte, que comparam a época activa
+com o calendário oficial e **sugerem** o que falta ou mudou. **Nada é gravado
+sem confirmação linha a linha** — as datas mexem em dinheiro, o FotMob tem
+datas provisórias e a IA engana-se.
+- **🔄 Jogos confirmados** (`modo: "confirmados"`) — os jogos já marcados vêm
+  do **calendário ICS do FotMob** (ver a subsecção abaixo). Grátis, ~1 s, sem
+  IA, sem limite diário, síncrono. Sugere jogos em falta, datas/hora/estádio
+  diferentes e jogos "por definir"/"potenciais" que já têm adversário.
+- **🔮 Jogos potenciais** (`modo: "potenciais"`) — as rondas que o FotMob não
+  pode ter, porque ainda não têm adversário (`porDefinir`, `potenciais`): essas
+  continuam com o **Gemini + pesquisa Google**, em 2 chamadas, em segundo
+  plano, no máximo 3 por dia. A resposta traz também os jogos do FotMob, só
+  para a app saber que rondas já passaram a jogo a sério.
+- **Cada botão só mostra as suas secções** (fim do `calPreparar`). Os
+  confirmados não leem rondas nenhumas — sem esse corte, todos os potenciais
+  apareciam "a remover". Os potenciais escondem o que os jogos do FotMob
+  sugerem, mas dizem quantas há ("vê-as em Jogos confirmados", `_calOcultos`).
+- **Sem `modo`** no pedido: o SplitBill (`app: "splitbill"`) fica com os
+  confirmados; o Goals antigo, de antes dos dois botões, fica com os
+  potenciais, que trazem tudo o que ele sabe tratar. **Ordem de deploy: a Edge
+  Function primeiro, a app depois** — uma app nova com a função antiga manda
+  o botão "confirmados" para a procura completa ao Gemini (paga).
+- Também se criam **à mão** os três tipos, em Config › Novo jogo — ver a
+  subsecção mais abaixo. É o caminho grátis para os potenciais.
+
+### Os jogos confirmados vêm do FotMob (`jogosDoFotmob`/`jogosDoIcs`)
+`https://pub.fotmob.com/prod/pub/api/v2/calendar/team/9768.ics` — o calendário
+que o FotMob dá a quem quer os jogos do Sporting no telemóvel ("Sincronizar
+calendário" → Ics). iCalendar normal: a época corrente inteira, cada jogo com
+início em UTC, estádio, competição (na DESCRIPTION) e "Casa - Fora (resultado)"
+no SUMMARY. A 05/11/2026 bateu jogo a jogo, na data e na hora, com o que já
+estava em `goals.jogos`.
+- **Porquê não o sporting.pt:** o HTML só traz o jogo "Em destaque" (atributos
+  `data-ics-*`); a lista de 30 do carrossel vem de uma função interna do site
+  (TanStack, `/_serverFn/<hash>`) que recusa pedidos de fora e muda de endereço
+  a cada deploy deles. Não se contorna. Serper/Tavily também não resolviam:
+  devolvem texto que ainda precisava da IA para virar lista de jogos.
+- **Hora por marcar:** a Liga marca as horas 2-3 semanas antes. Até lá o
+  FotMob põe **17:00 de Lisboa** e o estádio só com o nome (sem a morada, e sem
+  acentos). Esse caso vai com `hora: null`, `confirmado: false` (a data também
+  é a provisória — o domingo da jornada) e o estádio a `null`, excepto
+  Alvalade. Com morada, o estádio vem como o FotMob o escreve; a app compara-o
+  sem acentos nem maiúsculas, para "Estádio Do Dragão" não ser uma mudança.
+- **Jornada:** não vem no feed. Conta-se na Liga (J1…J34) e na fase de liga da
+  Champions (J1…J8, entre 1/set e 31/jan), **só quando o total bate** com o da
+  prova — senão vai vazia. Nas Taças vai sempre vazia, por isso um jogo de Taça
+  do FotMob emparelha com um potencial/por definir pela **janela de datas**
+  (`_calEmparelharPendentes`, 2.ª passagem), e a jornada gravada mantém-se.
+- **Local:** `Sporting CP - X` → Casa, `X - Sporting CP` → Fora; Neutro quando o
+  Sporting é "visitado" fora de Alvalade, ou numa Taça num estádio da lista
+  `NEUTRO` (Jamor, Leiria, Algarve, Aveiro).
+- **Competição:** mapeada em `COMP_FOTMOB` (Liga Portugal, Champions League →
+  Liga dos Campeões, Taca de Portugal, League Cup → Taça da Liga, Super Cup →
+  Supertaça). Amigáveis ("Club Friendlies") ficam de fora; o que não estiver no
+  mapa vai como "Outro", com o nome original em `competicaoFonte` (a app
+  mostra-o no painel).
+- **Falha à vista:** HTTP ≠ 2xx, sem `BEGIN:VCALENDAR` ou sem VEVENT é **erro**
+  (`passo: "fotmob"` no `goals.sync_log`), nunca "não há diferenças". O FotMob
+  não é uma chamada à IA: vai só para o `sync_log`, **nunca para o `ia_uso`**.
+- O feed pede para ser lido no máximo de 6 em 6 horas (`REFRESH-INTERVAL`); um
+  toque do admin de vez em quando fica muito abaixo disso. Não automatizar
+  isto para um intervalo mais curto.
+
+### A parte do Gemini — só as rondas sem adversário
 - Quem procura é a Edge Function **`calendario-sporting`** (ficheiro
   `calendario-sporting.ts`, na raiz deste repo; deploy à parte com
   `supabase functions deploy calendario-sporting`). É irmã da
@@ -213,22 +274,14 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   datas futuras de memória) e, por causa disso, a API recusa
   `response_mime_type: json`, pelo que o JSON vem em texto e é extraído na
   função (`extrairJson`).
-- **A mesma função serve o SplitBill** (que só quer os jogos em Alvalade). Ela
-  devolve SEMPRE a época inteira, sem filtrar por local nem competição — quem
-  filtra é cada app. Se mexeres no contrato, mexe nos dois lados.
-- **A procura corre em SEGUNDO PLANO** (`db/calendario-analises.sql` →
-  `goals.calendario_analises`). A pesquisa Google neste prompt passou a demorar
-  mais do que um pedido HTTP aguenta (o browser/iOS corta perto dos 60s), e
-  enquanto foi síncrono dava sempre "demorou demasiado" por mais tempo que se
-  lhe desse — o tecto não era nosso. O Goals manda `assincrono: true`; a função
-  cria uma linha 'pendente', responde já com o `id` e continua com
-  `EdgeRuntime.waitUntil` (140s de orçamento — **o plano gratuito do Supabase
-  corta aos 150s**, não há como dar mais); a app faz polling (`calEsperar`,
-  175s). É o mesmo padrão da `sugerir-vinho` do WineSelection.
-  **Sem `assincrono` mantém-se o contrato antigo** (resposta completa de uma
-  vez) — é isso que deixa o SplitBill a funcionar sem lhe tocar, mas ele fica
-  com o mesmo tecto de 55s, por isso mais dia menos dia precisa do mesmo
-  tratamento.
+- **Corre em SEGUNDO PLANO** (`db/calendario-analises.sql` →
+  `goals.calendario_analises`): a pesquisa Google chegou a demorar mais do que
+  um pedido HTTP aguenta (o browser/iOS corta perto dos 60s). O Goals manda
+  `assincrono: true` nos potenciais; a função cria uma linha 'pendente',
+  responde já com o `id` e continua com `EdgeRuntime.waitUntil` (140s de
+  orçamento — **o plano gratuito do Supabase corta aos 150s**); a app faz
+  polling (`calEsperar`, 175s). É o mesmo padrão da `sugerir-vinho` do
+  WineSelection. Os confirmados não precisam disto.
 - **UM modelo só, o barato: `gemini-flash-lite-latest`** (`MODELO`, 03/11/2026
   — o mesmo do modo barato da `vinho-info` da Garrafeira). Entre 02/11 e 03/11
   o calendário gastou **~11 €** e esgotou o crédito pré-pago do Gemini: o
@@ -251,26 +304,24 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
     procura. A resposta leva `procuras: {feitas, max}` e a app mostra-o;
   - os erros já não convidam a "tentar outra vez daqui a pouco" — foi esse
     convite que levou às tentativas seguidas de 03/11.
-  - **Uma procura custa ~0,07-0,09 €** (11-13 chamadas a ~0,7 cêntimos, o que o
-    painel AI-API-Control mediu numa chamada do lite com pesquisa). Um toque
-    com o flash chegava a ~2 €.
+  - **Uma procura de potenciais custa ~1,5 cêntimos** (2 chamadas a ~0,7
+    cêntimos, o que o painel AI-API-Control mediu numa chamada do lite com
+    pesquisa). Quando o Gemini também lia a Liga eram 11-13 chamadas (~0,09 €);
+    um toque com o flash chegava a ~2 €.
 - **A pesquisa fica, sempre.** Uma resposta sem `groundingMetadata` é recusada
   (`passo: "sem-pesquisa"`): sem pesquisa o modelo devolve datas "plausíveis"
   de memória (16/08 em vez de 14/08…), que a app ia sugerir como "datas que
   mudaram".
-- **A pergunta vai partida em BLOCOS, em paralelo** (`blocosDaEpoca`): a
-  Liga em janelas de **~4 semanas** (no máximo 10, só entre 20/jul e 31/mai),
-  com o pedido a dizer quantas jornadas cabem lá, as Taças num bloco, a Europa
-  em dois (jogos / potenciais) — 11-13 chamadas por clique. E só se pergunta
-  **a partir de há 2 semanas** (`RECUO_DIAS`): o que já se jogou não muda de
-  data e os resultados nunca são importados (época que ainda não começou ou já
-  acabou: toda). As janelas são pequenas por causa do lite: no diagnóstico de
-  03/11 (linhas `app='diag'` no `goals.sync_log`), com J1-J17 numa pergunta só
-  ele devolveu 5 jogos, contra 17 do flash. **Se continuar a vir curto,
-  encurtam-se as janelas — não se volta ao flash.** Um bloco que falhe não
-  deita os outros abaixo: a app só sugere jogos novos e datas diferentes (nunca
-  apaga por não vir na resposta), por isso parcial é seguro — a resposta leva
-  `blocosEmFalta` e a app avisa "Leitura parcial".
+- **Dois blocos, em paralelo** (`blocosRondas`): "Taças (rondas)" e "Europa
+  (rondas)", cada um a pedir só `porDefinir` + `potenciais` (com `jogos` vazio)
+  e a levar a lista dos jogos dessas provas que o FotMob já tem — para o modelo
+  saber em que ronda o Sporting está e não devolver como potencial uma ronda que
+  já é jogo marcado. O que o modelo ainda mande em `jogos` é ignorado. Um bloco
+  que falhe não deita o outro abaixo (`blocosEmFalta`, "Leitura parcial"). **Se
+  as rondas vierem curtas, parte-se mais (ex.: Europa em porDefinir /
+  potenciais) — não se volta ao flash.** Se o FotMob falhar nesta procura, a
+  resposta diz `jogosEmFalta` e a app **não sugere apagar potenciais** (sem os
+  jogos não distingue "eliminado" de "já marcado").
 - **O registo de cada chamada** (o contrato do `db/README.md` da
   AI-API-Control): **uma linha no `sync_log` e no `ia_uso` por chamada ao
   Gemini**, sempre — ok, erro, vazia, sem pesquisa, ilegível e **cortada**
@@ -293,7 +344,7 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
 - Só o admin pode chamar: a função compara o email do JWT com `ADMIN_EMAIL`
   (secret opcional, por omissão o mesmo email das duas apps). É verificação do
   servidor, não da UI.
-- No `app.js`, secção `SINCRONIZAR CALENDÁRIO`. O que interessa lá é o
+- No `app.js`, secção `SINCRONIZAR CALENDÁRIO` (`calSincronizar(modo)`). O que interessa lá é o
   emparelhamento sugestão ↔ jogo já gravado (`_calPontuar`): mesma data conta
   quase tudo; fora disso exige o mesmo adversário (`_calSim`, tolerante a
   "FC Porto"/"Porto") **e** o mesmo local, com janela apertada quando a
@@ -301,6 +352,9 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   está com outra grafia ou com a data velha.
 - Por omissão vêm marcados só os jogos futuros e as datas de jogos ainda sem
   resultado; os passados/jogados aparecem na mesma, desmarcados e etiquetados.
+  Uma data **provisória** do FotMob (`confirmado: false`) também vem
+  desmarcada: se cá estiver a data certa escrita à mão, não se desfaz por
+  omissão.
 - Resultados **não** são importados — de propósito. O botão faz quatro coisas:
   criar jogos, preencher adversários sorteados, corrigir datas e completar
   hora/estádio (`jogos.hora`/`jogos.estadio`, migração `db/jogo-hora-estadio.sql`,
@@ -312,6 +366,22 @@ linha a linha** — as datas mexem em dinheiro e a leitura é por IA.
   certa mas sem hora, por exemplo, aparece lá só com a hora a preencher. Estes
   dois campos também são editáveis à mão no modal de editar jogo, e aparecem
   no detalhe do jogo (lista e popup do calendário).
+
+### Novo jogo à mão: marcado, por sortear ou potencial (Config › Novo jogo)
+Os mesmos três tipos que o calendário cria, para não ser preciso gastar uma
+procura ao Gemini só para pôr uma ronda (`selTipoAdd`/`addJogoCal`):
+- **⚽ Marcado** — adversário + data (+ hora/estádio, opcionais).
+- **🎲 Por sortear** (`por_definir`) — sem adversário, com data/"até" (janela) e
+  **jornada obrigatória**. Conta para a Previsão; "Jogos confirmados" preenche-o
+  quando o sorteio sair.
+- **🔮 Potencial** (`potencial` + `condicao`) — sem adversário, jornada e
+  condição obrigatórias. Atalhos em "Ronda" (`_CAL_MODELOS`) preenchem
+  competição, jornada e condição com os nomes que a procura por IA usa; as
+  rondas que já existem na época aparecem com "— já existe".
+- Criar uma ronda (competição + jornada) que já existe pede confirmação.
+- A chave da ronda (`_calNormJorn`) põe "Oitavos-de-final · 1.ª m" (a IA corta
+  aos 24 caracteres), "Oitavos · 1.ª mão" e "Oitavos (ida)" na mesma forma — é
+  isso que impede a IA de voltar a sugerir um potencial criado à mão.
 
 ### Jogos certos mas ainda sem adversário (`jogos.por_definir`)
 Há jogos que o Sporting joga de certeza muito antes de se saber contra quem: as
