@@ -1,17 +1,33 @@
 // supabase/functions/calendario-sporting/index.ts
-// Calendário oficial do Sporting CP (futebol masculino, equipa principal) lido
-// com o Gemini + pesquisa Google, para as DUAS apps que dependem do mesmo
-// calendário:
+// Calendário oficial do Sporting CP (futebol masculino, equipa principal), para
+// as DUAS apps que dependem do mesmo calendário:
 //   · Goals     — todos os jogos oficiais (casa, fora, campo neutro)
 //   · SplitBill — só os que se jogam em Alvalade (filtro do lado da app)
 //
+// ── DUAS FONTES, DOIS MODOS (05/11/2026) ──
+//   · `modo: "confirmados"` — os jogos JÁ MARCADOS (adversário conhecido) vêm
+//     do calendário ICS que o FotMob publica para o Sporting (o mesmo que o
+//     "Sincronizar calendário" do site deles dá a quem o quer no telemóvel).
+//     Um GET, sem IA, sem custo, resposta em ~1 s — ver `jogosDoFotmob`.
+//     Antes isto eram 11-13 chamadas ao Gemini com pesquisa por toque, com
+//     leituras parciais e datas "plausíveis" de memória quando a pesquisa
+//     falhava; o FotMob bateu certo jogo a jogo com o que já estava gravado.
+//   · `modo: "potenciais"` — as rondas que o FotMob não pode ter, porque ainda
+//     não têm adversário: `porDefinir` e `potenciais` (abaixo). Essas ficam
+//     com o Gemini + pesquisa Google, em 2 chamadas (Taças / Europa). Os jogos
+//     do FotMob vão na mesma resposta (é grátis), para a app saber que rondas
+//     já passaram a jogo a sério.
+//   · sem `modo`: o SplitBill fica com "confirmados" (só quer jogos); o Goals
+//     antigo, de antes dos dois botões, fica com "potenciais" — que traz tudo
+//     o que ele sabe tratar.
+//
 // A função devolve SEMPRE a época inteira, sem filtrar por local nem por
-// competição: quem filtra é cada app, conforme o que lhe interessa. Assim há um
-// só prompt e uma só resposta para manter, e o SplitBill nunca fica com uma
-// visão diferente da do Goals.
+// competição: quem filtra é cada app, conforme o que lhe interessa. Assim há
+// uma só resposta para manter, e o SplitBill nunca fica com uma visão
+// diferente da do Goals.
 //
 // A resposta tem TRÊS arrays:
-//   · `jogos`      — jogos com adversário conhecido (o que sempre houve)
+//   · `jogos`      — jogos com adversário conhecido (do FotMob)
 //   · `porDefinir` — rondas que o Sporting VAI jogar de certeza mas cujo
 //                    adversário ainda não está sorteado (fase de liga da
 //                    Champions antes do sorteio, a eliminatória da Taça em que
@@ -28,8 +44,8 @@
 //                    usa isto, para mostrar esses jogos marcados como
 //                    "potenciais" na listagem sem contarem para a época.
 //
-// É irmã da `fatura-restaurante` do SplitBill (mesmo projeto Supabase), mas
-// com duas diferenças importantes:
+// A parte do Gemini é irmã da `fatura-restaurante` do SplitBill (mesmo
+// projeto Supabase), mas com duas diferenças importantes:
 //   1) usa GROUNDING com pesquisa Google (`tools:[{google_search:{}}]`) — sem
 //      isso o modelo responde com o calendário que "lembra" do treino, que para
 //      datas futuras é adivinhação pura;
@@ -37,8 +53,9 @@
 //      por isso o JSON vem dentro de texto e é extraído aqui (ver extrairJson).
 //
 // O resultado é SEMPRE uma SUGESTÃO: nenhuma das apps grava seja o que for sem
-// o admin confirmar jogo a jogo. É de propósito — um calendário lido por IA
-// acerta na maioria mas engana-se, e as datas aqui mexem em dinheiro.
+// o admin confirmar jogo a jogo. É de propósito — mesmo o FotMob tem datas
+// provisórias (ver `jogosDoFotmob`), a IA engana-se, e as datas aqui mexem em
+// dinheiro.
 //
 // Só o admin pode chamar (o email é o mesmo nas duas apps).
 //
@@ -192,6 +209,227 @@ function janelaEpoca(epoca: string): { ini: string; fim: string } | null {
   const a = parseInt(m[1], 10);
   if (!isFinite(a) || a < 1990 || a > 2100) return null;
   return { ini: `${a}-07-01`, fim: `${a + 1}-06-30` };
+}
+
+/* ══ OS JOGOS CONFIRMADOS — o calendário ICS do FotMob ══════════════════════
+   O FotMob publica um calendário por equipa para subscrever no telemóvel
+   (www.fotmob.com/teams/9768/synccalendar → "Ics"). É um ficheiro iCalendar
+   normal, com a época corrente inteira — amigáveis, Liga, Taças, Europa —,
+   cada jogo com início em UTC, estádio, competição e "Casa - Fora". Testado a
+   05/11/2026 contra o `goals.jogos` de 2026/27: todos os jogos confirmados
+   batiam na data e na hora.
+   Porquê este e não o site do Sporting: o sporting.pt só põe no HTML o
+   próximo jogo; a lista vem de uma função interna do site deles, que recusa
+   pedidos de fora e muda de endereço a cada deploy. Este feed existe para ser
+   lido por programas (calendários) — o próprio ficheiro pede para ser lido no
+   máximo de 6 em 6 horas, e um toque do admin de vez em quando fica muito
+   abaixo disso.
+
+   O que o feed NÃO tem, e como se trata:
+     · HORA POR MARCAR: a Liga marca as horas 2-3 semanas antes (TV). Até lá o
+       FotMob põe 17:00 (hora de Lisboa) e o estádio só com o nome, sem a
+       morada. Um jogo assim vai com `hora: null` e `confirmado: false` — a
+       data também é a provisória (o domingo da jornada);
+     · JORNADA: não vem. Conta-se (`numerar`) na Liga (J1…J34) e na fase de
+       liga da Champions (J1…J8), e só quando o número de jogos bate certo com
+       o da prova — senão vai vazia, que é melhor do que errada;
+     · RONDAS SEM ADVERSÁRIO (`porDefinir`/`potenciais`): não existem lá até o
+       sorteio sair — isso continua com o Gemini (modo "potenciais");
+     · NOMES: vêm à maneira do FotMob ("FC Porto", "Casa Pia AC"). A app já
+       emparelha nomes diferentes (`_calSim`), e nos jogos novos a grafia do
+       FotMob serve.
+   FALHA À VISTA: um feed que mude de formato tem de dar erro ("0 jogos
+   lidos"), nunca "não há diferenças" — é por isso que um calendário vazio ou
+   sem VEVENT é erro e não uma lista vazia. */
+const FOTMOB_EQUIPA = 9768;   // Sporting CP no FotMob
+const FOTMOB_ICS = `https://pub.fotmob.com/prod/pub/api/v2/calendar/team/${FOTMOB_EQUIPA}.ics`;
+const FOTMOB_PAGINA = `https://www.fotmob.com/teams/${FOTMOB_EQUIPA}/fixtures/sporting-cp`;
+const FOTMOB_TIMEOUT_MS = 15_000;
+const JORNADAS_LIGA = 34;       // 18 clubes
+const JORNADAS_CHAMPIONS = 8;   // fase de liga
+// Nome da competição no FotMob → o da app. Amigáveis ficam de fora; o que não
+// estiver aqui vai como "Outro", com o nome original em `competicaoFonte`.
+const COMP_FOTMOB: [RegExp, string][] = [
+  [/^liga portugal|primeira liga/i, "Liga Portugal"],
+  [/champions league/i, "Liga dos Campeões"],
+  [/ta[cç]a de portugal/i, "Taça de Portugal"],
+  [/league cup|ta[cç]a da liga/i, "Taça da Liga"],
+  [/super ?cup|superta[cç]a/i, "Supertaça"],
+];
+const AMIGAVEL = /friendl|amig[aá]v/i;
+// Estádios onde o Sporting joga em campo neutro (finais, Final Four).
+const NEUTRO = /est[aá]dio nacional|jamor|algarve|magalh[aã]es pessoa|leiria|municipal de aveiro/i;
+const EH_SPORTING = /^sporting( cp| clube de portugal)?$/i;
+
+type PropIcs = { params: string; valor: string };
+// Texto iCalendar → um objecto por VEVENT (propriedade → valor ainda escapado).
+// Os VALARM (o aviso "começa daqui a 15 minutos") têm SUMMARY/DESCRIPTION
+// próprios e são tirados antes, para não se sobreporem aos do jogo.
+function lerIcs(txt: string): Record<string, PropIcs>[] {
+  const desdobrado = String(txt).replace(/\r\n?/g, "\n").replace(/\n[ \t]/g, "");
+  const out: Record<string, PropIcs>[] = [];
+  const re = /BEGIN:VEVENT\n([\s\S]*?)\nEND:VEVENT/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(desdobrado))) {
+    const corpo = m[1].replace(/BEGIN:VALARM[\s\S]*?END:VALARM\n?/g, "");
+    const ev: Record<string, PropIcs> = {};
+    for (const linha of corpo.split("\n")) {
+      const p = /^([A-Za-z-]+)((?:;[^:]*)?):(.*)$/.exec(linha);
+      if (!p) continue;
+      const k = p[1].toUpperCase();
+      if (!(k in ev)) ev[k] = { params: p[2], valor: p[3] };
+    }
+    out.push(ev);
+  }
+  return out;
+}
+const desescapar = (s: string) =>
+  s.replace(/\\([\\,;nN])/g, (_m, c: string) => (c === "n" || c === "N" ? "\n" : c));
+const semAcentos = (s: string) =>
+  String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+// "20261107T203000Z" (UTC) → data e hora de Lisboa. Sem "Z" assume-se que já
+// é hora local; só com a data (VALUE=DATE) fica sem hora.
+function quandoIcs(v: string): { data: string; hora: string | null } | null {
+  let m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(v.trim());
+  if (m) {
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+    const p: Record<string, string> = {};
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(d).forEach((x) => { p[x.type] = x.value; });
+    return { data: `${p.year}-${p.month}-${p.day}`, hora: `${p.hour}:${p.minute}` };
+  }
+  m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(v.trim());
+  if (m) return { data: `${m[1]}-${m[2]}-${m[3]}`, hora: `${m[4]}:${m[5]}` };
+  m = /^(\d{4})(\d{2})(\d{2})$/.exec(v.trim());
+  if (m) return { data: `${m[1]}-${m[2]}-${m[3]}`, hora: null };
+  return null;
+}
+// "⚽️ Sporting CP - 🇲🇨 Monaco  (2-0)" → "Monaco": sem emojis/bandeiras.
+const limparEquipa = (s: string) =>
+  s.replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0F\u200D]/gu, "")
+    .replace(/\s+/g, " ").trim();
+
+/* VEVENTs → jogos no formato que as apps já consomem (o mesmo que o Gemini
+   devolvia): {data, hora, adversario, local, competicao, jornada, estadio,
+   confirmado}. Pura (sem rede), para se poder testar com um ficheiro. */
+function jogosDoIcs(txt: string, epoca: string): {
+  jogos: Record<string, unknown>[]; eventos: number; amigaveis: number; ignorados: number;
+} {
+  const j = janelaEpoca(epoca);
+  const eventos = lerIcs(txt);
+  const vistos = new Set<string>();
+  const jogos: Record<string, unknown>[] = [];
+  let amigaveis = 0, ignorados = 0;
+  for (const ev of eventos) {
+    const quando = ev.DTSTART ? quandoIcs(ev.DTSTART.valor) : null;
+    if (!quando) { ignorados++; continue; }
+    if (j && (quando.data < j.ini || quando.data > j.fim)) continue;   // outra época
+    // A competição é a última linha da DESCRIPTION que não é o link do jogo.
+    const linhas = desescapar(ev.DESCRIPTION?.valor ?? "").split("\n").map((s) => s.trim())
+      .filter((s) => s && !/^https?:\/\//i.test(s));
+    const compFonte = linhas[linhas.length - 1] ?? "";
+    if (AMIGAVEL.test(compFonte)) { amigaveis++; continue; }
+    const competicao = COMP_FOTMOB.find(([re]) => re.test(compFonte))?.[1] ?? "Outro";
+    // "Casa - Fora (resultado)": tira-se o resultado e parte-se no " - ".
+    const resumo = desescapar(ev.SUMMARY?.valor ?? "").replace(/\s*\([^)]*\d[^)]*\)\s*$/, "");
+    const lados = resumo.split(/\s+[-–]\s+/).map(limparEquipa);
+    if (lados.length !== 2) { ignorados++; continue; }
+    const emCasa = EH_SPORTING.test(lados[0]), fora = EH_SPORTING.test(lados[1]);
+    if (emCasa === fora) { ignorados++; continue; }   // nenhum (ou os dois) é o Sporting
+    const adversario = (emCasa ? lados[1] : lados[0]).slice(0, 60);
+    if (!adversario) { ignorados++; continue; }
+    // LOCATION "Nome\, Rua\, Cidade\, PAÍS" quando o FotMob já tem o jogo
+    // fechado; só "Nome" (e sem acentos) quando ainda é provisório.
+    const partes = (ev.LOCATION?.valor ?? "").split(/\\,/).map((s) => desescapar(s).trim()).filter(Boolean);
+    const temMorada = partes.length > 1;
+    const nomeEstadio = partes[0] ?? "";
+    const ehAlvalade = /alvalade/.test(semAcentos(nomeEstadio));
+    // Neutro: uma final/Final Four (mesmo com o Sporting listado como
+    // visitante), ou um "jogo em casa" que não é em Alvalade. O NEUTRO só vale
+    // nas Taças — na Liga um desses estádios pode ser a casa do adversário.
+    const taca = competicao === "Taça de Portugal" || competicao === "Taça da Liga" || competicao === "Supertaça";
+    const local = (taca && NEUTRO.test(semAcentos(nomeEstadio))) ? "Neutro"
+      : fora ? "Fora"
+      : (nomeEstadio && !ehAlvalade) ? "Neutro" : "Casa";
+    // 17:00 sem morada = hora por marcar (ver o comentário de cima).
+    const provisoria = !temMorada && quando.hora === "17:00";
+    const estadio = temMorada ? nomeEstadio.slice(0, 80) : (ehAlvalade ? "Estádio José Alvalade" : null);
+    const uid = ev.UID?.valor || `${quando.data}|${adversario}`;
+    if (vistos.has(uid)) continue;
+    vistos.add(uid);
+    jogos.push({
+      data: quando.data, hora: provisoria ? null : quando.hora, adversario, local,
+      competicao, jornada: "", estadio, confirmado: !provisoria,
+      ...(competicao === "Outro" && compFonte ? { competicaoFonte: compFonte.slice(0, 60) } : {}),
+    });
+  }
+  jogos.sort((a, b) => `${a.data} ${a.hora ?? ""}`.localeCompare(`${b.data} ${b.hora ?? ""}`));
+  // Jornada por contagem — só quando o total bate com o da prova. Um jogo
+  // adiado para depois de outros troca a ordem; como a jornada só se escreve
+  // em jogos NOVOS (e a época inteira entra logo no início, antes de haver
+  // adiamentos), o risco fica pequeno.
+  const numerar = (filtro: (g: Record<string, unknown>) => boolean, total: number) => {
+    const sel = jogos.filter(filtro);
+    if (sel.length === total) sel.forEach((g, i) => { g.jornada = `J${i + 1}`; });
+  };
+  numerar((g) => g.competicao === "Liga Portugal", JORNADAS_LIGA);
+  if (j) {
+    const ano = parseInt(j.ini.slice(0, 4), 10);
+    numerar((g) => g.competicao === "Liga dos Campeões" &&
+      String(g.data) >= `${ano}-09-01` && String(g.data) <= `${ano + 1}-01-31`, JORNADAS_CHAMPIONS);
+  }
+  return { jogos, eventos: eventos.length, amigaveis, ignorados };
+}
+
+type ResFotmob =
+  | { ok: true; jogos: Record<string, unknown>[] }
+  | { ok: false; status: number; erro: string };
+// O GET ao FotMob, com relógio próprio, e uma linha no `goals.sync_log` (só
+// lá: não é uma chamada à IA, não vai para o `ia_uso`).
+async function jogosDoFotmob(
+  epoca: string, signal: AbortSignal, quem: string | null, qualApp: string,
+): Promise<ResFotmob> {
+  const t0 = Date.now();
+  const { signal: sinal, limpar } = comLimiteProprio(signal, FOTMOB_TIMEOUT_MS);
+  let status = 0, txt = "";
+  try {
+    const r = await fetch(FOTMOB_ICS, {
+      headers: { Accept: "text/calendar", "User-Agent": "Goals-calendario/1.0" },
+      signal: sinal,
+    });
+    status = r.status;
+    txt = await r.text();
+  } catch (e) {
+    limpar();
+    const erro = `o FotMob não respondeu (${String((e as Error)?.message ?? e).slice(0, 120)})`;
+    await registar("erro", { passo: "fotmob", fonte: FOTMOB_ICS, erro, ms: Date.now() - t0, epoca }, quem, qualApp, false);
+    return { ok: false, status: 504, erro };
+  }
+  limpar();
+  const falha = async (erro: string, st = 502): Promise<ResFotmob> => {
+    await registar("erro", {
+      passo: "fotmob", fonte: FOTMOB_ICS, status, erro, amostra: txt.slice(0, 300), ms: Date.now() - t0, epoca,
+    }, quem, qualApp, false);
+    return { ok: false, status: st, erro };
+  };
+  if (status < 200 || status >= 300) return falha(`o FotMob respondeu HTTP ${status} ao pedir o calendário`);
+  if (!/BEGIN:VCALENDAR/.test(txt)) return falha("o FotMob não devolveu um calendário (o formato pode ter mudado)");
+  const r = jogosDoIcs(txt, epoca);
+  if (!r.eventos) return falha("o calendário do FotMob veio sem jogos nenhuns (o formato pode ter mudado)");
+  await registar(r.jogos.length ? "ok" : "erro", {
+    passo: "fotmob", fonte: FOTMOB_ICS, status, epoca, ms: Date.now() - t0,
+    eventos: r.eventos, jogos: r.jogos.length, amigaveis: r.amigaveis, ignorados: r.ignorados,
+  }, quem, qualApp, false);
+  if (!r.jogos.length) {
+    return {
+      ok: false, status: 404,
+      erro: `o FotMob não tem jogos oficiais do Sporting para a época ${epoca} ` +
+        "(o calendário dele só cobre a época corrente)",
+    };
+  }
+  return { ok: true, jogos: r.jogos };
 }
 
 const prompt = (epoca: string, hoje: string, conhecidos: string[]) => {
@@ -362,42 +600,11 @@ function extrairJson(txt: string): unknown | null {
   return null;
 }
 
-/* Limpeza do que o modelo devolveu. Tudo o que não passa aqui é deitado fora em
-   silêncio: uma linha meia lida vale menos que a confiança do admin na lista. */
-function normalizarJogos(raw: unknown, epoca: string): Record<string, unknown>[] {
-  if (!Array.isArray(raw)) return [];
-  const j = janelaEpoca(epoca);
-  const vistos = new Set<string>();
-  const out: Record<string, unknown>[] = [];
-  for (const item of raw as any[]) {
-    if (!item || typeof item !== "object") continue;
-    const data = String(item.data ?? "").trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) continue;
-    if (isNaN(new Date(`${data}T12:00:00Z`).getTime())) continue;
-    if (j && (data < j.ini || data > j.fim)) continue;   // fora da época pedida
-    const adversario = String(item.adversario ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
-    if (!adversario) continue;
-    if (/^sporting( cp| clube de portugal)?$/i.test(adversario)) continue;
-    const local = ["Casa", "Fora", "Neutro"].includes(item.local) ? item.local : "Casa";
-    const competicao = COMPETICOES.includes(item.competicao) ? item.competicao : "Outro";
-    const hora = /^\d{2}:\d{2}$/.test(String(item.hora ?? "")) ? String(item.hora) : null;
-    const jornada = item.jornada == null ? "" : String(item.jornada).replace(/\s+/g, " ").trim().slice(0, 24);
-    const estadio = item.estadio == null ? null : String(item.estadio).replace(/\s+/g, " ").trim().slice(0, 80) || null;
-    // Mesma data + mesmo adversário = mesmo jogo, mesmo que venha duas vezes
-    const chave = `${data}|${adversario.toLowerCase()}`;
-    if (vistos.has(chave)) continue;
-    vistos.add(chave);
-    out.push({
-      data, hora, adversario, local, competicao, jornada, estadio,
-      confirmado: item.confirmado !== false,
-    });
-  }
-  out.sort((a, b) => String(a.data).localeCompare(String(b.data)));
-  return out;
-}
-
-/* Mesma limpeza, para as rondas ainda sem adversário sorteado. Mais apertada
-   que a dos jogos de propósito: isto vai criar linhas na BD sem nome, e uma
+/* Limpeza do que o modelo devolveu, para as rondas ainda sem adversário
+   sorteado (os jogos já marcados vêm do FotMob, e o que o modelo ainda mande
+   em "jogos" é ignorado). Tudo o que não passa aqui é deitado fora em
+   silêncio: uma linha meia lida vale menos que a confiança do admin na lista.
+   Apertada de propósito: isto vai criar linhas na BD sem nome, e uma
    entrada duvidosa aqui é um jogo fantasma que alguém tem de ir apagar à mão.
      · `certeza` tem de vir "garantida" — o modelo é explicitamente instruído a
        não mandar rondas que dependam de resultados, e o que não afirmar isso
@@ -786,100 +993,48 @@ type ResCal =
   | { ok: false; status: number; erro: string };
 
 /* ── A pergunta, partida em BLOCOS que correm em paralelo ──
-   Medido a 03/11/2026 (função de diagnóstico, `goals.sync_log` app='diag'):
-   com o `gemini-flash-latest` de hoje, a época INTEIRA numa pergunta só não
-   devolvia um byte ao fim de 140s — e o plano gratuito do Supabase corta uma
-   execução em segundo plano aos 150s, por isso nenhum orçamento nosso a
-   salvava. A mesma pergunta só sobre um pedaço (umas 6-9 jornadas da Liga, ou
-   só as Taças, ou só a Europa) respondia em 35-80s, com as datas certas.
-   Daí:
-     · a Liga é partida em janelas de datas (~6 semanas cada, no máximo 5,
-       só entre 20/jul e 31/mai — fora disso não há Liga), as Taças vão num
-       bloco e a Europa em DOIS (jogos / potenciais: as eliminatórias a duas
-       mãos e o comunicado da UEFA sozinhos levavam a Europa aos 128s) — tudo
-       AO MESMO TEMPO, no máximo 8 chamadas;
-     · só se pergunta a partir de há 2 semanas (`RECUO_DIAS`): o que já se
-       jogou não muda de data e os resultados nunca foram importados. Quanto
-       mais a época avança, menos há para procurar. Época que ainda não
-       começou ou que já acabou: pergunta-se por ela toda;
-     · um bloco que falhe NÃO deita os outros abaixo — a app só sugere jogos
-       novos e datas diferentes (nunca apaga nada por não vir na resposta),
-       por isso uma resposta parcial é útil e segura. Os que faltaram vão em
-       `blocosEmFalta` e a app avisa.
-   Com o lite (03/11/2026) as janelas da Liga passaram de ~6 para ~4 semanas:
-   no diagnóstico desse dia, o lite com J1-J17 numa pergunta só devolveu 5
-   jogos (o flash, 17). Numa janela de 4 semanas cabem ~4 jornadas, e o pedido
-   diz quantas esperar. São mais chamadas (até 10 da Liga + 3 das provas), mas
-   cada uma do lite com pesquisa custa ~0,7 cêntimos — uma procura inteira
-   fica perto dos 10 cêntimos, contra os ~2 € de um toque com o flash. */
-const RECUO_DIAS = 14;
-const JANELA_LIGA_DIAS = 28;
-const MAX_BLOCOS_LIGA = 10;
+   Desde 05/11/2026 o Gemini só procura as RONDAS SEM ADVERSÁRIO — os jogos
+   marcados vêm do FotMob. Ficam dois blocos (Taças / Europa), em paralelo,
+   em vez das 11-13 chamadas de quando também lia a Liga jornada a jornada.
+   Histórico, para não se repetir: com o `gemini-flash-latest` a época inteira
+   numa pergunta só não respondia em 140s, e com o lite uma pergunta larga
+   vinha CURTA (J1-J17 deu 5 jogos). Se as rondas vierem curtas, parte-se
+   mais (ex.: Europa em porDefinir / potenciais) — não se volta ao flash.
+   Um bloco que falhe NÃO deita o outro abaixo: a app só sugere rondas novas
+   (nunca apaga por não vir na resposta sem o admin confirmar), por isso uma
+   resposta parcial é segura. Os que faltaram vão em `blocosEmFalta`.
+   `jaMarcados` são os jogos dessas provas que o FotMob já tem — vão no
+   pedido para o modelo saber em que ronda o Sporting está e não devolver
+   como "potencial" uma ronda que já é jogo marcado. */
 type Bloco = { id: string; ambito: string };
-const somaDias = (d: string, n: number) =>
-  new Date(Date.parse(`${d}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 
-function blocosDaEpoca(epoca: string, hoje: string): Bloco[] {
-  const j = janelaEpoca(epoca);
-  if (!j) return [{ id: "época inteira", ambito: "" }];
-  let desde = somaDias(hoje, -RECUO_DIAS);
-  if (desde < j.ini || desde > j.fim) desde = j.ini;   // ainda não começou, ou já acabou: toda
-  // A Liga só se joga entre o fim de julho e o fim de maio.
-  const ano = parseInt(j.ini.slice(0, 4), 10);
-  const ligaIni = desde > `${ano}-07-20` ? desde : `${ano}-07-20`;
-  const ligaFim = `${ano + 1}-05-31`;
-  const dias = Math.max(1, Math.round(
-    (Date.parse(`${ligaFim}T12:00:00Z`) - Date.parse(`${ligaIni}T12:00:00Z`)) / 86400000,
-  ) + 1);
-  const n = Math.min(MAX_BLOCOS_LIGA, Math.max(1, Math.ceil(dias / JANELA_LIGA_DIAS)));
-  const passo = Math.ceil(dias / n);
-  const out: Bloco[] = [];
-  for (let i = 0; i < n; i++) {
-    const a = somaDias(ligaIni, i * passo);
-    if (a > ligaFim) break;
-    const b0 = somaDias(ligaIni, (i + 1) * passo - 1);
-    const b = b0 > ligaFim ? ligaFim : b0;
-    const jornadas = Math.max(1, Math.round(
-      ((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000 + 1) / 7,
-    ));
-    out.push({
-      id: `Liga ${a} a ${b}`,
-      ambito: `ÂMBITO DESTE PEDIDO (sobrepõe-se ao INCLUI de cima): responde APENAS sobre
-os jogos da Liga Portugal com data entre ${a} e ${b} (inclusive) — e só isso.
-Nesta janela cabem cerca de ${jornadas} jornada(s) (a Liga joga-se quase todas
-as semanas): devolve TODOS os jogos do Sporting que encontrares nela, uma
-entrada por jornada, e não só alguns.
-Todas as outras competições e datas ficam de fora, e "porDefinir" e
-"potenciais" vão vazios ([]) — há outros pedidos a tratar disso.`,
-    });
-  }
-  const provas = (id: string, quais: string): Bloco => ({
-    id,
-    ambito: `ÂMBITO DESTE PEDIDO (sobrepõe-se ao INCLUI de cima): responde APENAS sobre
-${quais} — em "jogos" só os que têm data a partir de ${desde}; "porDefinir" e
-"potenciais" destas provas como descrito acima. Todas as outras competições
-ficam de fora — há outros pedidos a tratar delas.`,
-  });
-  const europa = "a Liga dos Campeões, a Liga Europa e a Liga Conferência (incluindo pré-eliminatórias e play-off)";
-  out.push(
-    provas("Taças", "a Taça de Portugal, a Taça da Liga e a Supertaça"),
+function blocosRondas(jaMarcados: Record<string, unknown>[]): Bloco[] {
+  const lista = (comps: string[]) => {
+    const sel = jaMarcados.filter((g) => comps.includes(String(g.competicao)));
+    if (!sel.length) return "";
+    return `\nJogos destas provas JÁ MARCADOS (vêm de outra fonte — não os repitas em lado
+nenhum; servem para saberes em que ronda o Sporting já está):
+${sel.map((g) => `  · ${g.data} ${g.adversario} (${g.competicao}${g.jornada ? " " + g.jornada : ""})`).join("\n")}`;
+  };
+  const ambito = (quais: string, comps: string[]) =>
+    `ÂMBITO DESTE PEDIDO (sobrepõe-se ao INCLUI de cima): responde APENAS com
+"porDefinir" e "potenciais" de ${quais}, como descrito acima. "jogos" vai
+SEMPRE vazio ([]) — os jogos já marcados vêm de outra fonte. Todas as outras
+competições ficam de fora — há outro pedido a tratar delas.${lista(comps)}`;
+  return [
     {
-      id: "Europa (jogos)",
-      ambito: `ÂMBITO DESTE PEDIDO (sobrepõe-se ao INCLUI de cima): responde APENAS sobre
-${europa} — em "jogos" só os que têm data a partir de ${desde}, e "porDefinir"
-destas provas como descrito acima. "potenciais" vai vazio ([]) e todas as
-outras competições ficam de fora — há outros pedidos a tratar disso.`,
+      id: "Taças (rondas)",
+      ambito: ambito("a Taça de Portugal, a Taça da Liga e a Supertaça",
+        ["Taça de Portugal", "Taça da Liga", "Supertaça"]),
     },
     {
-      id: "Europa (potenciais)",
-      ambito: `ÂMBITO DESTE PEDIDO (sobrepõe-se ao INCLUI de cima): responde APENAS com os
-"potenciais" da Liga dos Campeões, da Liga Europa e da Liga Conferência
-(incluindo o play-off), como descrito acima. "jogos" e "porDefinir" vão
-vazios ([]) e todas as outras competições ficam de fora — há outros pedidos
-a tratar disso.`,
+      id: "Europa (rondas)",
+      ambito: ambito(
+        "a Liga dos Campeões, a Liga Europa e a Liga Conferência (incluindo pré-eliminatórias e play-off)",
+        ["Liga dos Campeões", "Outro"],
+      ),
     },
-  );
-  return out;
+  ];
 }
 
 type ResBloco =
@@ -906,7 +1061,14 @@ async function produzirCalendario(
   const restante = () => budgetMs - (Date.now() - inicio) - 3_000;
   const hoje = new Date().toISOString().slice(0, 10);
   const base = prompt(epoca, hoje, conhecidos);
-  const blocos = blocosDaEpoca(epoca, hoje);
+  /* Os jogos marcados vêm do FotMob ANTES do Gemini (~1 s, grátis): vão na
+     resposta, para a app ver que rondas já passaram a jogo a sério, e vão no
+     pedido ao modelo (`blocosRondas`). Se o FotMob falhar, segue-se só com o
+     Gemini e a resposta diz `jogosEmFalta` — a app deixa então de sugerir
+     apagar potenciais (sem os jogos não distingue "eliminado" de "já marcado"). */
+  const fm = await jogosDoFotmob(epoca, signal, quem, qualApp);
+  const jogos = fm.ok ? fm.jogos : [];
+  const blocos = blocosRondas(jogos);
   const transitorio = (s: number) => s === 429 || s === 500 || s === 503;
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
   /* Um interruptor comum a TODOS os blocos: num 402 (crédito esgotado) um
@@ -1088,11 +1250,12 @@ async function produzirCalendario(
   }
 
   // Juntar os blocos e limpar TUDO junto (é aqui que se tiram os repetidos
-  // entre blocos — um jogo na fronteira de duas janelas, por exemplo).
-  const jogos = normalizarJogos(bons.flatMap((r) => r.jogos), epoca);
+  // entre blocos). O que o modelo ainda tenha mandado em "jogos" fica de fora:
+  // os jogos são os do FotMob.
   const porDefinir = normalizarPorDefinir(bons.flatMap((r) => r.porDefinir), epoca, jogos);
   const potenciais = normalizarPotenciais(bons.flatMap((r) => r.potenciais), epoca, jogos, porDefinir);
   const fontes: { titulo: string; url: string }[] = [];
+  if (fm.ok) fontes.push({ titulo: "FotMob (jogos marcados)", url: FOTMOB_PAGINA });
   bons.flatMap((r) => r.fontes).forEach((f) => {
     if (!fontes.some((x) => x.url === f.url)) fontes.push(f);
   });
@@ -1110,7 +1273,12 @@ async function produzirCalendario(
     ok: true,
     corpo: {
       epoca,
+      modo: "potenciais",
+      fonte: fm.ok ? "fotmob+gemini" : "gemini",
       jogos,
+      // Aditivo: o FotMob falhou nesta procura — `jogos` vem vazio e a app não
+      // pode concluir que uma ronda potencial desapareceu.
+      ...(fm.ok ? {} : { jogosEmFalta: true, erroJogos: fm.erro }),
       porDefinir,
       potenciais,
       pesquisa: true,
@@ -1161,6 +1329,25 @@ Deno.serve(async (req) => {
       return json({ error: 'época em falta ou inválida (esperado "2025/26")' }, 400);
     }
     const conhecidos = lerConhecidos(body?.conhecidos);
+    // O modo (ver o topo do ficheiro). Sem ele: SplitBill → só jogos; Goals de
+    // antes dos dois botões → "potenciais", que traz tudo o que ele trata.
+    const modo = body?.modo === "confirmados" || body?.modo === "potenciais"
+      ? body.modo
+      : (qualApp === "splitbill" ? "confirmados" : "potenciais");
+
+    /* ── MODO CONFIRMADOS: só o FotMob ──
+       Síncrono (~1 s), sem Gemini, sem teto diário (não gasta nada), sem
+       `calendario_analises`. O contrato da resposta é o de sempre — `jogos`
+       com a mesma forma, `porDefinir`/`potenciais` vazios. */
+    if (modo === "confirmados") {
+      const fm = await jogosDoFotmob(epoca, ctrl.signal, quem, qualApp);
+      if (!fm.ok) return json({ error: fm.erro }, fm.status);
+      return json({
+        epoca, modo, fonte: "fotmob", jogos: fm.jogos, porDefinir: [], potenciais: [],
+        fontes: [{ titulo: "FotMob — calendário do Sporting CP", url: FOTMOB_PAGINA }],
+        geradoEm: new Date().toISOString(),
+      });
+    }
 
     /* ── O teto por dia, ANTES de qualquer chamada ao Gemini ── */
     const recentes = await execucoesRecentes();

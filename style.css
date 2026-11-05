@@ -562,6 +562,15 @@ body.guest .guest-hide{display:none!important}
 .ua-row select,.ua-row input{font-size:12px;padding:5px 7px;border:1px solid var(--bo);border-radius:6px;font-family:'Inter',sans-serif}
 
 /* ── SUGESTÕES DO CALENDÁRIO (calSincronizar) ──── */
+/* Os dois botões (confirmados / potenciais), cada um com a sua legenda */
+.cal-sync-ops{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cal-sync-op{display:flex;flex-direction:column;gap:5px;min-width:0}
+.cal-sync-op .btn{width:100%;white-space:nowrap}
+.cal-sync-op span{font-size:11px;color:var(--mu);line-height:1.4}
+@media(max-width:500px){.cal-sync-ops{grid-template-columns:1fr}}
+/* Tipo de jogo no "Novo jogo" (marcado / por sortear / potencial) */
+.cal-tipo-btns{display:flex;gap:4px;flex-wrap:wrap}
+.cal-tipo-ajuda{font-size:11.5px;color:var(--mu);line-height:1.45;margin:7px 0 0}
 .calsug{margin-top:14px;padding-top:14px;border-top:1px solid var(--bo)}
 .calsug-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .calsug-head strong{font-size:13.5px;color:var(--tx)}

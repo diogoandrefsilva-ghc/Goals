@@ -255,12 +255,17 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
       <button class="btn btn-g" onclick="guardarCfg()">Guardar</button>
     </div>
     <div class="fcard ro-hide" id="cal-sync-card">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:180px">
-          <h3 style="margin:0 0 4px">Calendário do Sporting</h3>
-          <p style="font-size:12px;color:var(--mu);margin:0;line-height:1.45">Procura os jogos oficiais da época activa (todas as competições, casa/fora/neutro) e sugere os que faltam e as datas que mudaram. Só sugere — confirmas tu.</p>
+      <h3 style="margin:0 0 4px">Calendário do Sporting</h3>
+      <p style="font-size:12px;color:var(--mu);margin:0 0 12px;line-height:1.45">Compara a época activa com o calendário oficial (todas as competições, casa/fora/neutro) e sugere o que falta ou mudou. Só sugere — confirmas tu.</p>
+      <div class="cal-sync-ops">
+        <div class="cal-sync-op">
+          <button class="btn btn-n" id="cal-sync-btn" onclick="calSincronizar('confirmados')">🔄 Jogos confirmados</button>
+          <span>Jogos já marcados, datas, horas e sorteios que saíram. Do FotMob — grátis.</span>
         </div>
-        <button class="btn btn-n" id="cal-sync-btn" onclick="calSincronizar()" style="white-space:nowrap;flex-shrink:0">🔄 Procurar jogos</button>
+        <div class="cal-sync-op">
+          <button class="btn btn-n" id="cal-pot-btn" onclick="calSincronizar('potenciais')">🔮 Jogos potenciais</button>
+          <span>Rondas ainda sem adversário (por sortear, ou se o Sporting passar). Por IA — ~2 cêntimos, até 3 por dia. Também os podes criar à mão em "Novo jogo".</span>
+        </div>
       </div>
       <div id="cal-sync-box" class="calsug" style="display:none"></div>
     </div>
@@ -272,14 +277,27 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
           <div class="fadd-sub">Podes adicionar resultado e golos depois, clicando no jogo.</div>
         </div>
       </div>
+      <div class="fadd-section-label">Tipo de jogo</div>
+      <div style="padding:0 22px 4px">
+        <div id="cal-tipo-btns" class="cal-tipo-btns">
+          <button type="button" class="local-btn on" data-val="normal" onclick="selTipoAdd(this)">⚽ Marcado</button>
+          <button type="button" class="local-btn" data-val="pd" onclick="selTipoAdd(this)">🎲 Por sortear</button>
+          <button type="button" class="local-btn" data-val="pot" onclick="selTipoAdd(this)">🔮 Potencial</button>
+        </div>
+        <p class="cal-tipo-ajuda" id="cal-tipo-ajuda">Adversário e data já conhecidos.</p>
+      </div>
       <div class="fadd-section-label">Identificação</div>
       <div style="padding:0 22px 4px;display:flex;flex-direction:column;gap:10px">
+        <div class="fg" id="cal-modelo-wrap" style="display:none">
+          <label>Ronda <em style="font-weight:400;font-style:italic;color:var(--mu)">(preenche competição, jornada e condição)</em></label>
+          <select id="cal-modelo" onchange="aplicarModeloRonda(this.value)"></select>
+        </div>
         <div style="display:flex;gap:10px;align-items:stretch">
-          <div class="fg" style="flex:1;min-width:0">
+          <div class="fg" style="flex:1;min-width:0" id="cal-adv-wrap">
             <label>Adversário</label>
             <input type="text" id="cal-adv" placeholder="ex: Porto" autocomplete="off">
           </div>
-          <div class="fg" style="flex-shrink:0">
+          <div class="fg" style="flex-shrink:0" id="cal-local-wrap">
             <label>Local</label>
             <div id="cal-local-btns" style="display:flex;gap:4px">
               <button type="button" class="local-btn on" data-val="Casa" onclick="selLocal(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7.5L21 10"/><path d="M5 8.8V21h14V8.8"/><path d="M9.5 21v-6.5h5V21"/></svg> Casa</button>
@@ -289,8 +307,8 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
             <input type="hidden" id="cal-local" value="Casa">
           </div>
         </div>
-        <div style="display:flex;gap:10px;align-items:stretch">
-          <div class="fg" style="flex:2;min-width:0">
+        <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap">
+          <div class="fg" style="flex:2;min-width:140px">
             <label>Competição</label>
             <select id="cal-comp">
               <option>Liga Portugal</option>
@@ -301,13 +319,33 @@ setTimeout(function(){ if (window.glEsconderSplash) window.glEsconderSplash(); }
               <option>Outro</option>
             </select>
           </div>
-          <div class="fg" style="flex:1;min-width:0">
+          <div class="fg" style="flex:1;min-width:110px">
             <label>Jornada</label>
             <input type="text" id="cal-jorn" placeholder="ex: J32">
           </div>
           <div class="fg" style="flex:0 0 auto">
-            <label>Data</label>
+            <label id="cal-data-lbl">Data</label>
             <input type="date" id="cal-data" style="width:140px">
+          </div>
+        </div>
+        <!-- Marcado: hora + estádio. Por sortear / potencial: janela de datas
+             (+ condição, no potencial). selTipoAdd() mostra uns e esconde outros. -->
+        <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap">
+          <div class="fg" style="flex:0 0 110px" id="cal-hora-wrap">
+            <label>Hora <em style="font-weight:400;font-style:italic;color:var(--mu)">(opc.)</em></label>
+            <input type="time" id="cal-hora">
+          </div>
+          <div class="fg" style="flex:1;min-width:160px" id="cal-estadio-wrap">
+            <label>Estádio <em style="font-weight:400;font-style:italic;color:var(--mu)">(opc.)</em></label>
+            <input type="text" id="cal-estadio" placeholder="ex: Estádio José Alvalade" autocomplete="off">
+          </div>
+          <div class="fg" style="flex:0 0 140px;display:none" id="cal-data-ate-wrap">
+            <label>Até <em style="font-weight:400;font-style:italic;color:var(--mu)">(janela, opc.)</em></label>
+            <input type="date" id="cal-data-ate">
+          </div>
+          <div class="fg" style="flex:1;min-width:180px;display:none" id="cal-cond-wrap">
+            <label>Condição</label>
+            <input type="text" id="cal-cond" placeholder="ex: se vencer os oitavos-de-final" autocomplete="off">
           </div>
         </div>
       </div>
